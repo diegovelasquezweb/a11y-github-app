@@ -1,6 +1,6 @@
 # a11y-github-app
 
-Express-based GitHub App webhook service for pull request accessibility reviews.
+Express-based GitHub App webhook service for pull request accessibility reviews, with Vercel function support.
 
 ## Features
 
@@ -31,3 +31,14 @@ npm run dev
 
 - `GET /health`
 - `POST /webhook`
+
+## Vercel
+
+This repo includes serverless routes under `api/`.
+
+- `POST /api/webhook`
+- `GET /api/health`
+
+Set the GitHub App webhook URL to:
+
+`https://<your-vercel-domain>/api/webhook`
