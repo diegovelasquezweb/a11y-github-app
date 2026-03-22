@@ -45,31 +45,6 @@ on:
         description: "A11y DOM Audit check run ID"
         required: true
         type: string
-      engines:
-        description: "Comma-separated engines"
-        required: false
-        type: string
-        default: "axe,cdp,pa11y"
-      max_routes:
-        description: "Maximum routes"
-        required: false
-        type: string
-        default: "1"
-      crawl_depth:
-        description: "Crawl depth"
-        required: false
-        type: string
-        default: "1"
-      wait_until:
-        description: "Page load strategy"
-        required: false
-        type: string
-        default: "domcontentloaded"
-      timeout_ms:
-        description: "Per-page timeout in ms"
-        required: false
-        type: string
-        default: "45000"
 
 jobs:
   dom-audit:
@@ -110,11 +85,11 @@ jobs:
 
           npx a11y-audit \
             --base-url "${{ inputs.target_url }}" \
-            --max-routes "${{ inputs.max_routes }}" \
-            --crawl-depth "${{ inputs.crawl_depth }}" \
-            --wait-until "${{ inputs.wait_until }}" \
-            --timeout-ms "${{ inputs.timeout_ms }}" \
-            --engines "${{ inputs.engines }}" \
+            --max-routes "10" \
+            --crawl-depth "3" \
+            --wait-until "domcontentloaded" \
+            --timeout-ms "45000" \
+            --engines "axe,cdp,pa11y" \
             --with-reports \
             --output "$AUDIT_DIR/report.html" \
             $REPO_URL_ARG

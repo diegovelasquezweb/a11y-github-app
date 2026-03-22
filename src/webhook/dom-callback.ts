@@ -30,6 +30,29 @@ export interface DomCallbackResult {
   body: Record<string, unknown>;
 }
 
+function buildFinalComment(summary: DomAuditSummary): string {
+  if (summary.status === "failure") {
+    return [
+      "DOM audit finished with an execution error.",
+      "",
+      `Target URL: ${summary.targetUrl || "unknown"}`,
+      `Error: ${summary.error ?? "Unknown error"}`,
+      "",
+      "Run `/audit <url>` to retry.",
+    ].join("\n");
+  }
+
+  return [
+    "DOM audit finished.",
+    "",
+    `Target URL: ${summary.targetUrl}`,
+    `Total findings: ${summary.totalFindings}`,
+    `Critical: ${summary.totals.Critical} | Serious: ${summary.totals.Serious} | Moderate: ${summary.totals.Moderate} | Minor: ${summary.totals.Minor}`,
+    "",
+    `Scan token: ${summary.scanToken}`,
+  ].join("\n");
+}
+
 export async function processDomAuditCallback(
   input: DomCallbackInput,
 ): Promise<DomCallbackResult> {
@@ -44,6 +67,7 @@ export async function processDomAuditCallback(
   const owner = String(input.payload.target_owner ?? "");
   const repo = String(input.payload.target_repo ?? "");
   const checkRunId = Number(input.payload.check_run_id ?? 0);
+  const pullNumber = Number(input.payload.pull_number ?? 0);
   const scanToken = String(input.payload.scan_token ?? "");
   const targetUrl = String(input.payload.target_url ?? "");
   const status = input.payload.status === "failure" ? "failure" : "success";
@@ -75,6 +99,15 @@ export async function processDomAuditCallback(
       checkRunId,
       summary,
     });
+
+    if (pullNumber > 0) {
+      await octokit.rest.issues.createComment({
+        owner,
+        repo,
+        issue_number: pullNumber,
+        body: buildFinalComment(summary),
+      });
+    }
 
     return { status: 200, body: { ok: true, updated: true } };
   } catch (callbackError) {

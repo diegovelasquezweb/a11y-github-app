@@ -31,9 +31,4 @@ export const CONFIG = {
   scanRunnerRepo: process.env.SCAN_RUNNER_REPO?.trim() || "",
   scanRunnerWorkflow: process.env.SCAN_RUNNER_WORKFLOW?.trim() || "dom-audit.yml",
   scanRunnerRef: process.env.SCAN_RUNNER_REF?.trim() || "master",
-  domAuditEngines: process.env.DOM_AUDIT_ENGINES?.trim() || "axe,cdp,pa11y",
-  domAuditMaxRoutes: Number(process.env.DOM_AUDIT_MAX_ROUTES ?? 1),
-  domAuditCrawlDepth: Number(process.env.DOM_AUDIT_CRAWL_DEPTH ?? 1),
-  domAuditWaitUntil: process.env.DOM_AUDIT_WAIT_UNTIL?.trim() || "domcontentloaded",
-  domAuditTimeoutMs: Number(process.env.DOM_AUDIT_TIMEOUT_MS ?? 45000),
 };
