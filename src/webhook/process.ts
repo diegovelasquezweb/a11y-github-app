@@ -209,29 +209,13 @@ async function handleIssueCommentEvent(payload: {
     };
   }
 
-  const targetUrl = command.targetUrl ?? CONFIG.domAuditFallbackUrl;
-  if (!targetUrl) {
-    await octokit.rest.issues.createComment({
-      owner,
-      repo,
-      issue_number: pullNumber,
-      body: "DOM audit needs a target URL. Use `/audit https://your-preview-url` or configure `DOM_AUDIT_FALLBACK_URL`.",
-    });
-    return {
-      status: 200,
-      body: {
-        ok: true,
-        ignored: "Missing target URL. Use /audit https://your-preview-url or set DOM_AUDIT_FALLBACK_URL",
-      },
-    };
-  }
-
   const pull = await octokit.rest.pulls.get({
     owner,
     repo,
     pull_number: pullNumber,
   });
   const headSha = pull.data.head.sha;
+  const targetUrl = "local://pr-runtime";
 
   const domCheckRunId = await createDomAuditPendingCheck({
     octokit,
@@ -254,7 +238,6 @@ async function handleIssueCommentEvent(payload: {
       workflow: CONFIG.scanRunnerWorkflow,
       ref: CONFIG.scanRunnerRef,
       scanToken,
-      targetUrl,
       callbackUrl,
       callbackToken: CONFIG.domAuditCallbackToken,
       targetOwner: owner,
@@ -262,7 +245,6 @@ async function handleIssueCommentEvent(payload: {
       pullNumber,
       headSha,
       checkRunId: domCheckRunId,
-      githubRepoUrl: `https://github.com/${owner}/${repo}`,
     });
 
     await octokit.rest.issues.createComment({
@@ -270,9 +252,9 @@ async function handleIssueCommentEvent(payload: {
       repo,
       issue_number: pullNumber,
       body: [
-        "DOM audit requested. Running accessibility scan now.",
+        "DOM audit requested. Spinning local runtime in GitHub Actions and running scan.",
         "",
-        `Target URL: ${targetUrl}`,
+        "Target: local runtime from PR head commit",
         `Requested by: @${payload.comment?.user?.login ?? "unknown"}`,
       ].join("\n"),
     });

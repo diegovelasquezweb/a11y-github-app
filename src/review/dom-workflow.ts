@@ -11,7 +11,6 @@ interface DispatchDomAuditInput {
   workflow: string;
   ref: string;
   scanToken: string;
-  targetUrl: string;
   callbackUrl: string;
   callbackToken: string;
   targetOwner: string;
@@ -19,7 +18,6 @@ interface DispatchDomAuditInput {
   pullNumber: number;
   headSha: string;
   checkRunId: number;
-  githubRepoUrl: string;
 }
 
 export function createScanToken(owner: string, repo: string, pullNumber: number): string {
@@ -36,8 +34,6 @@ export async function dispatchDomAuditWorkflow(input: DispatchDomAuditInput): Pr
     ref: input.ref,
     inputs: {
       scan_token: input.scanToken,
-      target_url: input.targetUrl,
-      github_repo_url: input.githubRepoUrl,
       callback_url: input.callbackUrl,
       callback_token: input.callbackToken,
       target_owner: input.targetOwner,

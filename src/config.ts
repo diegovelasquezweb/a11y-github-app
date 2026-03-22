@@ -24,7 +24,6 @@ export const CONFIG = {
   maxInlineComments: Number(process.env.MAX_INLINE_COMMENTS ?? 30),
   sourcePatternsEnabled: process.env.SOURCE_PATTERNS_ENABLED !== "false",
   domAuditEnabled: process.env.DOM_AUDIT_ENABLED === "true",
-  domAuditFallbackUrl: process.env.DOM_AUDIT_FALLBACK_URL?.trim() || "",
   appBaseUrl: process.env.APP_BASE_URL?.trim() || "",
   domAuditCallbackToken: process.env.DOM_AUDIT_CALLBACK_TOKEN?.trim() || "",
   scanRunnerOwner: process.env.SCAN_RUNNER_OWNER?.trim() || "",

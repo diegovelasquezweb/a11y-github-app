@@ -28,8 +28,9 @@ Copy `.env.example` and set:
 
 When `DOM_AUDIT_ENABLED=true`, trigger DOM scanning from a PR comment:
 
-- `/audit https://preview-url.example`
-- `/audit` (uses `DOM_AUDIT_FALLBACK_URL`)
+- `/audit`
+
+The DOM runner spins up a local runtime from the PR head commit in GitHub Actions and scans that local server with the engine.
 
 ## Development
 

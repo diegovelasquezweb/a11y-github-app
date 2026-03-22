@@ -9,14 +9,6 @@ on:
         description: "Unique scan token"
         required: true
         type: string
-      target_url:
-        description: "Target URL for DOM audit"
-        required: true
-        type: string
-      github_repo_url:
-        description: "Source repository URL"
-        required: false
-        type: string
       callback_url:
         description: "Callback endpoint URL"
         required: true
@@ -51,82 +43,160 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Checkout repository
+      - name: Checkout runner repository
         uses: actions/checkout@v4
+        with:
+          path: runner
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
+          cache-dependency-path: runner/package-lock.json
 
-      - name: Install dependencies
+      - name: Install runner dependencies
         run: npm install
+        working-directory: runner
 
       - name: Install Playwright browsers
-        run: npx playwright install chromium --with-deps
+        run: npx --prefix runner playwright install chromium --with-deps
 
       - name: Install Puppeteer Chrome (required by pa11y)
-        run: node "$(find node_modules -path '*/puppeteer/install.mjs' -print -quit)"
+        run: node "$(find runner/node_modules -path '*/puppeteer/install.mjs' -print -quit)"
+
+      - name: Checkout target repository at PR head
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.target_owner }}/${{ inputs.target_repo }}
+          ref: ${{ inputs.head_sha }}
+          token: ${{ secrets.TARGET_REPO_TOKEN || github.token }}
+          path: target
+
+      - name: Resolve local runtime config
+        id: runtime
+        run: |
+          node <<'NODE'
+          const fs = require('fs')
+          const path = require('path')
+
+          const cfgPath = path.join(process.cwd(), 'target', '.a11y-runner.json')
+          const defaults = {
+            workdir: 'target',
+            installCommand: '',
+            buildCommand: '',
+            startCommand: 'python3 -m http.server 4173 --bind 127.0.0.1',
+            healthUrl: 'http://127.0.0.1:4173',
+            readyTimeoutMs: 120000,
+          }
+
+          let config = { ...defaults }
+
+          if (fs.existsSync(cfgPath)) {
+            const parsed = JSON.parse(fs.readFileSync(cfgPath, 'utf8'))
+            config = {
+              ...config,
+              ...(parsed && typeof parsed === 'object' ? parsed : {}),
+            }
+          }
+
+          const out = process.env.GITHUB_OUTPUT
+          const lines = [
+            `workdir=${String(config.workdir || defaults.workdir)}`,
+            `install_command=${String(config.installCommand || '')}`,
+            `build_command=${String(config.buildCommand || '')}`,
+            `start_command=${String(config.startCommand || defaults.startCommand)}`,
+            `health_url=${String(config.healthUrl || defaults.healthUrl)}`,
+            `ready_timeout_ms=${Number(config.readyTimeoutMs || defaults.readyTimeoutMs)}`,
+          ]
+          fs.appendFileSync(out, `${lines.join('\n')}\n`)
+          NODE
+
+      - name: Install target dependencies
+        if: ${{ steps.runtime.outputs.install_command != '' }}
+        run: bash -lc "${{ steps.runtime.outputs.install_command }}"
+        working-directory: ${{ steps.runtime.outputs.workdir }}
+
+      - name: Build target project
+        if: ${{ steps.runtime.outputs.build_command != '' }}
+        run: bash -lc "${{ steps.runtime.outputs.build_command }}"
+        working-directory: ${{ steps.runtime.outputs.workdir }}
+
+      - name: Start local server
+        run: |
+          nohup bash -lc "${{ steps.runtime.outputs.start_command }}" > "$RUNNER_TEMP/local-server.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/local-server.pid"
+        working-directory: ${{ steps.runtime.outputs.workdir }}
+
+      - name: Wait for local server readiness
+        run: |
+          HEALTH_URL="${{ steps.runtime.outputs.health_url }}"
+          TIMEOUT_MS="${{ steps.runtime.outputs.ready_timeout_ms }}"
+          START=$(date +%s)
+          TIMEOUT_SECONDS=$((TIMEOUT_MS / 1000))
+
+          while true; do
+            if curl -fsS "$HEALTH_URL" >/dev/null 2>&1; then
+              echo "Server is ready at $HEALTH_URL"
+              break
+            fi
+
+            NOW=$(date +%s)
+            ELAPSED=$((NOW - START))
+            if [ "$ELAPSED" -ge "$TIMEOUT_SECONDS" ]; then
+              echo "Server did not become ready in ${TIMEOUT_MS}ms"
+              exit 1
+            fi
+
+            sleep 2
+          done
 
       - name: Run DOM audit
         id: run_audit
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          HEALTH_URL: ${{ steps.runtime.outputs.health_url }}
         run: |
           set +e
-          AUDIT_DIR=".audit"
+          AUDIT_DIR="$RUNNER_TEMP/a11y-audit"
           mkdir -p "$AUDIT_DIR"
 
-          REPO_URL_ARG=""
-          if [ -n "${{ inputs.github_repo_url }}" ]; then
-            REPO_URL_ARG="--repo-url ${{ inputs.github_repo_url }}"
-          fi
-
-          npx a11y-audit \
-            --base-url "${{ inputs.target_url }}" \
+          npx --prefix runner a11y-audit \
+            --base-url "$HEALTH_URL" \
             --max-routes "10" \
             --crawl-depth "3" \
             --wait-until "domcontentloaded" \
             --timeout-ms "45000" \
             --engines "axe,cdp,pa11y" \
             --with-reports \
-            --output "$AUDIT_DIR/report.html" \
-            $REPO_URL_ARG
+            --output "$AUDIT_DIR/report.html"
 
           STATUS=$?
           echo "exit_code=$STATUS" >> "$GITHUB_OUTPUT"
           exit 0
 
       - name: Build callback payload
-        id: payload
         run: |
           node <<'NODE'
           const fs = require('fs')
           const path = require('path')
 
           const exitCode = Number(process.env.AUDIT_EXIT_CODE || '1')
-          const scanToken = process.env.SCAN_TOKEN
-          const targetUrl = process.env.TARGET_URL
           const payloadPath = path.join(process.cwd(), 'callback-payload.json')
 
-          let findingsFile = path.join(process.cwd(), '.audit', 'a11y-findings.json')
-          if (!fs.existsSync(findingsFile)) {
-            try {
-              const enginePath = fs.realpathSync(path.join(process.cwd(), 'node_modules', '@diegovelasquezweb', 'a11y-engine'))
-              const candidate = path.join(enginePath, '.audit', 'a11y-findings.json')
-              if (fs.existsSync(candidate)) findingsFile = candidate
-            } catch {
-              // ignore
-            }
-          }
+          const candidates = [
+            path.join(process.cwd(), 'target', '.audit', 'a11y-findings.json'),
+            path.join(process.cwd(), '.audit', 'a11y-findings.json'),
+            path.join(process.env.RUNNER_TEMP || '', 'a11y-audit', 'a11y-findings.json'),
+          ]
 
+          let findingsFile = candidates.find(file => file && fs.existsSync(file))
           const totals = { Critical: 0, Serious: 0, Moderate: 0, Minor: 0 }
           let totalFindings = 0
           let status = exitCode === 0 ? 'success' : 'failure'
           let error = exitCode === 0 ? undefined : 'DOM audit command failed'
 
-          if (fs.existsSync(findingsFile)) {
+          if (findingsFile) {
             try {
               const data = JSON.parse(fs.readFileSync(findingsFile, 'utf8'))
               const findings = Array.isArray(data.findings) ? data.findings : []
@@ -148,8 +218,8 @@ jobs:
           }
 
           const payload = {
-            scan_token: scanToken,
-            target_url: targetUrl,
+            scan_token: process.env.SCAN_TOKEN,
+            target_url: process.env.HEALTH_URL,
             target_owner: process.env.TARGET_OWNER,
             target_repo: process.env.TARGET_REPO,
             pull_number: process.env.PULL_NUMBER,
@@ -166,12 +236,12 @@ jobs:
         env:
           AUDIT_EXIT_CODE: ${{ steps.run_audit.outputs.exit_code }}
           SCAN_TOKEN: ${{ inputs.scan_token }}
-          TARGET_URL: ${{ inputs.target_url }}
           TARGET_OWNER: ${{ inputs.target_owner }}
           TARGET_REPO: ${{ inputs.target_repo }}
           PULL_NUMBER: ${{ inputs.pull_number }}
           HEAD_SHA: ${{ inputs.head_sha }}
           CHECK_RUN_ID: ${{ inputs.check_run_id }}
+          HEALTH_URL: ${{ steps.runtime.outputs.health_url }}
 
       - name: Send callback
         if: always()
@@ -180,3 +250,10 @@ jobs:
             -H "Content-Type: application/json" \
             -H "x-callback-token: ${{ inputs.callback_token }}" \
             --data-binary @callback-payload.json
+
+      - name: Stop local server
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/local-server.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/local-server.pid")" || true
+          fi
