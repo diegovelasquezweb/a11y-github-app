@@ -1,6 +1,5 @@
 import type { Octokit } from "@octokit/rest";
 import type { DomAuditSummary } from "../types.js";
-import { shouldRequestChanges } from "./severity.js";
 
 interface CreateDomAuditCheckInput {
   octokit: Octokit;
@@ -59,12 +58,7 @@ function buildSummaryText(summary: DomAuditSummary): string {
 }
 
 export async function completeDomAuditCheck(input: CompleteDomAuditCheckInput): Promise<void> {
-  const severities = [
-    ...Array(input.summary.totals.Critical).fill("Critical"),
-    ...Array(input.summary.totals.Serious).fill("Serious"),
-  ];
-
-  const shouldFail = input.summary.status === "failure" || shouldRequestChanges(severities);
+  const shouldFail = input.summary.status === "failure";
 
   await input.octokit.rest.checks.update({
     owner: input.owner,
@@ -73,7 +67,11 @@ export async function completeDomAuditCheck(input: CompleteDomAuditCheckInput): 
     status: "completed",
     conclusion: shouldFail ? "failure" : "success",
     output: {
-      title: shouldFail ? "DOM accessibility findings require changes" : "DOM audit passed",
+      title: shouldFail
+        ? "DOM audit failed"
+        : input.summary.totalFindings > 0
+          ? "DOM accessibility findings reported"
+          : "DOM audit passed",
       summary: buildSummaryText(input.summary),
     },
   });

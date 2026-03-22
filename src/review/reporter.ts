@@ -1,6 +1,6 @@
 import type { Octokit } from "@octokit/rest";
 import type { ReviewAnalysisResult } from "../types.js";
-import { normalizeSeverity, shouldRequestChanges } from "./severity.js";
+import { normalizeSeverity } from "./severity.js";
 
 interface ReportInput {
   octokit: Octokit;
@@ -78,21 +78,18 @@ function buildReviewBody(analysis: ReviewAnalysisResult): string {
 }
 
 export async function reportPullRequestReview(input: ReportInput): Promise<void> {
-  const severities = input.analysis.findings.map((item) => item.finding.severity);
-  const hasBlockingFindings = shouldRequestChanges(severities);
-  const conclusion = hasBlockingFindings ? "failure" : "success";
-
   await input.octokit.rest.checks.create({
     owner: input.owner,
     repo: input.repo,
     name: "A11y PR Review",
     head_sha: input.headSha,
     status: "completed",
-    conclusion,
+    conclusion: "success",
     output: {
-      title: hasBlockingFindings
-        ? "Accessibility findings require changes"
-        : "Accessibility review passed",
+      title:
+        input.analysis.findings.length > 0
+          ? "Accessibility findings reported"
+          : "Accessibility review passed",
       summary: buildCheckSummary(input.analysis),
     },
   });
@@ -109,7 +106,7 @@ export async function reportPullRequestReview(input: ReportInput): Promise<void>
     repo: input.repo,
     pull_number: input.pullNumber,
     commit_id: input.headSha,
-    event: hasBlockingFindings ? "REQUEST_CHANGES" : "COMMENT",
+    event: "COMMENT",
     body: buildReviewBody(input.analysis),
     comments: comments.length > 0 ? comments : undefined,
   });
