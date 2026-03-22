@@ -346,7 +346,7 @@ async function handleIssueCommentEvent(payload: {
       body: [
         "## DOM Audit Started",
         "",
-        "Running an accessibility scan against the PR preview environment in GitHub Actions.",
+        "Running an accessibility scan against a temporary PR runtime in GitHub Actions.",
         "",
         `**Requested by:** @${payload.comment?.user?.login ?? "unknown"}`,
         "Results will be posted here when the audit finishes.",
