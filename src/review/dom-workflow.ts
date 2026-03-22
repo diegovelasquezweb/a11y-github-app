@@ -1,9 +1,5 @@
 import type { Octokit } from "@octokit/rest";
 
-const DOM_AUDIT_ENGINES = "axe,cdp,pa11y";
-const DOM_AUDIT_MAX_ROUTES = 10;
-const DOM_AUDIT_CRAWL_DEPTH = 3;
-
 interface DispatchDomAuditInput {
   runnerOctokit: Octokit;
   runnerOwner: string;
@@ -41,9 +37,6 @@ export async function dispatchDomAuditWorkflow(input: DispatchDomAuditInput): Pr
       pull_number: String(input.pullNumber),
       head_sha: input.headSha,
       check_run_id: String(input.checkRunId),
-      engines: DOM_AUDIT_ENGINES,
-      max_routes: String(DOM_AUDIT_MAX_ROUTES),
-      crawl_depth: String(DOM_AUDIT_CRAWL_DEPTH),
     },
   });
 }
