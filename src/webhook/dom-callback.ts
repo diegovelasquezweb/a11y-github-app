@@ -44,6 +44,7 @@ function normalizeFinding(input: unknown): DomAuditFindingSummary | null {
   }
 
   return {
+    id: typeof finding.id === "string" ? finding.id.trim() : "",
     title,
     severity,
     wcag: typeof finding.wcag === "string" && finding.wcag.trim() ? finding.wcag.trim() : null,
@@ -85,16 +86,20 @@ function buildFinalComment(summary: DomAuditSummary): string {
           "",
           `Showing **${summary.findings.length}**${summary.totalFindings > summary.findings.length ? ` of **${summary.totalFindings}**` : ""}`,
           "",
-          ...summary.findings.map((finding, index) =>
-            [
-              `${index + 1}. **[${finding.severity}]** ${finding.title}`,
-              finding.wcag ? `   **WCAG:** ${finding.wcag}` : "",
-              finding.selector ? `   **Selector:** \`${finding.selector}\`` : "",
-              finding.recommendedFix ? `   **Fix:** ${finding.recommendedFix}` : "",
-            ]
-              .filter(Boolean)
-              .join("\n"),
-          ),
+          summary.findings
+            .map((finding, index) =>
+              [
+                `${index + 1}. **[${finding.severity}]** ${finding.title}`,
+                finding.id ? `   **Finding ID:** \`${finding.id}\`` : "",
+                finding.wcag ? `   **WCAG:** ${finding.wcag}` : "",
+                finding.selector ? `   **Selector:** \`${finding.selector}\`` : "",
+                finding.recommendedFix ? `   **Fix:** ${finding.recommendedFix}` : "",
+                finding.id ? `   **Ignore:** \`/a11y-ignore ${finding.id}\`` : "",
+              ]
+                .filter(Boolean)
+                .join("\n"),
+            )
+            .join("\n\n"),
         ]
       : [];
 

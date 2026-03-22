@@ -237,6 +237,7 @@ jobs:
                 })
                 .slice(0, 10)
                 .map((finding) => ({
+                  id: String(finding.id || ''),
                   title: String(finding.title || 'Untitled finding'),
                   severity: String(finding.severity || 'Unknown'),
                   wcag: finding.wcag ? String(finding.wcag) : null,

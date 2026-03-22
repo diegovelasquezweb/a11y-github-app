@@ -34,6 +34,7 @@ export interface DomAuditTotals {
 }
 
 export interface DomAuditFindingSummary {
+  id: string;
   title: string;
   severity: string;
   wcag: string | null;
