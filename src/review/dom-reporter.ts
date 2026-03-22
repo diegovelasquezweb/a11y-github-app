@@ -39,14 +39,14 @@ export async function createDomAuditPendingCheck(
 function buildSummaryText(summary: DomAuditSummary): string {
   if (summary.status === "failure") {
     return [
-      `DOM audit failed for ${summary.targetUrl}.`,
+      "DOM audit failed.",
       "",
       summary.error ?? "No error details available.",
     ].join("\n");
   }
 
   return [
-    `DOM audit completed for ${summary.targetUrl}.`,
+    "DOM audit completed.",
     "",
     `Total findings: ${summary.totalFindings}`,
     `Critical: ${summary.totals.Critical}`,

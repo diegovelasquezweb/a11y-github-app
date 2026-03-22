@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { CONFIG } from "../config.js";
 import { getRepoOctokit } from "../github/auth.js";
 import { completeDomAuditCheck } from "../review/dom-reporter.js";
-import type { DomAuditSummary } from "../types.js";
+import type { DomAuditFindingSummary, DomAuditSummary } from "../types.js";
 
 function safeEqual(left: string, right: string): boolean {
   if (left.length !== right.length) {
@@ -30,24 +30,79 @@ export interface DomCallbackResult {
   body: Record<string, unknown>;
 }
 
+function normalizeFinding(input: unknown): DomAuditFindingSummary | null {
+  if (!input || typeof input !== "object") {
+    return null;
+  }
+
+  const finding = input as Record<string, unknown>;
+  const title = typeof finding.title === "string" ? finding.title.trim() : "";
+  const severity = typeof finding.severity === "string" ? finding.severity.trim() : "";
+
+  if (!title || !severity) {
+    return null;
+  }
+
+  return {
+    title,
+    severity,
+    wcag: typeof finding.wcag === "string" && finding.wcag.trim() ? finding.wcag.trim() : null,
+    url: typeof finding.url === "string" ? finding.url.trim() : "",
+    selector: typeof finding.selector === "string" ? finding.selector.trim() : "",
+    recommendedFix:
+      typeof finding.recommendedFix === "string" && finding.recommendedFix.trim()
+        ? finding.recommendedFix.trim()
+        : null,
+  };
+}
+
+function normalizeFindings(input: unknown): DomAuditFindingSummary[] {
+  if (!Array.isArray(input)) {
+    return [];
+  }
+
+  return input
+    .map((finding) => normalizeFinding(finding))
+    .filter((finding): finding is DomAuditFindingSummary => Boolean(finding));
+}
+
 function buildFinalComment(summary: DomAuditSummary): string {
   if (summary.status === "failure") {
     return [
       "DOM audit finished with an execution error.",
       "",
-      `Target URL: ${summary.targetUrl || "unknown"}`,
       `Error: ${summary.error ?? "Unknown error"}`,
       "",
       "Run `/audit` to retry.",
     ].join("\n");
   }
 
+  const findingsSection =
+    summary.findings && summary.findings.length > 0
+      ? [
+          "",
+          `Top findings shown: ${summary.findings.length}${summary.totalFindings > summary.findings.length ? ` of ${summary.totalFindings}` : ""}`,
+          "",
+          ...summary.findings.map((finding, index) =>
+            [
+              `${index + 1}. [${finding.severity}] ${finding.title}`,
+              finding.wcag ? `   WCAG: ${finding.wcag}` : "",
+              finding.url ? `   URL: ${finding.url}` : "",
+              finding.selector ? `   Selector: ${finding.selector}` : "",
+              finding.recommendedFix ? `   Fix: ${finding.recommendedFix}` : "",
+            ]
+              .filter(Boolean)
+              .join("\n"),
+          ),
+        ]
+      : [];
+
   return [
     "DOM audit finished.",
     "",
-    `Target URL: ${summary.targetUrl}`,
     `Total findings: ${summary.totalFindings}`,
     `Critical: ${summary.totals.Critical} | Serious: ${summary.totals.Serious} | Moderate: ${summary.totals.Moderate} | Minor: ${summary.totals.Minor}`,
+    ...findingsSection,
     "",
     `Scan token: ${summary.scanToken}`,
   ].join("\n");
@@ -76,6 +131,7 @@ export async function processDomAuditCallback(
   const totals = normalizeTotals(
     (input.payload.totals as Partial<Record<keyof DomAuditSummary["totals"], number>>) ?? {},
   );
+  const findings = normalizeFindings(input.payload.findings);
 
   if (!owner || !repo || !checkRunId) {
     return { status: 400, body: { ok: false, error: "Missing callback target fields" } };
@@ -87,6 +143,7 @@ export async function processDomAuditCallback(
     status,
     totalFindings,
     totals,
+    findings,
     error,
   };
 

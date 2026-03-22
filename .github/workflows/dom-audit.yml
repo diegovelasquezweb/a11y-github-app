@@ -181,6 +181,13 @@ jobs:
           const fs = require('fs')
           const path = require('path')
 
+          const severityRank = {
+            critical: 0,
+            serious: 1,
+            moderate: 2,
+            minor: 3,
+          }
+
           const exitCode = Number(process.env.AUDIT_EXIT_CODE || '1')
           const payloadPath = path.join(process.cwd(), 'callback-payload.json')
 
@@ -203,6 +210,7 @@ jobs:
           let findingsFile = candidates.find(file => file && fs.existsSync(file))
           const totals = { Critical: 0, Serious: 0, Moderate: 0, Minor: 0 }
           let totalFindings = 0
+          let findingsSummary = []
           let status = exitCode === 0 ? 'success' : 'failure'
           let error = exitCode === 0 ? undefined : 'DOM audit command failed'
 
@@ -218,6 +226,24 @@ jobs:
                 else if (severity === 'moderate') totals.Moderate += 1
                 else if (severity === 'minor') totals.Minor += 1
               }
+
+              findingsSummary = findings
+                .slice()
+                .sort((left, right) => {
+                  const leftRank = severityRank[String(left.severity || '').toLowerCase()] ?? 99
+                  const rightRank = severityRank[String(right.severity || '').toLowerCase()] ?? 99
+                  if (leftRank !== rightRank) return leftRank - rightRank
+                  return String(left.title || '').localeCompare(String(right.title || ''))
+                })
+                .slice(0, 10)
+                .map((finding) => ({
+                  title: String(finding.title || 'Untitled finding'),
+                  severity: String(finding.severity || 'Unknown'),
+                  wcag: finding.wcag ? String(finding.wcag) : null,
+                  url: String(finding.url || ''),
+                  selector: String(finding.selector || ''),
+                  recommendedFix: finding.recommended_fix ? String(finding.recommended_fix) : null,
+                }))
             } catch (parseError) {
               status = 'failure'
               error = `Failed to parse findings: ${parseError.message}`
@@ -238,6 +264,7 @@ jobs:
             status,
             total_findings: totalFindings,
             totals,
+            findings: findingsSummary,
             ...(error ? { error } : {}),
           }
 

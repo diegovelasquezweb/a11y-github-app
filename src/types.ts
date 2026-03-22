@@ -33,11 +33,21 @@ export interface DomAuditTotals {
   Minor: number;
 }
 
+export interface DomAuditFindingSummary {
+  title: string;
+  severity: string;
+  wcag: string | null;
+  url: string;
+  selector: string;
+  recommendedFix: string | null;
+}
+
 export interface DomAuditSummary {
   scanToken: string;
   targetUrl: string;
   status: "success" | "failure";
   totalFindings: number;
   totals: DomAuditTotals;
+  findings?: DomAuditFindingSummary[];
   error?: string;
 }
