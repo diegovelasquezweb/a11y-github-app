@@ -1,0 +1,207 @@
+name: DOM Accessibility Audit
+
+run-name: "dom-audit-${{ inputs.scan_token }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      scan_token:
+        description: "Unique scan token"
+        required: true
+        type: string
+      target_url:
+        description: "Target URL for DOM audit"
+        required: true
+        type: string
+      github_repo_url:
+        description: "Source repository URL"
+        required: false
+        type: string
+      callback_url:
+        description: "Callback endpoint URL"
+        required: true
+        type: string
+      callback_token:
+        description: "Callback auth token"
+        required: true
+        type: string
+      target_owner:
+        description: "Target repository owner"
+        required: true
+        type: string
+      target_repo:
+        description: "Target repository name"
+        required: true
+        type: string
+      pull_number:
+        description: "PR number"
+        required: true
+        type: string
+      head_sha:
+        description: "PR head SHA"
+        required: true
+        type: string
+      check_run_id:
+        description: "A11y DOM Audit check run ID"
+        required: true
+        type: string
+      engines:
+        description: "Comma-separated engines"
+        required: false
+        type: string
+        default: "axe,cdp,pa11y"
+      max_routes:
+        description: "Maximum routes"
+        required: false
+        type: string
+        default: "1"
+      crawl_depth:
+        description: "Crawl depth"
+        required: false
+        type: string
+        default: "1"
+      wait_until:
+        description: "Page load strategy"
+        required: false
+        type: string
+        default: "domcontentloaded"
+      timeout_ms:
+        description: "Per-page timeout in ms"
+        required: false
+        type: string
+        default: "45000"
+
+jobs:
+  dom-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: Install Puppeteer Chrome (required by pa11y)
+        run: node "$(find node_modules -path '*/puppeteer/install.mjs' -print -quit)"
+
+      - name: Run DOM audit
+        id: run_audit
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set +e
+          AUDIT_DIR=".audit"
+          mkdir -p "$AUDIT_DIR"
+
+          REPO_URL_ARG=""
+          if [ -n "${{ inputs.github_repo_url }}" ]; then
+            REPO_URL_ARG="--repo-url ${{ inputs.github_repo_url }}"
+          fi
+
+          npx a11y-audit \
+            --base-url "${{ inputs.target_url }}" \
+            --max-routes "${{ inputs.max_routes }}" \
+            --crawl-depth "${{ inputs.crawl_depth }}" \
+            --wait-until "${{ inputs.wait_until }}" \
+            --timeout-ms "${{ inputs.timeout_ms }}" \
+            --engines "${{ inputs.engines }}" \
+            --with-reports \
+            --output "$AUDIT_DIR/report.html" \
+            $REPO_URL_ARG
+
+          STATUS=$?
+          echo "exit_code=$STATUS" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Build callback payload
+        id: payload
+        run: |
+          node <<'NODE'
+          const fs = require('fs')
+          const path = require('path')
+
+          const exitCode = Number(process.env.AUDIT_EXIT_CODE || '1')
+          const scanToken = process.env.SCAN_TOKEN
+          const targetUrl = process.env.TARGET_URL
+          const payloadPath = path.join(process.cwd(), 'callback-payload.json')
+
+          let findingsFile = path.join(process.cwd(), '.audit', 'a11y-findings.json')
+          if (!fs.existsSync(findingsFile)) {
+            try {
+              const enginePath = fs.realpathSync(path.join(process.cwd(), 'node_modules', '@diegovelasquezweb', 'a11y-engine'))
+              const candidate = path.join(enginePath, '.audit', 'a11y-findings.json')
+              if (fs.existsSync(candidate)) findingsFile = candidate
+            } catch {
+              // ignore
+            }
+          }
+
+          const totals = { Critical: 0, Serious: 0, Moderate: 0, Minor: 0 }
+          let totalFindings = 0
+          let status = exitCode === 0 ? 'success' : 'failure'
+          let error = exitCode === 0 ? undefined : 'DOM audit command failed'
+
+          if (fs.existsSync(findingsFile)) {
+            try {
+              const data = JSON.parse(fs.readFileSync(findingsFile, 'utf8'))
+              const findings = Array.isArray(data.findings) ? data.findings : []
+              totalFindings = findings.length
+              for (const finding of findings) {
+                const severity = String(finding.severity || '').toLowerCase()
+                if (severity === 'critical') totals.Critical += 1
+                else if (severity === 'serious') totals.Serious += 1
+                else if (severity === 'moderate') totals.Moderate += 1
+                else if (severity === 'minor') totals.Minor += 1
+              }
+            } catch (parseError) {
+              status = 'failure'
+              error = `Failed to parse findings: ${parseError.message}`
+            }
+          } else if (status === 'success') {
+            status = 'failure'
+            error = 'Findings file was not generated by the audit runner'
+          }
+
+          const payload = {
+            scan_token: scanToken,
+            target_url: targetUrl,
+            target_owner: process.env.TARGET_OWNER,
+            target_repo: process.env.TARGET_REPO,
+            pull_number: process.env.PULL_NUMBER,
+            head_sha: process.env.HEAD_SHA,
+            check_run_id: process.env.CHECK_RUN_ID,
+            status,
+            total_findings: totalFindings,
+            totals,
+            ...(error ? { error } : {}),
+          }
+
+          fs.writeFileSync(payloadPath, JSON.stringify(payload))
+          NODE
+        env:
+          AUDIT_EXIT_CODE: ${{ steps.run_audit.outputs.exit_code }}
+          SCAN_TOKEN: ${{ inputs.scan_token }}
+          TARGET_URL: ${{ inputs.target_url }}
+          TARGET_OWNER: ${{ inputs.target_owner }}
+          TARGET_REPO: ${{ inputs.target_repo }}
+          PULL_NUMBER: ${{ inputs.pull_number }}
+          HEAD_SHA: ${{ inputs.head_sha }}
+          CHECK_RUN_ID: ${{ inputs.check_run_id }}
+
+      - name: Send callback
+        if: always()
+        run: |
+          curl -sS -X POST "${{ inputs.callback_url }}" \
+            -H "Content-Type: application/json" \
+            -H "x-callback-token: ${{ inputs.callback_token }}" \
+            --data-binary @callback-payload.json

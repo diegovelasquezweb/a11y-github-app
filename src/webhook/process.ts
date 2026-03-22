@@ -1,7 +1,16 @@
 import { CONFIG } from "../config.js";
-import { getInstallationOctokit } from "../github/auth.js";
+import { getInstallationOctokit, getRepoOctokit } from "../github/auth.js";
 import { listPullRequestFiles } from "../github/client.js";
 import { analyzePullRequest } from "../review/analyze-pr.js";
+import {
+  createDomAuditPendingCheck,
+  failDomAuditCheck,
+} from "../review/dom-reporter.js";
+import {
+  createScanToken,
+  dispatchDomAuditWorkflow,
+} from "../review/dom-workflow.js";
+import { resolvePreviewUrl } from "../review/preview-url.js";
 import { reportPullRequestReview } from "../review/reporter.js";
 import { verifyWebhookSignature } from "./verify-signature.js";
 
@@ -76,7 +85,11 @@ export async function processWebhook(
     action?: string;
     installation?: { id?: number };
     repository?: { name?: string; owner?: { login?: string } };
-    pull_request?: { number?: number; head?: { sha?: string } };
+    pull_request?: {
+      number?: number;
+      body?: string | null;
+      head?: { sha?: string };
+    };
   } | null;
 
   if (!payload) {
@@ -132,6 +145,63 @@ export async function processWebhook(
       analysis,
     });
 
+    const domEnabled = CONFIG.domAuditEnabled;
+    const previewUrl = resolvePreviewUrl({
+      pullRequestBody: payload.pull_request?.body,
+      fallbackUrl: CONFIG.domAuditFallbackUrl,
+    });
+
+    let domAuditScheduled = false;
+
+    if (domEnabled && previewUrl) {
+      const callbackUrl = CONFIG.appBaseUrl
+        ? `${CONFIG.appBaseUrl.replace(/\/$/, "")}/api/scan-callback`
+        : "";
+
+      if (callbackUrl && CONFIG.domAuditCallbackToken) {
+        const domCheckRunId = await createDomAuditPendingCheck({
+          octokit,
+          owner,
+          repo,
+          headSha,
+          targetUrl: previewUrl,
+        });
+
+        try {
+          const runnerOwner = CONFIG.scanRunnerOwner || owner;
+          const runnerRepo = CONFIG.scanRunnerRepo || repo;
+          const runnerOctokit = await getRepoOctokit(runnerOwner, runnerRepo);
+          const scanToken = createScanToken(owner, repo, pullNumber);
+
+          await dispatchDomAuditWorkflow({
+            runnerOctokit,
+            runnerOwner,
+            runnerRepo,
+            workflow: CONFIG.scanRunnerWorkflow,
+            ref: CONFIG.scanRunnerRef,
+            scanToken,
+            targetUrl: previewUrl,
+            callbackUrl,
+            callbackToken: CONFIG.domAuditCallbackToken,
+            targetOwner: owner,
+            targetRepo: repo,
+            pullNumber,
+            headSha,
+            checkRunId: domCheckRunId,
+            githubRepoUrl: `https://github.com/${owner}/${repo}`,
+          });
+
+          domAuditScheduled = true;
+        } catch (dispatchError) {
+          const message =
+            dispatchError instanceof Error
+              ? dispatchError.message
+              : "Failed to dispatch DOM audit workflow";
+          await failDomAuditCheck(octokit, owner, repo, domCheckRunId, message);
+        }
+      }
+    }
+
     remember(processedHeads, headKey, 5000);
 
     return {
@@ -142,6 +212,7 @@ export async function processWebhook(
         findings: analysis.findings.length,
         comments: analysis.comments.length,
         scannedFiles: analysis.scannedFiles,
+        domAuditScheduled,
       },
     };
   } catch (error) {

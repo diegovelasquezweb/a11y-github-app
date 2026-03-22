@@ -25,3 +25,19 @@ export interface ReviewAnalysisResult {
   scannedFiles: number;
   ignoredFiles: number;
 }
+
+export interface DomAuditTotals {
+  Critical: number;
+  Serious: number;
+  Moderate: number;
+  Minor: number;
+}
+
+export interface DomAuditSummary {
+  scanToken: string;
+  targetUrl: string;
+  status: "success" | "failure";
+  totalFindings: number;
+  totals: DomAuditTotals;
+  error?: string;
+}

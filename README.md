@@ -9,6 +9,7 @@ Express-based GitHub App webhook service for pull request accessibility reviews,
 - Scans changed files with `@diegovelasquezweb/a11y-engine` source patterns
 - Publishes a GitHub Check Run and PR Review comments
 - Requests changes when findings include `Critical` or `Serious`
+- Optionally dispatches a DOM audit GitHub Actions workflow and updates a dedicated check
 
 ## Environment
 
@@ -19,6 +20,10 @@ Copy `.env.example` and set:
 - `GITHUB_WEBHOOK_SECRET`
 - `PORT` (optional)
 - `MAX_INLINE_COMMENTS` (optional)
+- `DOM_AUDIT_ENABLED` (optional)
+- `APP_BASE_URL` (required when DOM audit enabled)
+- `DOM_AUDIT_CALLBACK_TOKEN` (required when DOM audit enabled)
+- `SCAN_RUNNER_OWNER` / `SCAN_RUNNER_REPO` (runner workflow repository)
 
 ## Development
 
@@ -31,6 +36,7 @@ npm run dev
 
 - `GET /health`
 - `POST /webhook`
+- `POST /scan-callback`
 
 ## Vercel
 
@@ -38,7 +44,12 @@ This repo includes serverless routes under `api/`.
 
 - `POST /api/webhook`
 - `GET /api/health`
+- `POST /api/scan-callback`
 
 Set the GitHub App webhook URL to:
 
 `https://<your-vercel-domain>/api/webhook`
+
+If `DOM_AUDIT_ENABLED=true`, the callback endpoint must be reachable at:
+
+`https://<your-vercel-domain>/api/scan-callback`
