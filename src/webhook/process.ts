@@ -3,7 +3,9 @@ import { getInstallationOctokit, getRepoOctokit } from "../github/auth.js";
 import { listPullRequestFiles } from "../github/client.js";
 import { analyzePullRequest } from "../review/analyze-pr.js";
 import { parseAuditCommand } from "../review/audit-command.js";
+import { parseFixCommand } from "../review/fix-command.js";
 import { parseIgnoreCommand } from "../review/ignore-command.js";
+import { dispatchFixWorkflow } from "../review/fix-workflow.js";
 import { applyIgnoredFindings, loadIgnoredFindingIds } from "../review/ignore-state.js";
 import {
   createDomAuditPendingCheck,
@@ -204,6 +206,7 @@ async function handleIssueCommentEvent(payload: {
   }
 
   const command = parseAuditCommand(payload.comment?.body ?? "");
+  const fixCommand = parseFixCommand(payload.comment?.body ?? "");
   const ignoreCommand = parseIgnoreCommand(payload.comment?.body ?? "");
 
   if (!payload.issue?.pull_request) {
@@ -276,6 +279,66 @@ async function handleIssueCommentEvent(payload: {
         findingId: ignoreCommand.findingId,
         findings: review.findingsCount,
         ignoredFindings: review.ignoredFindingCount,
+      },
+    };
+  }
+
+  if (fixCommand.requested) {
+    if (!fixCommand.findingId) {
+      return {
+        status: 200,
+        body: { ok: true, ignored: "fix command missing finding id" },
+      };
+    }
+
+    const octokit = getInstallationOctokit(installationId);
+    const pull = await octokit.rest.pulls.get({
+      owner,
+      repo,
+      pull_number: pullNumber,
+    });
+    const headSha = pull.data.head.sha;
+    const baseRef = pull.data.base.ref;
+    const runnerOwner = CONFIG.scanRunnerOwner || owner;
+    const runnerRepo = CONFIG.scanRunnerRepo || repo;
+    const runnerOctokit = await getRepoOctokit(runnerOwner, runnerRepo);
+
+    await dispatchFixWorkflow({
+      runnerOctokit,
+      runnerOwner,
+      runnerRepo,
+      workflow: CONFIG.scanFixWorkflow,
+      ref: CONFIG.scanRunnerRef,
+      targetOwner: owner,
+      targetRepo: repo,
+      pullNumber,
+      headSha,
+      baseRef,
+      findingId: fixCommand.findingId,
+      requestedBy: payload.comment?.user?.login ?? "unknown",
+    });
+
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: pullNumber,
+      body: [
+        "## A11y Fix Requested",
+        "",
+        `Preparing an automated fix for \`${fixCommand.findingId}\` in GitHub Actions.`,
+        "",
+        `**Requested by:** @${payload.comment?.user?.login ?? "unknown"}`,
+        "A follow-up comment will be posted after the fix attempt finishes.",
+      ].join("\n"),
+    });
+
+    return {
+      status: 200,
+      body: {
+        ok: true,
+        fixScheduled: true,
+        findingId: fixCommand.findingId,
+        pullNumber,
       },
     };
   }

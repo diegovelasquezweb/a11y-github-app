@@ -29,5 +29,6 @@ export const CONFIG = {
   scanRunnerOwner: process.env.SCAN_RUNNER_OWNER?.trim() || "",
   scanRunnerRepo: process.env.SCAN_RUNNER_REPO?.trim() || "",
   scanRunnerWorkflow: process.env.SCAN_RUNNER_WORKFLOW?.trim() || "dom-audit.yml",
+  scanFixWorkflow: process.env.SCAN_FIX_WORKFLOW?.trim() || "a11y-fix.yml",
   scanRunnerRef: process.env.SCAN_RUNNER_REF?.trim() || "master",
 };

@@ -7,6 +7,7 @@ Express-based GitHub App webhook service for pull request accessibility reviews,
 - Verifies GitHub webhook signatures (`X-Hub-Signature-256`)
 - Handles `pull_request` events (`opened`, `reopened`, `synchronize`)
 - Handles `issue_comment` events for on-demand DOM audits (`/audit`)
+- Handles `issue_comment` events for automated fix attempts (`/a11y-fix <finding-id>`)
 - Scans changed files with `@diegovelasquezweb/a11y-engine` source patterns
 - Publishes a GitHub Check Run and PR Review comments
 - Requests changes when findings include `Critical` or `Serious`
@@ -29,6 +30,7 @@ Copy `.env.example` and set:
 When `DOM_AUDIT_ENABLED=true`, trigger DOM scanning from a PR comment:
 
 - `/audit`
+- `/a11y-fix A11Y-54ed50`
 
 The DOM runner spins up a local runtime from the PR head commit in GitHub Actions and scans that local server with the engine.
 

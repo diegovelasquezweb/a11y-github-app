@@ -1,0 +1,416 @@
+name: A11y Fix
+
+run-name: "a11y-fix-${{ inputs.finding_id }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_owner:
+        description: "Target repository owner"
+        required: true
+        type: string
+      target_repo:
+        description: "Target repository name"
+        required: true
+        type: string
+      pull_number:
+        description: "PR number"
+        required: true
+        type: string
+      head_sha:
+        description: "PR head SHA"
+        required: true
+        type: string
+      base_ref:
+        description: "PR base branch"
+        required: true
+        type: string
+      finding_id:
+        description: "Finding ID to fix"
+        required: true
+        type: string
+      requested_by:
+        description: "User who requested the fix"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout runner repository
+        uses: actions/checkout@v4
+        with:
+          path: runner
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: runner/package-lock.json
+
+      - name: Install runner dependencies
+        run: npm install
+        working-directory: runner
+
+      - name: Install Playwright browsers
+        run: npx --prefix runner playwright install chromium --with-deps
+
+      - name: Install Puppeteer Chrome
+        run: node "$(find runner/node_modules -path '*/puppeteer/install.mjs' -print -quit)"
+
+      - name: Checkout target repository at PR head
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.target_owner }}/${{ inputs.target_repo }}
+          ref: ${{ inputs.head_sha }}
+          token: ${{ secrets.TARGET_REPO_TOKEN || github.token }}
+          path: target
+
+      - name: Resolve local runtime config
+        id: runtime
+        run: |
+          node <<'NODE'
+          const fs = require('fs')
+          const path = require('path')
+
+          const cfgPath = path.join(process.cwd(), 'target', '.a11y-runner.json')
+          const defaults = {
+            workdir: 'target',
+            installCommand: '',
+            buildCommand: '',
+            startCommand: 'python3 -m http.server 4173 --bind 127.0.0.1',
+            healthUrl: 'http://127.0.0.1:4173',
+            readyTimeoutMs: 120000,
+          }
+
+          let config = { ...defaults }
+
+          if (fs.existsSync(cfgPath)) {
+            const parsed = JSON.parse(fs.readFileSync(cfgPath, 'utf8'))
+            config = {
+              ...config,
+              ...(parsed && typeof parsed === 'object' ? parsed : {}),
+            }
+          }
+
+          const out = process.env.GITHUB_OUTPUT
+          const lines = [
+            `workdir=${String(config.workdir || defaults.workdir)}`,
+            `install_command=${String(config.installCommand || '')}`,
+            `build_command=${String(config.buildCommand || '')}`,
+            `start_command=${String(config.startCommand || defaults.startCommand)}`,
+            `health_url=${String(config.healthUrl || defaults.healthUrl)}`,
+            `ready_timeout_ms=${Number(config.readyTimeoutMs || defaults.readyTimeoutMs)}`,
+          ]
+          fs.appendFileSync(out, `${lines.join('\n')}\n`)
+          NODE
+
+      - name: Install target dependencies
+        if: ${{ steps.runtime.outputs.install_command != '' }}
+        run: bash -lc "${{ steps.runtime.outputs.install_command }}"
+        working-directory: ${{ steps.runtime.outputs.workdir }}
+
+      - name: Build target project
+        if: ${{ steps.runtime.outputs.build_command != '' }}
+        run: bash -lc "${{ steps.runtime.outputs.build_command }}"
+        working-directory: ${{ steps.runtime.outputs.workdir }}
+
+      - name: Start local server
+        run: |
+          nohup bash -lc "${{ steps.runtime.outputs.start_command }}" > "$RUNNER_TEMP/local-server.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/local-server.pid"
+        working-directory: ${{ steps.runtime.outputs.workdir }}
+
+      - name: Wait for local server readiness
+        run: |
+          HEALTH_URL="${{ steps.runtime.outputs.health_url }}"
+          TIMEOUT_MS="${{ steps.runtime.outputs.ready_timeout_ms }}"
+          START=$(date +%s)
+          TIMEOUT_SECONDS=$((TIMEOUT_MS / 1000))
+
+          while true; do
+            if curl -fsS "$HEALTH_URL" >/dev/null 2>&1; then
+              echo "Server is ready at $HEALTH_URL"
+              break
+            fi
+
+            NOW=$(date +%s)
+            ELAPSED=$((NOW - START))
+            if [ "$ELAPSED" -ge "$TIMEOUT_SECONDS" ]; then
+              echo "Server did not become ready in ${TIMEOUT_MS}ms"
+              exit 1
+            fi
+
+            sleep 2
+          done
+
+      - name: Run baseline audit
+        run: |
+          npx --prefix runner a11y-audit \
+            --base-url "${{ steps.runtime.outputs.health_url }}" \
+            --project-dir "target" \
+            --max-routes "10" \
+            --crawl-depth "3" \
+            --wait-until "domcontentloaded" \
+            --timeout-ms "45000" \
+            --engines "axe,cdp,pa11y"
+
+      - name: Resolve audit artifact paths
+        id: artifacts
+        run: |
+          node <<'NODE'
+          const fs = require('fs')
+          const path = require('path')
+
+          let engineAuditDir = ''
+          try {
+            const enginePath = fs.realpathSync(path.join(process.cwd(), 'runner', 'node_modules', '@diegovelasquezweb', 'a11y-engine'))
+            engineAuditDir = path.join(enginePath, '.audit')
+          } catch {}
+
+          const findingsCandidates = [
+            engineAuditDir ? path.join(engineAuditDir, 'a11y-findings.json') : '',
+            path.join(process.cwd(), 'runner', '.audit', 'a11y-findings.json'),
+            path.join(process.cwd(), 'target', '.audit', 'a11y-findings.json'),
+          ].filter(Boolean)
+
+          const patternCandidates = [
+            engineAuditDir ? path.join(engineAuditDir, 'a11y-pattern-findings.json') : '',
+            path.join(process.cwd(), 'runner', '.audit', 'a11y-pattern-findings.json'),
+            path.join(process.cwd(), 'target', '.audit', 'a11y-pattern-findings.json'),
+          ].filter(Boolean)
+
+          const findingsPath = findingsCandidates.find((file) => fs.existsSync(file)) || ''
+          const patternPath = patternCandidates.find((file) => fs.existsSync(file)) || ''
+
+          const out = process.env.GITHUB_OUTPUT
+          fs.appendFileSync(out, `findings_path=${findingsPath}\n`)
+          fs.appendFileSync(out, `pattern_findings_path=${patternPath}\n`)
+          NODE
+
+      - name: Apply requested fix
+        id: apply_fix
+        run: node runner/scripts/apply-finding-fix.mjs
+        env:
+          FINDING_ID: ${{ inputs.finding_id }}
+          TARGET_DIR: ${{ github.workspace }}/target
+          FINDINGS_PATH: ${{ steps.artifacts.outputs.findings_path }}
+          PATTERN_FINDINGS_PATH: ${{ steps.artifacts.outputs.pattern_findings_path }}
+
+      - name: Stop local server before rebuild
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/local-server.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/local-server.pid")" || true
+            rm -f "$RUNNER_TEMP/local-server.pid"
+          fi
+
+      - name: Rebuild target after patch
+        if: ${{ steps.apply_fix.outputs.status == 'patched' && steps.runtime.outputs.build_command != '' }}
+        run: bash -lc "${{ steps.runtime.outputs.build_command }}"
+        working-directory: ${{ steps.runtime.outputs.workdir }}
+
+      - name: Restart local server for verification
+        if: ${{ steps.apply_fix.outputs.status == 'patched' }}
+        run: |
+          nohup bash -lc "${{ steps.runtime.outputs.start_command }}" > "$RUNNER_TEMP/local-server.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/local-server.pid"
+        working-directory: ${{ steps.runtime.outputs.workdir }}
+
+      - name: Wait for local server readiness after patch
+        if: ${{ steps.apply_fix.outputs.status == 'patched' }}
+        run: |
+          HEALTH_URL="${{ steps.runtime.outputs.health_url }}"
+          TIMEOUT_MS="${{ steps.runtime.outputs.ready_timeout_ms }}"
+          START=$(date +%s)
+          TIMEOUT_SECONDS=$((TIMEOUT_MS / 1000))
+
+          while true; do
+            if curl -fsS "$HEALTH_URL" >/dev/null 2>&1; then
+              echo "Server is ready at $HEALTH_URL"
+              break
+            fi
+
+            NOW=$(date +%s)
+            ELAPSED=$((NOW - START))
+            if [ "$ELAPSED" -ge "$TIMEOUT_SECONDS" ]; then
+              echo "Server did not become ready in ${TIMEOUT_MS}ms"
+              exit 1
+            fi
+
+            sleep 2
+          done
+
+      - name: Verify patched finding
+        id: verify_fix
+        if: ${{ steps.apply_fix.outputs.status == 'patched' }}
+        run: |
+          set +e
+          npx --prefix runner a11y-audit \
+            --base-url "${{ steps.runtime.outputs.health_url }}" \
+            --project-dir "target" \
+            --routes "${{ steps.apply_fix.outputs.verify_route }}" \
+            --only-rule "${{ steps.apply_fix.outputs.verify_rule }}" \
+            --max-routes "1" \
+            --wait-until "domcontentloaded" \
+            --timeout-ms "45000" \
+            --engines "axe,cdp,pa11y"
+          STATUS=$?
+          echo "exit_code=$STATUS" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Check verification result
+        id: verify_result
+        if: ${{ steps.apply_fix.outputs.status == 'patched' }}
+        run: |
+          node <<'NODE'
+          const fs = require('fs')
+          const path = require('path')
+
+          let engineAuditDir = ''
+          try {
+            const enginePath = fs.realpathSync(path.join(process.cwd(), 'runner', 'node_modules', '@diegovelasquezweb', 'a11y-engine'))
+            engineAuditDir = path.join(enginePath, '.audit')
+          } catch {}
+
+          const candidates = [
+            engineAuditDir ? path.join(engineAuditDir, 'a11y-findings.json') : '',
+            path.join(process.cwd(), 'runner', '.audit', 'a11y-findings.json'),
+            path.join(process.cwd(), 'target', '.audit', 'a11y-findings.json'),
+          ].filter(Boolean)
+
+          const findingsPath = candidates.find((file) => fs.existsSync(file)) || ''
+          let verified = process.env.VERIFY_EXIT_CODE === '0'
+
+          if (verified && findingsPath) {
+            const payload = JSON.parse(fs.readFileSync(findingsPath, 'utf8'))
+            const findings = [
+              ...(Array.isArray(payload.ai_enriched_findings) ? payload.ai_enriched_findings : []),
+              ...(Array.isArray(payload.findings) ? payload.findings : []),
+            ]
+            if (findings.length > 0) {
+              verified = false
+            }
+          }
+
+          const out = process.env.GITHUB_OUTPUT
+          fs.appendFileSync(out, `verified=${verified ? 'true' : 'false'}\n`)
+          NODE
+        env:
+          VERIFY_EXIT_CODE: ${{ steps.verify_fix.outputs.exit_code }}
+
+      - name: Create branch and commit
+        id: commit_fix
+        if: ${{ steps.verify_result.outputs.verified == 'true' }}
+        run: |
+          BRANCH_NAME="a11y-fix/${{ steps.apply_fix.outputs.branch_slug }}-$(date +%s)"
+          git -C target checkout -b "$BRANCH_NAME"
+          git -C target config user.name "a11y-pr-reviewer[bot]"
+          git -C target config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C target add -A
+          git -C target commit -m "fix(a11y): resolve ${{ inputs.finding_id }}"
+          git -C target remote set-url origin "https://x-access-token:${{ secrets.TARGET_REPO_TOKEN || github.token }}@github.com/${{ inputs.target_owner }}/${{ inputs.target_repo }}.git"
+          git -C target push origin "$BRANCH_NAME"
+          echo "branch_name=$BRANCH_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Open pull request
+        id: open_pr
+        if: ${{ steps.commit_fix.outputs.branch_name != '' }}
+        uses: actions/github-script@v7
+        env:
+          FINDING_TITLE: ${{ steps.apply_fix.outputs.finding_title }}
+          PATCHED_FILE: ${{ steps.apply_fix.outputs.patched_file }}
+        with:
+          github-token: ${{ secrets.TARGET_REPO_TOKEN || github.token }}
+          script: |
+            const lines = [
+              "## Automated Accessibility Fix",
+              "",
+              `**Finding ID:** \`${{ inputs.finding_id }}\``,
+              `**Requested by:** @${{ inputs.requested_by }}`,
+              process.env.FINDING_TITLE ? `**Finding:** ${process.env.FINDING_TITLE}` : "",
+              process.env.PATCHED_FILE ? `**Patched file:** \`${process.env.PATCHED_FILE}\`` : "",
+              "",
+              "This PR was generated after applying an automated fix and re-running verification for the requested finding.",
+            ].filter(Boolean).join("\n");
+
+            const response = await github.rest.pulls.create({
+              owner: "${{ inputs.target_owner }}",
+              repo: "${{ inputs.target_repo }}",
+              title: "fix(a11y): resolve ${{ inputs.finding_id }}",
+              head: "${{ steps.commit_fix.outputs.branch_name }}",
+              base: "${{ inputs.base_ref }}",
+              body: lines,
+            });
+            core.setOutput("pr_url", response.data.html_url);
+
+      - name: Comment result on PR
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          APPLY_STATUS: ${{ steps.apply_fix.outputs.status }}
+          APPLY_REASON: ${{ steps.apply_fix.outputs.reason }}
+          PATCHED_FILE: ${{ steps.apply_fix.outputs.patched_file }}
+          PR_URL: ${{ steps.open_pr.outputs.pr_url }}
+          VERIFIED: ${{ steps.verify_result.outputs.verified }}
+        with:
+          github-token: ${{ secrets.TARGET_REPO_TOKEN || github.token }}
+          script: |
+            const status = process.env.APPLY_STATUS;
+            const verified = process.env.VERIFIED;
+            let body = "";
+
+            if (status === "patched" && verified === "true" && process.env.PR_URL) {
+              body = [
+                "## A11y Fix Ready",
+                "",
+                `Created a fix PR for \`${{ inputs.finding_id }}\`.`,
+                "",
+                `**PR:** ${process.env.PR_URL}`,
+                process.env.PATCHED_FILE ? `**Patched file:** \`${process.env.PATCHED_FILE}\`` : "",
+              ].filter(Boolean).join("\n");
+            } else if (status === "patched") {
+              body = [
+                "## A11y Fix Could Not Be Verified",
+                "",
+                `A patch was generated for \`${{ inputs.finding_id }}\`, but verification did not pass, so no PR was opened.`,
+              ].join("\n");
+            } else if (status === "unsupported" || status === "not_found") {
+              body = [
+                "## A11y Fix Not Applied",
+                "",
+                `Could not automate a fix for \`${{ inputs.finding_id }}\`.`,
+                "",
+                process.env.APPLY_REASON,
+              ].join("\n");
+            } else {
+              body = [
+                "## A11y Fix Failed",
+                "",
+                `The automated fix workflow for \`${{ inputs.finding_id }}\` did not complete successfully.`,
+                "",
+                process.env.APPLY_REASON,
+              ].join("\n");
+            }
+
+            await github.rest.issues.createComment({
+              owner: "${{ inputs.target_owner }}",
+              repo: "${{ inputs.target_repo }}",
+              issue_number: Number("${{ inputs.pull_number }}"),
+              body,
+            });
+
+      - name: Stop local server
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/local-server.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/local-server.pid")" || true
+          fi
