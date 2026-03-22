@@ -64,12 +64,17 @@ function buildReviewBody(analysis: ReviewAnalysisResult): string {
   }
 
   const severity = buildSeveritySummary(analysis);
+  const exampleFindingId = analysis.findings[0]?.finding.id;
   return [
     `A11y review found ${analysis.findings.length} issue(s) in this PR.`,
     `Critical: ${severity.Critical} | Serious: ${severity.Serious} | Moderate: ${severity.Moderate} | Minor: ${severity.Minor}`,
     "",
+    exampleFindingId ? `Ignore one finding with: \`/a11y-ignore ${exampleFindingId}\`` : "",
+    "",
     "This review is generated from the a11y-engine intelligence layer.",
-  ].join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 export async function reportPullRequestReview(input: ReportInput): Promise<void> {

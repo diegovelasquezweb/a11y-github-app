@@ -49,6 +49,8 @@ function commentBody(finding: SourcePatternFinding): string {
     "",
     explanation,
     "",
+    `Finding ID: \`${finding.id}\``,
+    "",
     "Source: a11y-engine intelligence",
   ].join("\n");
 }

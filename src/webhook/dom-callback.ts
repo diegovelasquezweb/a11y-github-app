@@ -69,9 +69,9 @@ function normalizeFindings(input: unknown): DomAuditFindingSummary[] {
 function buildFinalComment(summary: DomAuditSummary): string {
   if (summary.status === "failure") {
     return [
-      "DOM audit finished with an execution error.",
+      "## DOM Audit Failed",
       "",
-      `Error: ${summary.error ?? "Unknown error"}`,
+      `**Error:** ${summary.error ?? "Unknown error"}`,
       "",
       "Run `/audit` to retry.",
     ].join("\n");
@@ -81,15 +81,16 @@ function buildFinalComment(summary: DomAuditSummary): string {
     summary.findings && summary.findings.length > 0
       ? [
           "",
-          `Top findings shown: ${summary.findings.length}${summary.totalFindings > summary.findings.length ? ` of ${summary.totalFindings}` : ""}`,
+          "### Top Findings",
+          "",
+          `Showing **${summary.findings.length}**${summary.totalFindings > summary.findings.length ? ` of **${summary.totalFindings}**` : ""}`,
           "",
           ...summary.findings.map((finding, index) =>
             [
-              `${index + 1}. [${finding.severity}] ${finding.title}`,
-              finding.wcag ? `   WCAG: ${finding.wcag}` : "",
-              finding.url ? `   URL: ${finding.url}` : "",
-              finding.selector ? `   Selector: ${finding.selector}` : "",
-              finding.recommendedFix ? `   Fix: ${finding.recommendedFix}` : "",
+              `${index + 1}. **[${finding.severity}]** ${finding.title}`,
+              finding.wcag ? `   **WCAG:** ${finding.wcag}` : "",
+              finding.selector ? `   **Selector:** \`${finding.selector}\`` : "",
+              finding.recommendedFix ? `   **Fix:** ${finding.recommendedFix}` : "",
             ]
               .filter(Boolean)
               .join("\n"),
@@ -98,13 +99,15 @@ function buildFinalComment(summary: DomAuditSummary): string {
       : [];
 
   return [
-    "DOM audit finished.",
+    "## DOM Audit Finished",
     "",
-    `Total findings: ${summary.totalFindings}`,
-    `Critical: ${summary.totals.Critical} | Serious: ${summary.totals.Serious} | Moderate: ${summary.totals.Moderate} | Minor: ${summary.totals.Minor}`,
+    "### Summary",
+    "",
+    `**Total findings:** ${summary.totalFindings}`,
+    `**Severity:** Critical: ${summary.totals.Critical} | Serious: ${summary.totals.Serious} | Moderate: ${summary.totals.Moderate} | Minor: ${summary.totals.Minor}`,
     ...findingsSection,
     "",
-    `Scan token: ${summary.scanToken}`,
+    `**Scan token:** \`${summary.scanToken}\``,
   ].join("\n");
 }
 

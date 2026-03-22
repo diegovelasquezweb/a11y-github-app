@@ -3,6 +3,8 @@ import { getInstallationOctokit, getRepoOctokit } from "../github/auth.js";
 import { listPullRequestFiles } from "../github/client.js";
 import { analyzePullRequest } from "../review/analyze-pr.js";
 import { parseAuditCommand } from "../review/audit-command.js";
+import { parseIgnoreCommand } from "../review/ignore-command.js";
+import { applyIgnoredFindings, loadIgnoredFindingIds } from "../review/ignore-state.js";
 import {
   createDomAuditPendingCheck,
   failDomAuditCheck,
@@ -60,6 +62,53 @@ function getCallbackUrl(): string {
     : "";
 }
 
+async function runPullRequestReview(params: {
+  octokit: ReturnType<typeof getInstallationOctokit>;
+  owner: string;
+  repo: string;
+  pullNumber: number;
+  headSha: string;
+}): Promise<{
+  findingsCount: number;
+  commentsCount: number;
+  scannedFiles: number;
+  ignoredFindingCount: number;
+}> {
+  const files = await listPullRequestFiles(params.octokit, params.owner, params.repo, params.pullNumber);
+  const analysis = await analyzePullRequest({
+    octokit: params.octokit,
+    owner: params.owner,
+    repo: params.repo,
+    headSha: params.headSha,
+    files,
+    maxInlineComments: CONFIG.maxInlineComments,
+  });
+
+  const ignoredFindingIds = await loadIgnoredFindingIds(
+    params.octokit,
+    params.owner,
+    params.repo,
+    params.pullNumber,
+  );
+  const filteredAnalysis = applyIgnoredFindings(analysis, ignoredFindingIds);
+
+  await reportPullRequestReview({
+    octokit: params.octokit,
+    owner: params.owner,
+    repo: params.repo,
+    pullNumber: params.pullNumber,
+    headSha: params.headSha,
+    analysis: filteredAnalysis,
+  });
+
+  return {
+    findingsCount: filteredAnalysis.findings.length,
+    commentsCount: filteredAnalysis.comments.length,
+    scannedFiles: filteredAnalysis.scannedFiles,
+    ignoredFindingCount: analysis.findings.length - filteredAnalysis.findings.length,
+  };
+}
+
 async function handlePullRequestEvent(payload: {
   action?: string;
   installation?: { id?: number };
@@ -98,35 +147,25 @@ async function handlePullRequestEvent(payload: {
   }
 
   const octokit = getInstallationOctokit(installationId);
-  const files = await listPullRequestFiles(octokit, owner, repo, pullNumber);
   const sourceEnabled = CONFIG.sourcePatternsEnabled;
 
   let findingsCount = 0;
   let commentsCount = 0;
   let scannedFiles = 0;
+  let ignoredFindingCount = 0;
 
   if (sourceEnabled) {
-    const analysis = await analyzePullRequest({
-      octokit,
-      owner,
-      repo,
-      headSha,
-      files,
-      maxInlineComments: CONFIG.maxInlineComments,
-    });
-
-    await reportPullRequestReview({
+    const review = await runPullRequestReview({
       octokit,
       owner,
       repo,
       pullNumber,
       headSha,
-      analysis,
     });
-
-    findingsCount = analysis.findings.length;
-    commentsCount = analysis.comments.length;
-    scannedFiles = analysis.scannedFiles;
+    findingsCount = review.findingsCount;
+    commentsCount = review.commentsCount;
+    scannedFiles = review.scannedFiles;
+    ignoredFindingCount = review.ignoredFindingCount;
   }
 
   remember(processedHeads, headKey, 5000);
@@ -139,6 +178,7 @@ async function handlePullRequestEvent(payload: {
       findings: findingsCount,
       comments: commentsCount,
       scannedFiles,
+      ignoredFindings: ignoredFindingCount,
       sourcePatternsEnabled: sourceEnabled,
       domAuditScheduled: false,
     },
@@ -164,12 +204,10 @@ async function handleIssueCommentEvent(payload: {
   }
 
   const command = parseAuditCommand(payload.comment?.body ?? "");
-  if (!command.requested) {
-    return { status: 200, body: { ok: true, ignored: "no audit command" } };
-  }
+  const ignoreCommand = parseIgnoreCommand(payload.comment?.body ?? "");
 
   if (!payload.issue?.pull_request) {
-    return { status: 200, body: { ok: true, ignored: "audit command outside pull request" } };
+    return { status: 200, body: { ok: true, ignored: "command outside pull request" } };
   }
 
   const association = payload.comment?.author_association ?? "";
@@ -190,6 +228,60 @@ async function handleIssueCommentEvent(payload: {
       status: 400,
       body: { ok: false, error: "Missing required issue_comment fields" },
     };
+  }
+
+  if (ignoreCommand.requested) {
+    if (!ignoreCommand.findingId || !ignoreCommand.action) {
+      return {
+        status: 200,
+        body: { ok: true, ignored: "ignore command missing finding id" },
+      };
+    }
+
+    const pull = await getInstallationOctokit(installationId).rest.pulls.get({
+      owner,
+      repo,
+      pull_number: pullNumber,
+    });
+    const headSha = pull.data.head.sha;
+    const octokit = getInstallationOctokit(installationId);
+    const review = await runPullRequestReview({
+      octokit,
+      owner,
+      repo,
+      pullNumber,
+      headSha,
+    });
+
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: pullNumber,
+      body: [
+        ignoreCommand.action === "ignore"
+          ? `Ignored finding \`${ignoreCommand.findingId}\` and recalculated the A11y PR Review check.`
+          : `Re-included finding \`${ignoreCommand.findingId}\` and recalculated the A11y PR Review check.`,
+        "",
+        `Active findings: ${review.findingsCount}`,
+        `Ignored findings: ${review.ignoredFindingCount}`,
+      ].join("\n"),
+    });
+
+    return {
+      status: 200,
+      body: {
+        ok: true,
+        reviewUpdated: true,
+        action: ignoreCommand.action,
+        findingId: ignoreCommand.findingId,
+        findings: review.findingsCount,
+        ignoredFindings: review.ignoredFindingCount,
+      },
+    };
+  }
+
+  if (!command.requested) {
+    return { status: 200, body: { ok: true, ignored: "no supported command" } };
   }
 
   if (!CONFIG.domAuditEnabled) {
