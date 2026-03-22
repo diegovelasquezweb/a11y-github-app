@@ -127,23 +127,34 @@ export async function processWebhook(
   try {
     const octokit = getInstallationOctokit(installationId);
     const files = await listPullRequestFiles(octokit, owner, repo, pullNumber);
-    const analysis = await analyzePullRequest({
-      octokit,
-      owner,
-      repo,
-      headSha,
-      files,
-      maxInlineComments: CONFIG.maxInlineComments,
-    });
+    const sourceEnabled = CONFIG.sourcePatternsEnabled;
+    let findingsCount = 0;
+    let commentsCount = 0;
+    let scannedFiles = 0;
 
-    await reportPullRequestReview({
-      octokit,
-      owner,
-      repo,
-      pullNumber,
-      headSha,
-      analysis,
-    });
+    if (sourceEnabled) {
+      const analysis = await analyzePullRequest({
+        octokit,
+        owner,
+        repo,
+        headSha,
+        files,
+        maxInlineComments: CONFIG.maxInlineComments,
+      });
+
+      await reportPullRequestReview({
+        octokit,
+        owner,
+        repo,
+        pullNumber,
+        headSha,
+        analysis,
+      });
+
+      findingsCount = analysis.findings.length;
+      commentsCount = analysis.comments.length;
+      scannedFiles = analysis.scannedFiles;
+    }
 
     const domEnabled = CONFIG.domAuditEnabled;
     const previewUrl = resolvePreviewUrl({
@@ -209,9 +220,10 @@ export async function processWebhook(
       body: {
         ok: true,
         reviewed: true,
-        findings: analysis.findings.length,
-        comments: analysis.comments.length,
-        scannedFiles: analysis.scannedFiles,
+        findings: findingsCount,
+        comments: commentsCount,
+        scannedFiles,
+        sourcePatternsEnabled: sourceEnabled,
         domAuditScheduled,
       },
     };
