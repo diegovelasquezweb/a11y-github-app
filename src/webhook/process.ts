@@ -344,10 +344,12 @@ async function handleIssueCommentEvent(payload: {
       repo,
       issue_number: pullNumber,
       body: [
-        "DOM audit requested. Spinning local runtime in GitHub Actions and running scan.",
+        "## DOM Audit Started",
         "",
-        "Target: local runtime from PR head commit",
-        `Requested by: @${payload.comment?.user?.login ?? "unknown"}`,
+        "Running an accessibility scan against the PR preview environment in GitHub Actions.",
+        "",
+        `**Requested by:** @${payload.comment?.user?.login ?? "unknown"}`,
+        "Results will be posted here when the audit finishes.",
       ].join("\n"),
     });
 
