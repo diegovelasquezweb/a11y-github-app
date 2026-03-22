@@ -184,7 +184,17 @@ jobs:
           const exitCode = Number(process.env.AUDIT_EXIT_CODE || '1')
           const payloadPath = path.join(process.cwd(), 'callback-payload.json')
 
+          let engineAuditDir = ''
+          try {
+            const enginePath = fs.realpathSync(path.join(process.cwd(), 'runner', 'node_modules', '@diegovelasquezweb', 'a11y-engine'))
+            engineAuditDir = path.join(enginePath, '.audit')
+          } catch {
+            // ignore missing engine path
+          }
+
           const candidates = [
+            engineAuditDir ? path.join(engineAuditDir, 'a11y-findings.json') : '',
+            path.join(process.cwd(), 'runner', '.audit', 'a11y-findings.json'),
             path.join(process.cwd(), 'target', '.audit', 'a11y-findings.json'),
             path.join(process.cwd(), '.audit', 'a11y-findings.json'),
             path.join(process.env.RUNNER_TEMP || '', 'a11y-audit', 'a11y-findings.json'),

@@ -38,7 +38,7 @@ function buildFinalComment(summary: DomAuditSummary): string {
       `Target URL: ${summary.targetUrl || "unknown"}`,
       `Error: ${summary.error ?? "Unknown error"}`,
       "",
-      "Run `/audit <url>` to retry.",
+      "Run `/audit` to retry.",
     ].join("\n");
   }
 
