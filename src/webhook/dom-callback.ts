@@ -67,6 +67,15 @@ function normalizeFindings(input: unknown): DomAuditFindingSummary[] {
     .filter((finding): finding is DomAuditFindingSummary => Boolean(finding));
 }
 
+function severityIcon(severity: string): string {
+  const normalized = severity.trim().toLowerCase();
+  if (normalized === "critical") return "🔴";
+  if (normalized === "serious") return "🟠";
+  if (normalized === "moderate") return "🟡";
+  if (normalized === "minor") return "🔵";
+  return "⚪";
+}
+
 function buildFinalComment(summary: DomAuditSummary): string {
   if (summary.status === "failure") {
     return [
@@ -89,7 +98,7 @@ function buildFinalComment(summary: DomAuditSummary): string {
           summary.findings
             .map((finding, index) =>
               [
-                `${index + 1}. **[${finding.severity}]** ${finding.title}`,
+                `${index + 1}. **${severityIcon(finding.severity)} [${finding.severity}]** ${finding.title}`,
                 finding.id ? `   **Finding ID:** \`${finding.id}\`` : "",
                 finding.wcag ? `   **WCAG:** ${finding.wcag}` : "",
                 finding.selector ? `   **Selector:** \`${finding.selector}\`` : "",
@@ -109,7 +118,7 @@ function buildFinalComment(summary: DomAuditSummary): string {
     "### Summary",
     "",
     `**Total findings:** ${summary.totalFindings}`,
-    `**Severity:** Critical: ${summary.totals.Critical} | Serious: ${summary.totals.Serious} | Moderate: ${summary.totals.Moderate} | Minor: ${summary.totals.Minor}`,
+    `**Severity:** 🔴 Critical: ${summary.totals.Critical} | 🟠 Serious: ${summary.totals.Serious} | 🟡 Moderate: ${summary.totals.Moderate} | 🔵 Minor: ${summary.totals.Minor}`,
     ...findingsSection,
     "",
     `**Scan token:** \`${summary.scanToken}\``,
