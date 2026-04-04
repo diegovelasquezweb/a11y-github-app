@@ -83,7 +83,7 @@ function buildFinalComment(summary: DomAuditSummary): string {
       "",
       `**Error:** ${summary.error ?? "Unknown error"}`,
       "",
-      "Run `/audit` to retry.",
+      "Run `/a11y-audit` to retry.",
     ].join("\n");
   }
 
@@ -102,7 +102,7 @@ function buildFinalComment(summary: DomAuditSummary): string {
                 finding.id ? `   **Finding ID:** \`${finding.id}\`` : "",
                 finding.wcag ? `   **WCAG:** ${finding.wcag}` : "",
                 finding.selector ? `   **Selector:** \`${finding.selector}\`` : "",
-                finding.recommendedFix ? `   **Fix:** ${finding.recommendedFix}` : "",
+                finding.recommendedFix ? `   **Fix:** ${finding.recommendedFix.replace(/\r?\n/g, " ")}` : "",
                 finding.id ? `   **Auto-fix:** \`/a11y-fix ${finding.id}\`` : "",
                 finding.id ? `   **Ignore:** \`/a11y-ignore ${finding.id}\`` : "",
               ]
