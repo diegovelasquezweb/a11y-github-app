@@ -64,6 +64,14 @@ jobs:
         run: npm install
         working-directory: runner
 
+      - name: Restore findings from cache
+        id: findings_cache
+        uses: actions/cache/restore@v4
+        with:
+          path: findings/a11y-findings.json
+          key: a11y-findings-${{ inputs.head_sha }}
+          fail-on-cache-miss: false
+
       - name: Install Playwright browsers
         run: npx --prefix runner playwright install chromium --with-deps
 
@@ -120,94 +128,14 @@ jobs:
         run: bash -lc "${{ steps.runtime.outputs.build_command }}"
         working-directory: ${{ steps.runtime.outputs.workdir }}
 
-      - name: Start local server
-        run: |
-          nohup bash -lc "${{ steps.runtime.outputs.start_command }}" > "$RUNNER_TEMP/local-server.log" 2>&1 &
-          echo $! > "$RUNNER_TEMP/local-server.pid"
-        working-directory: ${{ steps.runtime.outputs.workdir }}
-
-      - name: Wait for local server readiness
-        run: |
-          HEALTH_URL="${{ steps.runtime.outputs.health_url }}"
-          TIMEOUT_MS="${{ steps.runtime.outputs.ready_timeout_ms }}"
-          START=$(date +%s)
-          TIMEOUT_SECONDS=$((TIMEOUT_MS / 1000))
-
-          while true; do
-            if curl -fsS "$HEALTH_URL" >/dev/null 2>&1; then
-              echo "Server is ready at $HEALTH_URL"
-              break
-            fi
-            NOW=$(date +%s)
-            ELAPSED=$((NOW - START))
-            if [ "$ELAPSED" -ge "$TIMEOUT_SECONDS" ]; then
-              echo "Server did not become ready in ${TIMEOUT_MS}ms"
-              exit 1
-            fi
-            sleep 2
-          done
-
-      - name: Run baseline audit
-        run: |
-          npx --prefix runner a11y-audit \
-            --base-url "${{ steps.runtime.outputs.health_url }}" \
-            --project-dir "target" \
-            --max-routes "10" \
-            --crawl-depth "3" \
-            --wait-until "domcontentloaded" \
-            --timeout-ms "45000" \
-            --engines "axe,cdp,pa11y"
-
-      - name: Resolve audit artifact paths
-        id: artifacts
-        run: |
-          node <<'NODE'
-          const fs = require('fs')
-          const path = require('path')
-
-          let engineAuditDir = ''
-          try {
-            const enginePath = fs.realpathSync(path.join(process.cwd(), 'runner', 'node_modules', '@diegovelasquezweb', 'a11y-engine'))
-            engineAuditDir = path.join(enginePath, '.audit')
-          } catch {}
-
-          const findingsCandidates = [
-            engineAuditDir ? path.join(engineAuditDir, 'a11y-findings.json') : '',
-            path.join(process.cwd(), 'runner', '.audit', 'a11y-findings.json'),
-            path.join(process.cwd(), 'target', '.audit', 'a11y-findings.json'),
-          ].filter(Boolean)
-
-          const patternCandidates = [
-            engineAuditDir ? path.join(engineAuditDir, 'a11y-pattern-findings.json') : '',
-            path.join(process.cwd(), 'runner', '.audit', 'a11y-pattern-findings.json'),
-            path.join(process.cwd(), 'target', '.audit', 'a11y-pattern-findings.json'),
-          ].filter(Boolean)
-
-          const findingsPath = findingsCandidates.find((file) => fs.existsSync(file)) || ''
-          const patternPath = patternCandidates.find((file) => fs.existsSync(file)) || ''
-
-          const out = process.env.GITHUB_OUTPUT
-          fs.appendFileSync(out, `findings_path=${findingsPath}\n`)
-          fs.appendFileSync(out, `pattern_findings_path=${patternPath}\n`)
-          NODE
-
       - name: Apply finding fix
         id: apply_fix
         run: node runner/scripts/apply-finding-fix.mjs
         env:
           FINDING_ID: ${{ inputs.finding_id }}
           TARGET_DIR: ${{ github.workspace }}/target
-          FINDINGS_PATH: ${{ steps.artifacts.outputs.findings_path }}
-          PATTERN_FINDINGS_PATH: ${{ steps.artifacts.outputs.pattern_findings_path }}
+          FINDINGS_PATH: ${{ github.workspace }}/findings/a11y-findings.json
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-
-      - name: Stop local server before rebuild
-        if: always()
-        run: |
-          if [ -f "$RUNNER_TEMP/local-server.pid" ]; then
-            kill "$(cat "$RUNNER_TEMP/local-server.pid")" || true
-            rm -f "$RUNNER_TEMP/local-server.pid"
-          fi
 
       - name: Rebuild target after patch
         if: ${{ steps.apply_fix.outputs.status == 'patched' && steps.runtime.outputs.build_command != '' }}
@@ -242,6 +170,10 @@ jobs:
             fi
             sleep 2
           done
+
+      - name: Clear findings before verification
+        if: ${{ steps.apply_fix.outputs.status == 'patched' }}
+        run: find runner/node_modules/@diegovelasquezweb/a11y-engine/.audit -name "a11y-findings.json" -delete 2>/dev/null || true
 
       - name: Verify patched finding
         id: verify_fix

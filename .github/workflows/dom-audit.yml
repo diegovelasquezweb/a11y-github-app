@@ -285,6 +285,34 @@ jobs:
           CHECK_RUN_ID: ${{ inputs.check_run_id }}
           HEALTH_URL: ${{ steps.runtime.outputs.health_url }}
 
+      - name: Save findings to cache
+        if: ${{ steps.run_audit.outputs.exit_code == '0' }}
+        run: |
+          mkdir -p findings
+          node -e "
+          const fs = require('fs');
+          const path = require('path');
+          let engineAuditDir = '';
+          try {
+            const enginePath = fs.realpathSync(path.join(process.cwd(), 'runner', 'node_modules', '@diegovelasquezweb', 'a11y-engine'));
+            engineAuditDir = path.join(enginePath, '.audit');
+          } catch {}
+          const candidates = [
+            engineAuditDir ? path.join(engineAuditDir, 'a11y-findings.json') : '',
+            path.join(process.cwd(), 'runner', '.audit', 'a11y-findings.json'),
+            path.join(process.cwd(), 'target', '.audit', 'a11y-findings.json'),
+          ].filter(Boolean);
+          const found = candidates.find(f => fs.existsSync(f));
+          if (found) fs.copyFileSync(found, 'findings/a11y-findings.json');
+          "
+
+      - name: Cache findings
+        if: ${{ steps.run_audit.outputs.exit_code == '0' }}
+        uses: actions/cache/save@v4
+        with:
+          path: findings/a11y-findings.json
+          key: a11y-findings-${{ inputs.head_sha }}
+
       - name: Send callback
         if: always()
         run: |
