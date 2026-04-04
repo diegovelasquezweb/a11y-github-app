@@ -69,8 +69,6 @@ function buildReviewBody(analysis: ReviewAnalysisResult): string {
     `A11y review found ${analysis.findings.length} issue(s) in this PR.`,
     `Critical: ${severity.Critical} | Serious: ${severity.Serious} | Moderate: ${severity.Moderate} | Minor: ${severity.Minor}`,
     "",
-    exampleFindingId ? `Ignore one finding with: \`/a11y-ignore ${exampleFindingId}\`` : "",
-    "",
     "This review is generated from the a11y-engine intelligence layer.",
   ]
     .filter(Boolean)
@@ -110,7 +108,6 @@ export function buildSourcePatternsSection(analysis: ReviewAnalysisResult): stri
         `${index + 1}. **${icon} [${normalized}]** ${item.finding.title}`,
         `   **File:** \`${location}\``,
         `   **Rule:** \`${item.finding.pattern_id}\``,
-        `   **Ignore:** \`/a11y-ignore ${item.finding.id}\``,
         `   **Fix:** \`/a11y-fix ${item.finding.id}\``,
       ].join("\n");
     })
