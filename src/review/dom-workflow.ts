@@ -15,6 +15,7 @@ interface DispatchDomAuditInput {
   headSha: string;
   checkRunId: number;
   targetToken: string;
+  commentId: number;
 }
 
 export function createScanToken(owner: string, repo: string, pullNumber: number): string {
@@ -39,6 +40,7 @@ export async function dispatchDomAuditWorkflow(input: DispatchDomAuditInput): Pr
       head_sha: input.headSha,
       check_run_id: String(input.checkRunId),
       target_token: input.targetToken,
+      comment_id: String(input.commentId),
     },
   });
 }

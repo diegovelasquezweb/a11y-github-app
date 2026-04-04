@@ -4,6 +4,18 @@ import { getRepoOctokit } from "../github/auth.js";
 import { completeDomAuditCheck } from "../review/dom-reporter.js";
 import type { DomAuditFindingSummary, DomAuditSummary } from "../types.js";
 
+const SOURCE_MARKER_START = "<!-- A11Y_SOURCE_SECTION_START -->";
+const SOURCE_MARKER_END = "<!-- A11Y_SOURCE_SECTION_END -->";
+
+function extractSourceSection(commentBody: string): string | undefined {
+  const startIdx = commentBody.indexOf(SOURCE_MARKER_START);
+  const endIdx = commentBody.indexOf(SOURCE_MARKER_END);
+  if (startIdx === -1 || endIdx === -1 || endIdx <= startIdx) {
+    return undefined;
+  }
+  return commentBody.substring(startIdx + SOURCE_MARKER_START.length, endIdx);
+}
+
 function safeEqual(left: string, right: string): boolean {
   if (left.length !== right.length) {
     return false;
@@ -76,7 +88,7 @@ function severityIcon(severity: string): string {
   return "⚪";
 }
 
-function buildFinalComment(summary: DomAuditSummary): string {
+function buildFinalComment(summary: DomAuditSummary, sourceSection?: string): string {
   if (summary.status === "failure") {
     return [
       "## DOM Audit Failed",
@@ -113,7 +125,7 @@ function buildFinalComment(summary: DomAuditSummary): string {
         ]
       : [];
 
-  return [
+  const domSection = [
     "## DOM Audit Finished",
     "",
     "### Summary",
@@ -124,6 +136,12 @@ function buildFinalComment(summary: DomAuditSummary): string {
     "",
     `**Scan token:** \`${summary.scanToken}\``,
   ].join("\n");
+
+  if (sourceSection && sourceSection.trim().length > 0) {
+    return `${sourceSection}\n\n---\n\n${domSection}`;
+  }
+
+  return domSection;
 }
 
 export async function processDomAuditCallback(
@@ -176,12 +194,32 @@ export async function processDomAuditCallback(
     });
 
     if (pullNumber > 0) {
-      await octokit.rest.issues.createComment({
-        owner,
-        repo,
-        issue_number: pullNumber,
-        body: buildFinalComment(summary),
-      });
+      const commentId = Number(input.payload.comment_id ?? 0);
+      let sourceSection: string | undefined;
+
+      if (commentId > 0) {
+        try {
+          const existing = await octokit.rest.issues.getComment({ owner, repo, comment_id: commentId });
+          sourceSection = extractSourceSection(existing.data.body ?? "");
+        } catch (getErr) {
+          const status = (getErr as { status?: number }).status;
+          if (status !== 404) throw getErr;
+        }
+      }
+
+      const finalBody = buildFinalComment(summary, sourceSection);
+
+      if (commentId > 0) {
+        try {
+          await octokit.rest.issues.updateComment({ owner, repo, comment_id: commentId, body: finalBody });
+        } catch (updateErr) {
+          const status = (updateErr as { status?: number }).status;
+          if (status !== 404) throw updateErr;
+          await octokit.rest.issues.createComment({ owner, repo, issue_number: pullNumber, body: finalBody });
+        }
+      } else {
+        await octokit.rest.issues.createComment({ owner, repo, issue_number: pullNumber, body: finalBody });
+      }
     }
 
     return { status: 200, body: { ok: true, updated: true } };

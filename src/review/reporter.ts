@@ -77,6 +77,54 @@ function buildReviewBody(analysis: ReviewAnalysisResult): string {
     .join("\n");
 }
 
+function severityIcon(severity: string): string {
+  const normalized = normalizeSeverity(severity);
+  if (normalized === "Critical") return "🔴";
+  if (normalized === "Serious") return "🟠";
+  if (normalized === "Moderate") return "🟡";
+  if (normalized === "Minor") return "🔵";
+  return "⚪";
+}
+
+export function buildSourcePatternsSection(analysis: ReviewAnalysisResult): string {
+  if (analysis.findings.length === 0) {
+    return [
+      "### Source Pattern Analysis",
+      "",
+      "No source pattern issues found.",
+      "",
+      `Scanned files: ${analysis.scannedFiles}`,
+      `Ignored files: ${analysis.ignoredFiles}`,
+    ].join("\n");
+  }
+
+  const summary = buildSeveritySummary(analysis);
+  const summaryLine = `🔴 Critical: ${summary.Critical} | 🟠 Serious: ${summary.Serious} | 🟡 Moderate: ${summary.Moderate} | 🔵 Minor: ${summary.Minor}`;
+
+  const list = analysis.findings
+    .map((item, index) => {
+      const icon = severityIcon(item.finding.severity);
+      const normalized = normalizeSeverity(item.finding.severity);
+      const location = item.finding.line ? `${item.finding.file}:${item.finding.line}` : item.finding.file;
+      return [
+        `${index + 1}. **${icon} [${normalized}]** ${item.finding.title}`,
+        `   **File:** \`${location}\``,
+        `   **Rule:** \`${item.finding.pattern_id}\``,
+        `   **Ignore:** \`/a11y-ignore ${item.finding.id}\``,
+        `   **Fix:** \`/a11y-fix ${item.finding.id}\``,
+      ].join("\n");
+    })
+    .join("\n\n");
+
+  return [
+    "### Source Pattern Analysis",
+    "",
+    summaryLine,
+    "",
+    list,
+  ].join("\n");
+}
+
 export async function reportPullRequestReview(input: ReportInput): Promise<void> {
   await input.octokit.rest.checks.create({
     owner: input.owner,

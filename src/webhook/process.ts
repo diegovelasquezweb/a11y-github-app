@@ -16,7 +16,7 @@ import {
   createScanToken,
   dispatchDomAuditWorkflow,
 } from "../review/dom-workflow.js";
-import { reportPullRequestReview } from "../review/reporter.js";
+import { buildSourcePatternsSection, reportPullRequestReview } from "../review/reporter.js";
 import { verifyWebhookSignature } from "./verify-signature.js";
 
 const PULL_REQUEST_ACTIONS = new Set(["opened", "reopened", "synchronize"]);
@@ -149,28 +149,6 @@ async function handlePullRequestEvent(payload: {
     };
   }
 
-  const octokit = getInstallationOctokit(installationId);
-  const sourceEnabled = CONFIG.sourcePatternsEnabled;
-
-  let findingsCount = 0;
-  let commentsCount = 0;
-  let scannedFiles = 0;
-  let ignoredFindingCount = 0;
-
-  if (sourceEnabled) {
-    const review = await runPullRequestReview({
-      octokit,
-      owner,
-      repo,
-      pullNumber,
-      headSha,
-    });
-    findingsCount = review.findingsCount;
-    commentsCount = review.commentsCount;
-    scannedFiles = review.scannedFiles;
-    ignoredFindingCount = review.ignoredFindingCount;
-  }
-
   remember(processedHeads, headKey, 5000);
 
   return {
@@ -178,14 +156,38 @@ async function handlePullRequestEvent(payload: {
     body: {
       ok: true,
       reviewed: true,
-      findings: findingsCount,
-      comments: commentsCount,
-      scannedFiles,
-      ignoredFindings: ignoredFindingCount,
-      sourcePatternsEnabled: sourceEnabled,
       domAuditScheduled: false,
     },
   };
+}
+
+function buildInitialAuditComment(sourceSection: string, requestedBy?: string): string {
+  const lines: string[] = ["## A11y Audit Report"];
+
+  if (requestedBy) {
+    lines.push("", `**Requested by:** @${requestedBy}`);
+  }
+
+  lines.push(
+    "",
+    "---",
+    "",
+    "### Source Pattern Analysis",
+    "",
+    sourceSection,
+    "",
+    "---",
+    "",
+    "### DOM Audit",
+    "",
+    "⏳ **DOM audit in progress...** Results will appear here when the scan finishes.",
+    "",
+    "<!-- A11Y_SOURCE_SECTION_START -->",
+    sourceSection,
+    "<!-- A11Y_SOURCE_SECTION_END -->",
+  );
+
+  return lines.join("\n");
 }
 
 async function handleIssueCommentEvent(payload: {
@@ -383,6 +385,28 @@ async function handleIssueCommentEvent(payload: {
   const headSha = pull.data.head.sha;
   const targetUrl = "local://pr-runtime";
 
+  const files = await listPullRequestFiles(octokit, owner, repo, pullNumber);
+  const analysis = await analyzePullRequest({
+    octokit,
+    owner,
+    repo,
+    headSha,
+    files,
+    maxInlineComments: CONFIG.maxInlineComments,
+  });
+  const ignoredFindingIds = await loadIgnoredFindingIds(octokit, owner, repo, pullNumber);
+  const filteredAnalysis = applyIgnoredFindings(analysis, ignoredFindingIds);
+  const sourceSection = buildSourcePatternsSection(filteredAnalysis);
+
+  const initialBody = buildInitialAuditComment(sourceSection, payload.comment?.user?.login);
+  const { data: createdComment } = await octokit.rest.issues.createComment({
+    owner,
+    repo,
+    issue_number: pullNumber,
+    body: initialBody,
+  });
+  const commentId = createdComment.id;
+
   const domCheckRunId = await createDomAuditPendingCheck({
     octokit,
     owner,
@@ -413,20 +437,7 @@ async function handleIssueCommentEvent(payload: {
       headSha,
       checkRunId: domCheckRunId,
       targetToken,
-    });
-
-    await octokit.rest.issues.createComment({
-      owner,
-      repo,
-      issue_number: pullNumber,
-      body: [
-        "## DOM Audit Started",
-        "",
-        "Running an accessibility scan against a temporary PR runtime in GitHub Actions.",
-        "",
-        `**Requested by:** @${payload.comment?.user?.login ?? "unknown"}`,
-        "Results will be posted here when the audit finishes.",
-      ].join("\n"),
+      commentId,
     });
 
     return {

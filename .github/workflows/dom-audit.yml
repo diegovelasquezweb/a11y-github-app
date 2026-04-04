@@ -41,6 +41,11 @@ on:
         description: "Installation token for target repository"
         required: true
         type: string
+      comment_id:
+        description: "Unified audit comment ID to update on callback"
+        required: false
+        default: "0"
+        type: string
 
 jobs:
   dom-audit:
@@ -266,6 +271,7 @@ jobs:
             pull_number: process.env.PULL_NUMBER,
             head_sha: process.env.HEAD_SHA,
             check_run_id: process.env.CHECK_RUN_ID,
+            comment_id: process.env.COMMENT_ID,
             status,
             total_findings: totalFindings,
             totals,
@@ -283,6 +289,7 @@ jobs:
           PULL_NUMBER: ${{ inputs.pull_number }}
           HEAD_SHA: ${{ inputs.head_sha }}
           CHECK_RUN_ID: ${{ inputs.check_run_id }}
+          COMMENT_ID: ${{ inputs.comment_id }}
           HEALTH_URL: ${{ steps.runtime.outputs.health_url }}
 
       - name: Save findings to cache
