@@ -30,7 +30,7 @@ if (!payload) {
   process.exit(1);
 }
 
-const result = applyFindingFix({
+const result = await applyFindingFix({
   findingId,
   payload,
   patternPayload,

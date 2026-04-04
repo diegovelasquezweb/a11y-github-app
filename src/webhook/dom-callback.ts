@@ -103,6 +103,7 @@ function buildFinalComment(summary: DomAuditSummary): string {
                 finding.wcag ? `   **WCAG:** ${finding.wcag}` : "",
                 finding.selector ? `   **Selector:** \`${finding.selector}\`` : "",
                 finding.recommendedFix ? `   **Fix:** ${finding.recommendedFix}` : "",
+                finding.id ? `   **Auto-fix:** \`/a11y-fix ${finding.id}\`` : "",
                 finding.id ? `   **Ignore:** \`/a11y-ignore ${finding.id}\`` : "",
               ]
                 .filter(Boolean)

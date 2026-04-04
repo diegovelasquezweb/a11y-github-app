@@ -195,6 +195,7 @@ jobs:
           TARGET_DIR: ${{ github.workspace }}/target
           FINDINGS_PATH: ${{ steps.artifacts.outputs.findings_path }}
           PATTERN_FINDINGS_PATH: ${{ steps.artifacts.outputs.pattern_findings_path }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
       - name: Stop local server before rebuild
         if: always()

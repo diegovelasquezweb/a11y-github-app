@@ -11,7 +11,7 @@
     "test": "vitest run tests"
   },
   "dependencies": {
-    "@diegovelasquezweb/a11y-engine": "^0.11.15",
+    "@diegovelasquezweb/a11y-engine": "^0.11.16",
     "@octokit/auth-app": "^8.1.0",
     "@octokit/rest": "^22.0.0",
     "dotenv": "^17.2.3",
