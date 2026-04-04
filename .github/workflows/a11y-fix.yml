@@ -33,6 +33,10 @@ on:
         description: "User who requested the fix"
         required: true
         type: string
+      target_token:
+        description: "Installation token for target repository"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -71,7 +75,7 @@ jobs:
         with:
           repository: ${{ inputs.target_owner }}/${{ inputs.target_repo }}
           ref: ${{ inputs.head_sha }}
-          token: ${{ secrets.TARGET_REPO_TOKEN || github.token }}
+          token: ${{ inputs.target_token }}
           path: target
 
       - name: Resolve local runtime config
@@ -304,7 +308,7 @@ jobs:
           git -C target config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git -C target add -A
           git -C target commit -m "fix(a11y): resolve ${{ inputs.finding_id }}"
-          git -C target remote set-url origin "https://x-access-token:${{ secrets.TARGET_REPO_TOKEN || github.token }}@github.com/${{ inputs.target_owner }}/${{ inputs.target_repo }}.git"
+          git -C target remote set-url origin "https://x-access-token:${{ inputs.target_token }}@github.com/${{ inputs.target_owner }}/${{ inputs.target_repo }}.git"
           git -C target push origin "$BRANCH_NAME"
           echo "branch_name=$BRANCH_NAME" >> "$GITHUB_OUTPUT"
 
@@ -316,7 +320,7 @@ jobs:
           FINDING_TITLE: ${{ steps.apply_fix.outputs.finding_title }}
           PATCHED_FILE: ${{ steps.apply_fix.outputs.patched_file }}
         with:
-          github-token: ${{ secrets.TARGET_REPO_TOKEN || github.token }}
+          github-token: ${{ inputs.target_token }}
           script: |
             const lines = [
               "## Automated Accessibility Fix",
@@ -348,7 +352,7 @@ jobs:
           PR_URL: ${{ steps.open_pr.outputs.pr_url }}
           VERIFIED: ${{ steps.verify_result.outputs.verified }}
         with:
-          github-token: ${{ secrets.TARGET_REPO_TOKEN || github.token }}
+          github-token: ${{ inputs.target_token }}
           script: |
             const status = process.env.APPLY_STATUS;
             const verified = process.env.VERIFIED;

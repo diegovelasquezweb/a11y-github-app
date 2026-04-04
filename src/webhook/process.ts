@@ -1,5 +1,5 @@
 import { CONFIG } from "../config.js";
-import { getInstallationOctokit, getRepoOctokit } from "../github/auth.js";
+import { createInstallationToken, getInstallationOctokit, getRepoOctokit } from "../github/auth.js";
 import { listPullRequestFiles } from "../github/client.js";
 import { analyzePullRequest } from "../review/analyze-pr.js";
 import { parseAuditCommand } from "../review/audit-command.js";
@@ -302,6 +302,7 @@ async function handleIssueCommentEvent(payload: {
     const runnerOwner = CONFIG.scanRunnerOwner || owner;
     const runnerRepo = CONFIG.scanRunnerRepo || repo;
     const runnerOctokit = await getRepoOctokit(runnerOwner, runnerRepo);
+    const targetToken = await createInstallationToken(installationId);
 
     await dispatchFixWorkflow({
       runnerOctokit,
@@ -316,6 +317,7 @@ async function handleIssueCommentEvent(payload: {
       baseRef,
       findingId: fixCommand.findingId,
       requestedBy: payload.comment?.user?.login ?? "unknown",
+      targetToken,
     });
 
     await octokit.rest.issues.createComment({
