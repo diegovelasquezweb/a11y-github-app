@@ -387,6 +387,7 @@ async function handleIssueCommentEvent(payload: {
     const runnerRepo = CONFIG.scanRunnerRepo || repo;
     const runnerOctokit = await getRepoOctokit(runnerOwner, runnerRepo);
     const scanToken = createScanToken(owner, repo, pullNumber);
+    const targetToken = await createInstallationToken(installationId);
 
     await dispatchDomAuditWorkflow({
       runnerOctokit,
@@ -402,6 +403,7 @@ async function handleIssueCommentEvent(payload: {
       pullNumber,
       headSha,
       checkRunId: domCheckRunId,
+      targetToken,
     });
 
     await octokit.rest.issues.createComment({

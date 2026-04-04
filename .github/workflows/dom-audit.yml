@@ -37,6 +37,10 @@ on:
         description: "A11y DOM Audit check run ID"
         required: true
         type: string
+      target_token:
+        description: "Installation token for target repository"
+        required: true
+        type: string
 
 jobs:
   dom-audit:
@@ -70,7 +74,7 @@ jobs:
         with:
           repository: ${{ inputs.target_owner }}/${{ inputs.target_repo }}
           ref: ${{ inputs.head_sha }}
-          token: ${{ secrets.TARGET_REPO_TOKEN || github.token }}
+          token: ${{ inputs.target_token }}
           path: target
 
       - name: Resolve local runtime config
