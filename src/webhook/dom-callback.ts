@@ -4,16 +4,16 @@ import { getRepoOctokit } from "../github/auth.js";
 import { completeDomAuditCheck } from "../review/dom-reporter.js";
 import type { DomAuditFindingSummary, DomAuditSummary } from "../types.js";
 
-const SOURCE_MARKER_START = "<!-- A11Y_SOURCE_SECTION_START -->";
-const SOURCE_MARKER_END = "<!-- A11Y_SOURCE_SECTION_END -->";
+const SOURCE_MARKER_RE = /<!-- A11Y_SOURCE_SECTION_START:([A-Za-z0-9+/=]+):A11Y_SOURCE_SECTION_END -->/;
 
 function extractSourceSection(commentBody: string): string | undefined {
-  const startIdx = commentBody.indexOf(SOURCE_MARKER_START);
-  const endIdx = commentBody.indexOf(SOURCE_MARKER_END);
-  if (startIdx === -1 || endIdx === -1 || endIdx <= startIdx) {
+  const match = commentBody.match(SOURCE_MARKER_RE);
+  if (!match) return undefined;
+  try {
+    return Buffer.from(match[1], "base64").toString("utf8");
+  } catch {
     return undefined;
   }
-  return commentBody.substring(startIdx + SOURCE_MARKER_START.length, endIdx);
 }
 
 function safeEqual(left: string, right: string): boolean {
@@ -108,20 +108,18 @@ function buildFinalComment(summary: DomAuditSummary, sourceSection?: string): st
           `Showing **${summary.findings.length}**${summary.totalFindings > summary.findings.length ? ` of **${summary.totalFindings}**` : ""}`,
           "",
           summary.findings
-            .map((finding, index) => {
-              const meta = [
+            .map((finding, index) =>
+              [
+                `**${index + 1}. ${severityIcon(finding.severity)} [${finding.severity}] ${finding.title}**`,
                 finding.id ? `**Finding ID:** \`${finding.id}\`` : "",
                 finding.wcag ? `**WCAG:** ${finding.wcag}` : "",
                 finding.selector ? `**Selector:** \`${finding.selector}\`` : "",
-              ].filter(Boolean).join(" | ");
-
-              return [
-                `**${index + 1}. ${severityIcon(finding.severity)} [${finding.severity}] ${finding.title}**`,
-                meta,
                 finding.recommendedFix ? `**Fix:** ${finding.recommendedFix.replace(/\r?\n/g, " ")}` : "",
-                finding.id ? `\`/a11y-fix ${finding.id}\` · \`/a11y-ignore ${finding.id}\`` : "",
-              ].filter(Boolean).join("\n\n");
-            })
+                finding.id ? `**Auto-fix:** \`/a11y-fix ${finding.id}\`` : "",
+              ]
+                .filter(Boolean)
+                .join("\n\n"),
+            )
             .join("\n\n---\n\n"),
         ]
       : [];

@@ -131,7 +131,8 @@ function buildInitialAuditComment(sourceSection: string, requestedBy?: string): 
     "### DOM Audit",
     "",
     "⏳ **DOM audit in progress...** Results will appear here when the scan finishes.",
-    `<!-- A11Y_SOURCE_SECTION_START -->${sourceSection}<!-- A11Y_SOURCE_SECTION_END -->`,
+    "",
+    `<!-- A11Y_SOURCE_SECTION_START:${Buffer.from(sourceSection).toString("base64")}:A11Y_SOURCE_SECTION_END -->`,
   );
 
   return lines.join("\n");
