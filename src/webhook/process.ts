@@ -172,8 +172,6 @@ function buildInitialAuditComment(sourceSection: string, requestedBy?: string): 
     "",
     "---",
     "",
-    "### Source Pattern Analysis",
-    "",
     sourceSection,
     "",
     "---",
@@ -181,10 +179,7 @@ function buildInitialAuditComment(sourceSection: string, requestedBy?: string): 
     "### DOM Audit",
     "",
     "⏳ **DOM audit in progress...** Results will appear here when the scan finishes.",
-    "",
-    "<!-- A11Y_SOURCE_SECTION_START -->",
-    sourceSection,
-    "<!-- A11Y_SOURCE_SECTION_END -->",
+    `<!-- A11Y_SOURCE_SECTION_START -->${sourceSection}<!-- A11Y_SOURCE_SECTION_END -->`,
   );
 
   return lines.join("\n");
