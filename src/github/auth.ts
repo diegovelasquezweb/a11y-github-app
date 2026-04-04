@@ -37,6 +37,11 @@ export async function createInstallationToken(installationId: number): Promise<s
   const appOctokit = createAppOctokit();
   const response = await appOctokit.rest.apps.createInstallationAccessToken({
     installation_id: installationId,
+    permissions: {
+      contents: "write",
+      pull_requests: "write",
+      checks: "write",
+    },
   });
   return response.data.token;
 }
