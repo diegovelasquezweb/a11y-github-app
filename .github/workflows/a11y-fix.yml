@@ -37,6 +37,10 @@ on:
         description: "Installation token for target repository"
         required: true
         type: string
+      check_run_id:
+        description: "Check run ID to update with fix result"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -335,6 +339,45 @@ jobs:
               repo: "${{ inputs.target_repo }}",
               issue_number: Number("${{ inputs.pull_number }}"),
               body,
+            });
+
+      - name: Update fix check run
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          APPLY_STATUS: ${{ steps.apply_fix.outputs.status }}
+          VERIFIED: ${{ steps.verify_result.outputs.verified }}
+          PR_URL: ${{ steps.open_pr.outputs.pr_url }}
+        with:
+          github-token: ${{ inputs.target_token }}
+          script: |
+            const status = process.env.APPLY_STATUS;
+            const verified = process.env.VERIFIED;
+            const prUrl = process.env.PR_URL;
+
+            let conclusion, title, summary;
+
+            if (status === 'patched' && verified === 'true' && prUrl) {
+              conclusion = 'success';
+              title = 'Fix ready';
+              summary = `Automated fix PR opened: ${prUrl}`;
+            } else if (status === 'patched') {
+              conclusion = 'failure';
+              title = 'Fix could not be verified';
+              summary = 'A patch was generated but verification did not pass.';
+            } else {
+              conclusion = 'neutral';
+              title = 'No automated fix available';
+              summary = `Could not generate a fix for \`${{ inputs.finding_id }}\`.`;
+            }
+
+            await github.rest.checks.update({
+              owner: "${{ inputs.target_owner }}",
+              repo: "${{ inputs.target_repo }}",
+              check_run_id: Number("${{ inputs.check_run_id }}"),
+              status: 'completed',
+              conclusion,
+              output: { title, summary },
             });
 
       - name: Stop local server

@@ -9,6 +9,7 @@ import { dispatchFixWorkflow } from "../review/fix-workflow.js";
 import { applyIgnoredFindings, loadIgnoredFindingIds } from "../review/ignore-state.js";
 import {
   createDomAuditPendingCheck,
+  createFixPendingCheck,
   failDomAuditCheck,
 } from "../review/dom-reporter.js";
 import {
@@ -303,6 +304,13 @@ async function handleIssueCommentEvent(payload: {
     const runnerRepo = CONFIG.scanRunnerRepo || repo;
     const runnerOctokit = await getRepoOctokit(runnerOwner, runnerRepo);
     const targetToken = await createInstallationToken(installationId);
+    const checkRunId = await createFixPendingCheck({
+      octokit,
+      owner,
+      repo,
+      headSha,
+      findingId: fixCommand.findingId,
+    });
 
     await dispatchFixWorkflow({
       runnerOctokit,
@@ -318,6 +326,7 @@ async function handleIssueCommentEvent(payload: {
       findingId: fixCommand.findingId,
       requestedBy: payload.comment?.user?.login ?? "unknown",
       targetToken,
+      checkRunId,
     });
 
     await octokit.rest.issues.createComment({

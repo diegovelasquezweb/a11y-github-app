@@ -77,6 +77,28 @@ export async function completeDomAuditCheck(input: CompleteDomAuditCheckInput): 
   });
 }
 
+export async function createFixPendingCheck(input: {
+  octokit: Octokit;
+  owner: string;
+  repo: string;
+  headSha: string;
+  findingId: string;
+}): Promise<number> {
+  const response = await input.octokit.rest.checks.create({
+    owner: input.owner,
+    repo: input.repo,
+    name: "A11y Fix",
+    head_sha: input.headSha,
+    status: "in_progress",
+    output: {
+      title: "Fix in progress",
+      summary: `Generating automated fix for \`${input.findingId}\``,
+    },
+  });
+
+  return response.data.id;
+}
+
 export async function failDomAuditCheck(
   octokit: Octokit,
   owner: string,
