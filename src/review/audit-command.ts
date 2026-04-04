@@ -3,7 +3,7 @@ export interface AuditCommand {
   targetUrl?: string;
 }
 
-const AUDIT_COMMAND_RE = /^\/audit(?:\s+(.+))?$/i;
+const AUDIT_COMMAND_RE = /^\/a11y-audit(?:\s+(.+))?$/i;
 
 function isHttpUrl(value: string): boolean {
   return /^https?:\/\//i.test(value);
