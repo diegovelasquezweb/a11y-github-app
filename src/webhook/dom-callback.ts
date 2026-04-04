@@ -108,19 +108,15 @@ function buildFinalComment(summary: DomAuditSummary, sourceSection?: string): st
           `Showing **${summary.findings.length}**${summary.totalFindings > summary.findings.length ? ` of **${summary.totalFindings}**` : ""}`,
           "",
           summary.findings
-            .map((finding, index) =>
-              [
-                `**${index + 1}. ${severityIcon(finding.severity)} [${finding.severity}] ${finding.title}**`,
-                finding.id ? `**Finding ID:** \`${finding.id}\`` : "",
-                finding.wcag ? `**WCAG:** ${finding.wcag}` : "",
-                finding.selector ? `**Selector:** \`${finding.selector}\`` : "",
-                finding.recommendedFix ? `**Fix:** ${finding.recommendedFix.replace(/\r?\n/g, " ")}` : "",
-                finding.id ? `**Auto-fix:** \`/a11y-fix ${finding.id}\`` : "",
-              ]
-                .filter(Boolean)
-                .join("\n\n"),
-            )
-            .join("\n\n---\n\n"),
+            .map((finding, index) => {
+              const parts = [
+                finding.wcag ?? "",
+                finding.selector ? `\`${finding.selector}\`` : "",
+                finding.id ? `\`/a11y-fix ${finding.id}\`` : "",
+              ].filter(Boolean).join(" · ");
+              return `${index + 1}. ${severityIcon(finding.severity)} **[${finding.severity}]** ${finding.title} — ${parts}`;
+            })
+            .join("\n"),
         ]
       : [];
 
