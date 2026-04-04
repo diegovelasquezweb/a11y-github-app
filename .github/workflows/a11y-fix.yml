@@ -217,10 +217,24 @@ jobs:
           let verified = process.env.VERIFY_EXIT_CODE === '0'
 
           if (verified && findingsPath) {
+            const originalFinding = (() => {
+              try {
+                const cached = JSON.parse(fs.readFileSync('findings/a11y-findings.json', 'utf8'))
+                return Array.isArray(cached.findings)
+                  ? cached.findings.find(f => f.id === process.env.FINDING_ID)
+                  : null
+              } catch { return null }
+            })()
+
             const payload = JSON.parse(fs.readFileSync(findingsPath, 'utf8'))
             const findings = Array.isArray(payload.findings) ? payload.findings : []
-            if (findings.length > 0) {
-              verified = false
+
+            if (originalFinding && originalFinding.selector) {
+              verified = !findings.some(
+                f => f.rule_id === originalFinding.rule_id && f.selector === originalFinding.selector
+              )
+            } else {
+              verified = findings.length === 0
             }
           }
 
@@ -229,6 +243,7 @@ jobs:
           NODE
         env:
           VERIFY_EXIT_CODE: ${{ steps.verify_fix.outputs.exit_code }}
+          FINDING_ID: ${{ inputs.finding_id }}
 
       - name: Create branch and commit
         id: commit_fix
