@@ -11,7 +11,7 @@ interface DispatchFixWorkflowInput {
   pullNumber: number;
   headSha: string;
   baseRef: string;
-  findingId: string;
+  findingIds: string;
   requestedBy: string;
   targetToken: string;
   checkRunId: number;
@@ -29,7 +29,7 @@ export async function dispatchFixWorkflow(input: DispatchFixWorkflowInput): Prom
       pull_number: String(input.pullNumber),
       head_sha: input.headSha,
       base_ref: input.baseRef,
-      finding_id: input.findingId,
+      finding_ids: input.findingIds,
       requested_by: input.requestedBy,
       target_token: input.targetToken,
       check_run_id: String(input.checkRunId),

@@ -126,6 +126,20 @@ function buildFinalComment(summary: DomAuditSummary, sourceSection?: string): st
         ]
       : [];
 
+  const quickFixSection =
+    summary.findings && summary.findings.length > 0
+      ? [
+          "",
+          "---",
+          "",
+          "### Quick Fix",
+          "",
+          "Fix a single finding: `/a11y-fix <ID>`",
+          "Fix several: `/a11y-fix <ID1> <ID2> <ID3>`",
+          "Fix all: `/a11y-fix all`",
+        ]
+      : [];
+
   const domSection = [
     "## DOM Audit Finished",
     "",
@@ -136,6 +150,7 @@ function buildFinalComment(summary: DomAuditSummary, sourceSection?: string): st
     ...findingsSection,
     "",
     `**Scan token:** \`${summary.scanToken}\``,
+    ...quickFixSection,
   ].join("\n");
 
   if (sourceSection && sourceSection.trim().length > 0) {

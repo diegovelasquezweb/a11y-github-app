@@ -183,12 +183,14 @@ async function handleIssueCommentEvent(payload: {
   }
 
   if (fixCommand.requested) {
-    if (!fixCommand.findingId) {
+    if (fixCommand.findingIds.length === 0) {
       return {
         status: 200,
         body: { ok: true, ignored: "fix command missing finding id" },
       };
     }
+
+    const findingIdsStr = fixCommand.findingIds.join(",");
 
     const octokit = getInstallationOctokit(installationId);
     const pull = await octokit.rest.pulls.get({
@@ -207,7 +209,7 @@ async function handleIssueCommentEvent(payload: {
       owner,
       repo,
       headSha,
-      findingId: fixCommand.findingId,
+      findingIds: findingIdsStr,
     });
 
     await dispatchFixWorkflow({
@@ -221,11 +223,16 @@ async function handleIssueCommentEvent(payload: {
       pullNumber,
       headSha,
       baseRef,
-      findingId: fixCommand.findingId,
+      findingIds: findingIdsStr,
       requestedBy: payload.comment?.user?.login ?? "unknown",
       targetToken,
       checkRunId,
     });
+
+    const confirmationMessage =
+      findingIdsStr === "all"
+        ? "Preparing an automated fix for **all** findings from the last audit in GitHub Actions."
+        : `Preparing an automated fix for \`${findingIdsStr}\` in GitHub Actions.`;
 
     await octokit.rest.issues.createComment({
       owner,
@@ -234,7 +241,7 @@ async function handleIssueCommentEvent(payload: {
       body: [
         "## A11y Fix Requested",
         "",
-        `Preparing an automated fix for \`${fixCommand.findingId}\` in GitHub Actions.`,
+        confirmationMessage,
         "",
         `**Requested by:** @${payload.comment?.user?.login ?? "unknown"}`,
         "A follow-up comment will be posted after the fix attempt finishes.",
@@ -246,7 +253,7 @@ async function handleIssueCommentEvent(payload: {
       body: {
         ok: true,
         fixScheduled: true,
-        findingId: fixCommand.findingId,
+        findingIds: findingIdsStr,
         pullNumber,
       },
     };

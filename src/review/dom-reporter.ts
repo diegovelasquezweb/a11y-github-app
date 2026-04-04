@@ -82,8 +82,13 @@ export async function createFixPendingCheck(input: {
   owner: string;
   repo: string;
   headSha: string;
-  findingId: string;
+  findingIds: string;
 }): Promise<number> {
+  const summary =
+    input.findingIds === "all"
+      ? "Generating automated fix for **all** findings from the last audit"
+      : `Generating automated fix for ${input.findingIds.split(",").map((id) => `\`${id}\``).join(", ")}`;
+
   const response = await input.octokit.rest.checks.create({
     owner: input.owner,
     repo: input.repo,
@@ -92,7 +97,7 @@ export async function createFixPendingCheck(input: {
     status: "in_progress",
     output: {
       title: "Fix in progress",
-      summary: `Generating automated fix for \`${input.findingId}\``,
+      summary,
     },
   });
 

@@ -1,24 +1,22 @@
 export interface FixCommand {
   requested: boolean;
-  findingId?: string;
+  findingIds: string[];
 }
 
-const FIX_COMMAND_RE = /^\/a11y-fix(?:\s+(\S+))?$/i;
+const FIX_COMMAND_RE = /^\/a11y-fix(?:\s+(.+))?$/i;
 
 export function parseFixCommand(input: string): FixCommand {
   const text = input.trim();
   const match = text.match(FIX_COMMAND_RE);
   if (!match) {
-    return { requested: false };
+    return { requested: false, findingIds: [] };
   }
 
-  const findingId = (match[1] ?? "").trim();
-  if (!findingId) {
-    return { requested: true };
+  const args = (match[1] ?? "").trim();
+  if (!args) {
+    return { requested: true, findingIds: [] };
   }
 
-  return {
-    requested: true,
-    findingId,
-  };
+  const findingIds = args.split(/\s+/).filter(Boolean);
+  return { requested: true, findingIds };
 }

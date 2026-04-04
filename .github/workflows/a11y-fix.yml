@@ -1,6 +1,6 @@
 name: A11y Fix
 
-run-name: "a11y-fix-${{ inputs.finding_id }}"
+run-name: "a11y-fix-${{ inputs.finding_ids }}"
 
 on:
   workflow_dispatch:
@@ -25,8 +25,8 @@ on:
         description: "PR base branch"
         required: true
         type: string
-      finding_id:
-        description: "Finding ID to fix"
+      finding_ids:
+        description: "Comma-separated finding IDs or 'all'"
         required: true
         type: string
       requested_by:
@@ -75,6 +75,39 @@ jobs:
           path: findings/a11y-findings.json
           key: a11y-findings-${{ inputs.head_sha }}
           fail-on-cache-miss: false
+
+      - name: Resolve finding IDs
+        id: resolve_ids
+        run: |
+          node <<'NODE'
+          const fs = require('fs')
+          const input = process.env.FINDING_IDS_INPUT.trim()
+
+          if (input === 'all') {
+            const cachePath = 'findings/a11y-findings.json'
+            if (!fs.existsSync(cachePath)) {
+              console.error('No cached findings found for this SHA. Run /a11y-audit first.')
+              process.exit(1)
+            }
+            const payload = JSON.parse(fs.readFileSync(cachePath, 'utf8'))
+            const findings = Array.isArray(payload.findings) ? payload.findings : []
+            if (findings.length === 0) {
+              console.error('Cached findings file is empty. Run /a11y-audit first.')
+              process.exit(1)
+            }
+            const ids = findings.map(f => f.id).filter(Boolean).join(',')
+            const out = process.env.GITHUB_OUTPUT
+            fs.appendFileSync(out, `resolved_ids=${ids}\n`)
+            fs.appendFileSync(out, `id_count=${findings.length}\n`)
+          } else {
+            const ids = input.split(',').map(s => s.trim()).filter(Boolean)
+            const out = process.env.GITHUB_OUTPUT
+            fs.appendFileSync(out, `resolved_ids=${ids.join(',')}\n`)
+            fs.appendFileSync(out, `id_count=${ids.length}\n`)
+          }
+          NODE
+        env:
+          FINDING_IDS_INPUT: ${{ inputs.finding_ids }}
 
       - name: Install Playwright browsers
         run: npx --prefix runner playwright install chromium --with-deps
@@ -132,29 +165,78 @@ jobs:
         run: bash -lc "${{ steps.runtime.outputs.build_command }}"
         working-directory: ${{ steps.runtime.outputs.workdir }}
 
-      - name: Apply finding fix
-        id: apply_fix
-        run: node runner/scripts/apply-finding-fix.mjs
+      - name: Apply finding fixes
+        id: apply_fixes
+        run: |
+          RESOLVED_IDS="${{ steps.resolve_ids.outputs.resolved_ids }}"
+          RESULTS_FILE="$RUNNER_TEMP/fix-results.json"
+          echo "[]" > "$RESULTS_FILE"
+
+          PATCHED_IDS=""
+          PATCHED_COUNT=0
+          VERIFY_ROUTES=""
+          VERIFY_RULES=""
+          ALL_FAILED=true
+
+          IFS=',' read -ra IDS <<< "$RESOLVED_IDS"
+          for CURRENT_ID in "${IDS[@]}"; do
+            CURRENT_ID="${CURRENT_ID// /}"
+            if [ -z "$CURRENT_ID" ]; then continue; fi
+
+            OUTPUT=$(FINDING_ID="$CURRENT_ID" \
+              TARGET_DIR="${{ github.workspace }}/target" \
+              FINDINGS_PATH="${{ github.workspace }}/findings/a11y-findings.json" \
+              ANTHROPIC_API_KEY="${{ secrets.ANTHROPIC_API_KEY }}" \
+              node runner/scripts/apply-finding-fix.mjs 2>&1) || true
+
+            STATUS=$(echo "$OUTPUT" | grep "^status=" | head -1 | cut -d= -f2)
+            PATCHED_FILE=$(echo "$OUTPUT" | grep "^patched_file=" | head -1 | cut -d= -f2)
+            BRANCH_SLUG=$(echo "$OUTPUT" | grep "^branch_slug=" | head -1 | cut -d= -f2)
+            VERIFY_ROUTE=$(echo "$OUTPUT" | grep "^verify_route=" | head -1 | cut -d= -f2)
+            VERIFY_RULE=$(echo "$OUTPUT" | grep "^verify_rule=" | head -1 | cut -d= -f2)
+            FINDING_TITLE=$(echo "$OUTPUT" | grep "^finding_title=" | head -1 | cut -d= -f2)
+
+            if [ "$STATUS" = "patched" ]; then
+              ALL_FAILED=false
+              PATCHED_COUNT=$((PATCHED_COUNT + 1))
+              PATCHED_IDS="${PATCHED_IDS:+$PATCHED_IDS,}$CURRENT_ID"
+              VERIFY_ROUTES="${VERIFY_ROUTES:+$VERIFY_ROUTES,}$VERIFY_ROUTE"
+              VERIFY_RULES="${VERIFY_RULES:+$VERIFY_RULES,}$VERIFY_RULE"
+            else
+              git -C target checkout -- . 2>/dev/null || true
+            fi
+
+            ENTRY=$(node -e "process.stdout.write(JSON.stringify({id:'$CURRENT_ID',status:'${STATUS:-failed}',patched_file:'$PATCHED_FILE',title:'$FINDING_TITLE'}))")
+            CURRENT_RESULTS=$(cat "$RESULTS_FILE")
+            node -e "const r=JSON.parse(process.env.R);r.push(JSON.parse(process.env.E));process.stdout.write(JSON.stringify(r))" R="$CURRENT_RESULTS" E="$ENTRY" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "$RESULTS_FILE"
+          done
+
+          {
+            echo "patched_count=$PATCHED_COUNT"
+            echo "patched_ids=$PATCHED_IDS"
+            echo "verify_routes=$VERIFY_ROUTES"
+            echo "verify_rules=$VERIFY_RULES"
+            echo "results_file=$RESULTS_FILE"
+            echo "all_failed=$ALL_FAILED"
+            echo "branch_slug=multi-${{ github.run_id }}"
+          } >> "$GITHUB_OUTPUT"
         env:
-          FINDING_ID: ${{ inputs.finding_id }}
-          TARGET_DIR: ${{ github.workspace }}/target
-          FINDINGS_PATH: ${{ github.workspace }}/findings/a11y-findings.json
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
       - name: Rebuild target after patch
-        if: ${{ steps.apply_fix.outputs.status == 'patched' && steps.runtime.outputs.build_command != '' }}
+        if: ${{ steps.apply_fixes.outputs.all_failed != 'true' && steps.runtime.outputs.build_command != '' }}
         run: bash -lc "${{ steps.runtime.outputs.build_command }}"
         working-directory: ${{ steps.runtime.outputs.workdir }}
 
       - name: Restart local server for verification
-        if: ${{ steps.apply_fix.outputs.status == 'patched' }}
+        if: ${{ steps.apply_fixes.outputs.all_failed != 'true' }}
         run: |
           nohup bash -lc "${{ steps.runtime.outputs.start_command }}" > "$RUNNER_TEMP/local-server.log" 2>&1 &
           echo $! > "$RUNNER_TEMP/local-server.pid"
         working-directory: ${{ steps.runtime.outputs.workdir }}
 
       - name: Wait for local server readiness after patch
-        if: ${{ steps.apply_fix.outputs.status == 'patched' }}
+        if: ${{ steps.apply_fixes.outputs.all_failed != 'true' }}
         run: |
           HEALTH_URL="${{ steps.runtime.outputs.health_url }}"
           TIMEOUT_MS="${{ steps.runtime.outputs.ready_timeout_ms }}"
@@ -176,19 +258,19 @@ jobs:
           done
 
       - name: Clear findings before verification
-        if: ${{ steps.apply_fix.outputs.status == 'patched' }}
+        if: ${{ steps.apply_fixes.outputs.all_failed != 'true' }}
         run: find runner/node_modules/@diegovelasquezweb/a11y-engine/.audit -name "a11y-findings.json" -delete 2>/dev/null || true
 
       - name: Verify patched finding
         id: verify_fix
-        if: ${{ steps.apply_fix.outputs.status == 'patched' }}
+        if: ${{ steps.apply_fixes.outputs.all_failed != 'true' }}
         run: |
           set +e
           npx --prefix runner a11y-audit \
             --base-url "${{ steps.runtime.outputs.health_url }}" \
             --project-dir "target" \
-            --routes "${{ steps.apply_fix.outputs.verify_route }}" \
-            --only-rule "${{ steps.apply_fix.outputs.verify_rule }}" \
+            --routes "${{ steps.apply_fixes.outputs.verify_routes }}" \
+            --only-rule "${{ steps.apply_fixes.outputs.verify_rules }}" \
             --max-routes "1" \
             --wait-until "domcontentloaded" \
             --timeout-ms "45000" \
@@ -199,11 +281,15 @@ jobs:
 
       - name: Check verification result
         id: verify_result
-        if: ${{ steps.apply_fix.outputs.status == 'patched' }}
+        if: ${{ steps.apply_fixes.outputs.all_failed != 'true' }}
         run: |
           node <<'NODE'
           const fs = require('fs')
           const path = require('path')
+
+          const patchedIds = (process.env.PATCHED_IDS || '').split(',').filter(Boolean)
+          const resultsFile = process.env.RESULTS_FILE
+          const results = JSON.parse(fs.readFileSync(resultsFile, 'utf8'))
 
           let engineAuditDir = ''
           try {
@@ -218,120 +304,174 @@ jobs:
           ].filter(Boolean)
 
           const findingsPath = candidates.find((file) => fs.existsSync(file)) || ''
-          let verified = process.env.VERIFY_EXIT_CODE === '0'
-
-          if (verified && findingsPath) {
-            const originalFinding = (() => {
-              try {
-                const cached = JSON.parse(fs.readFileSync('findings/a11y-findings.json', 'utf8'))
-                return Array.isArray(cached.findings)
-                  ? cached.findings.find(f => f.id === process.env.FINDING_ID)
-                  : null
-              } catch { return null }
-            })()
-
+          const scanOk = process.env.VERIFY_EXIT_CODE === '0'
+          let verifyFindings = []
+          if (findingsPath) {
             const payload = JSON.parse(fs.readFileSync(findingsPath, 'utf8'))
-            const findings = Array.isArray(payload.findings) ? payload.findings : []
+            verifyFindings = Array.isArray(payload.findings) ? payload.findings : []
+          }
 
-            if (originalFinding && originalFinding.selector) {
-              verified = !findings.some(
-                f => f.rule_id === originalFinding.rule_id && f.selector === originalFinding.selector
+          let origFindings = []
+          try {
+            const cached = JSON.parse(fs.readFileSync('findings/a11y-findings.json', 'utf8'))
+            origFindings = Array.isArray(cached.findings) ? cached.findings : []
+          } catch {}
+
+          let verifiedCount = 0
+          const verifiedIds = []
+          for (const id of patchedIds) {
+            const orig = origFindings.find(f => f.id === id)
+            let verified = scanOk
+            if (verified && orig && orig.selector) {
+              verified = !verifyFindings.some(
+                f => f.rule_id === orig.rule_id && f.selector === orig.selector
               )
-            } else {
-              verified = findings.length === 0
+            }
+            const entry = results.find(r => r.id === id)
+            if (entry) {
+              entry.verified = verified
+              if (!verified) entry.status = 'unverified'
+            }
+            if (verified) {
+              verifiedCount++
+              verifiedIds.push(id)
             }
           }
 
+          fs.writeFileSync(resultsFile, JSON.stringify(results, null, 2))
+
           const out = process.env.GITHUB_OUTPUT
-          fs.appendFileSync(out, `verified=${verified ? 'true' : 'false'}\n`)
+          fs.appendFileSync(out, `verified_count=${verifiedCount}\n`)
+          fs.appendFileSync(out, `any_verified=${verifiedCount > 0 ? 'true' : 'false'}\n`)
+          fs.appendFileSync(out, `verified_ids=${verifiedIds.join(',')}\n`)
           NODE
         env:
           VERIFY_EXIT_CODE: ${{ steps.verify_fix.outputs.exit_code }}
-          FINDING_ID: ${{ inputs.finding_id }}
+          PATCHED_IDS: ${{ steps.apply_fixes.outputs.patched_ids }}
+          RESULTS_FILE: ${{ steps.apply_fixes.outputs.results_file }}
 
       - name: Create branch and commit
         id: commit_fix
-        if: ${{ steps.verify_result.outputs.verified == 'true' }}
+        if: ${{ steps.verify_result.outputs.any_verified == 'true' }}
         run: |
-          BRANCH_NAME="a11y-fix/${{ steps.apply_fix.outputs.branch_slug }}-$(date +%s)"
+          BRANCH_NAME="a11y-fix/multi-${{ steps.apply_fixes.outputs.branch_slug }}"
           git -C target checkout -b "$BRANCH_NAME"
           git -C target config user.name "a11y-pr-reviewer[bot]"
           git -C target config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git -C target add -A
-          git -C target commit -m "fix(a11y): resolve ${{ inputs.finding_id }}"
+          git -C target commit -m "fix(a11y): resolve ${{ steps.apply_fixes.outputs.patched_ids }}"
           git -C target remote set-url origin "https://x-access-token:${{ inputs.target_token }}@github.com/${{ inputs.target_owner }}/${{ inputs.target_repo }}.git"
           git -C target push origin "$BRANCH_NAME"
           echo "branch_name=$BRANCH_NAME" >> "$GITHUB_OUTPUT"
+          echo "verified_ids=${{ steps.verify_result.outputs.verified_ids }}" >> "$GITHUB_OUTPUT"
 
       - name: Open pull request
         id: open_pr
         if: ${{ steps.commit_fix.outputs.branch_name != '' }}
         uses: actions/github-script@v7
         env:
-          FINDING_TITLE: ${{ steps.apply_fix.outputs.finding_title }}
-          PATCHED_FILE: ${{ steps.apply_fix.outputs.patched_file }}
+          RESULTS_FILE: ${{ steps.apply_fixes.outputs.results_file }}
+          VERIFIED_IDS: ${{ steps.commit_fix.outputs.verified_ids }}
         with:
           github-token: ${{ inputs.target_token }}
           script: |
-            const lines = [
+            const fs = require('fs')
+            const results = JSON.parse(fs.readFileSync(process.env.RESULTS_FILE, 'utf8'))
+            const verifiedIds = (process.env.VERIFIED_IDS || '').split(',').filter(Boolean)
+
+            const rows = results.map(r => {
+              const icon = r.verified ? '✅' : r.status === 'patched' || r.status === 'unverified' ? '⚠️' : '❌'
+              const statusText = r.verified ? 'Fixed & verified'
+                : r.status === 'unverified' ? 'Patched but not verified'
+                : r.status === 'skipped' ? 'Skipped'
+                : 'Failed'
+              return `| ${icon} | \`${r.id}\` | ${r.title || '—'} | ${statusText} | ${r.patched_file ? `\`${r.patched_file}\`` : '—'} |`
+            }).join('\n')
+
+            const title = verifiedIds.length === 1
+              ? `fix(a11y): resolve ${verifiedIds[0]}`
+              : `fix(a11y): resolve ${verifiedIds.length} findings`
+
+            const body = [
               "## Automated Accessibility Fix",
               "",
-              `**Finding ID:** \`${{ inputs.finding_id }}\``,
               `**Requested by:** @${{ inputs.requested_by }}`,
-              process.env.FINDING_TITLE ? `**Finding:** ${process.env.FINDING_TITLE}` : "",
-              process.env.PATCHED_FILE ? `**Patched file:** \`${process.env.PATCHED_FILE}\`` : "",
               "",
-              "This PR was generated after applying an engine-backed automated fix and re-running verification for the requested finding.",
-            ].filter(Boolean).join("\n");
+              "| Status | Finding | Title | Outcome | File |",
+              "|--------|---------|-------|---------|------|",
+              rows,
+              "",
+              "This PR was generated by `/a11y-fix` applying engine-backed automated fixes.",
+            ].join("\n")
 
             const response = await github.rest.pulls.create({
               owner: "${{ inputs.target_owner }}",
               repo: "${{ inputs.target_repo }}",
-              title: "fix(a11y): resolve ${{ inputs.finding_id }}",
+              title,
               head: "${{ steps.commit_fix.outputs.branch_name }}",
               base: "${{ inputs.base_ref }}",
-              body: lines,
-            });
-            core.setOutput("pr_url", response.data.html_url);
+              body,
+            })
+            core.setOutput("pr_url", response.data.html_url)
 
       - name: Comment result on PR
         uses: actions/github-script@v7
         env:
-          APPLY_REASON: ${{ steps.apply_fix.outputs.reason }}
-          APPLY_STATUS: ${{ steps.apply_fix.outputs.status }}
-          PATCHED_FILE: ${{ steps.apply_fix.outputs.patched_file }}
+          RESULTS_FILE: ${{ steps.apply_fixes.outputs.results_file }}
           PR_URL: ${{ steps.open_pr.outputs.pr_url }}
-          VERIFIED: ${{ steps.verify_result.outputs.verified }}
+          ANY_VERIFIED: ${{ steps.verify_result.outputs.any_verified }}
+          ALL_FAILED: ${{ steps.apply_fixes.outputs.all_failed }}
         with:
           github-token: ${{ inputs.target_token }}
           script: |
-            const status = process.env.APPLY_STATUS;
-            const verified = process.env.VERIFIED;
-            let body = "";
+            const fs = require('fs')
+            const resultsFile = process.env.RESULTS_FILE
+            let results = []
+            if (resultsFile && fs.existsSync(resultsFile)) {
+              results = JSON.parse(fs.readFileSync(resultsFile, 'utf8'))
+            }
 
-            if (status === "patched" && verified === "true" && process.env.PR_URL) {
+            const tableHeader = [
+              "| Status | Finding | Title | Outcome |",
+              "|--------|---------|-------|---------|",
+            ]
+            const rows = results.map(r => {
+              const icon = r.verified ? '✅' : r.status === 'unverified' ? '⚠️' : r.status === 'skipped' ? '⏭️' : '❌'
+              const statusText = r.verified ? 'Fixed & verified'
+                : r.status === 'unverified' ? 'Patched but not verified'
+                : r.status === 'skipped' ? 'Skipped'
+                : 'Failed'
+              return `| ${icon} | \`${r.id}\` | ${r.title || '—'} | ${statusText} |`
+            })
+
+            let body
+            if (process.env.ANY_VERIFIED === 'true' && process.env.PR_URL) {
               body = [
                 "## A11y Fix Ready",
                 "",
-                `Created a fix PR for \`${{ inputs.finding_id }}\`.`,
-                "",
                 `**PR:** ${process.env.PR_URL}`,
-                process.env.PATCHED_FILE ? `**Patched file:** \`${process.env.PATCHED_FILE}\`` : "",
-              ].filter(Boolean).join("\n");
-            } else if (status === "patched") {
-              body = [
-                "## A11y Fix Could Not Be Verified",
                 "",
-                `A patch was generated for \`${{ inputs.finding_id }}\`, but verification did not pass, so no PR was opened.`,
-              ].join("\n");
-            } else {
+                ...tableHeader,
+                ...rows,
+              ].join("\n")
+            } else if (process.env.ALL_FAILED === 'true') {
               body = [
                 "## A11y Fix Not Applied",
                 "",
-                `Could not automate a fix for \`${{ inputs.finding_id }}\`.`,
+                "No findings could be automatically fixed.",
                 "",
-                process.env.APPLY_REASON,
-              ].join("\n");
+                ...tableHeader,
+                ...rows,
+              ].join("\n")
+            } else {
+              body = [
+                "## A11y Fix Could Not Be Verified",
+                "",
+                "Patches were generated but verification did not pass for any finding.",
+                "",
+                ...tableHeader,
+                ...rows,
+              ].join("\n")
             }
 
             await github.rest.issues.createComment({
@@ -339,36 +479,36 @@ jobs:
               repo: "${{ inputs.target_repo }}",
               issue_number: Number("${{ inputs.pull_number }}"),
               body,
-            });
+            })
 
       - name: Update fix check run
         if: always()
         uses: actions/github-script@v7
         env:
-          APPLY_STATUS: ${{ steps.apply_fix.outputs.status }}
-          VERIFIED: ${{ steps.verify_result.outputs.verified }}
+          ANY_VERIFIED: ${{ steps.verify_result.outputs.any_verified }}
+          VERIFIED_COUNT: ${{ steps.verify_result.outputs.verified_count }}
+          ALL_FAILED: ${{ steps.apply_fixes.outputs.all_failed }}
           PR_URL: ${{ steps.open_pr.outputs.pr_url }}
+          PATCHED_IDS: ${{ steps.apply_fixes.outputs.patched_ids }}
+          PATCHED_COUNT: ${{ steps.apply_fixes.outputs.patched_count }}
+          RESOLVED_IDS: ${{ steps.resolve_ids.outputs.resolved_ids }}
         with:
           github-token: ${{ inputs.target_token }}
           script: |
-            const status = process.env.APPLY_STATUS;
-            const verified = process.env.VERIFIED;
-            const prUrl = process.env.PR_URL;
+            let conclusion, title, summary
 
-            let conclusion, title, summary;
-
-            if (status === 'patched' && verified === 'true' && prUrl) {
-              conclusion = 'success';
-              title = 'Fix ready';
-              summary = `Automated fix PR opened: ${prUrl}`;
-            } else if (status === 'patched') {
-              conclusion = 'failure';
-              title = 'Fix could not be verified';
-              summary = 'A patch was generated but verification did not pass.';
+            if (process.env.ANY_VERIFIED === 'true' && process.env.PR_URL) {
+              conclusion = 'success'
+              title = `Fix ready (${process.env.VERIFIED_COUNT || '?'} verified)`
+              summary = `Automated fix PR opened: ${process.env.PR_URL}`
+            } else if (process.env.ALL_FAILED === 'true') {
+              conclusion = 'neutral'
+              title = 'No automated fix available'
+              summary = `Could not generate fixes for: ${process.env.RESOLVED_IDS || process.env.PATCHED_IDS}`
             } else {
-              conclusion = 'neutral';
-              title = 'No automated fix available';
-              summary = `Could not generate a fix for \`${{ inputs.finding_id }}\`.`;
+              conclusion = 'failure'
+              title = 'Fixes could not be verified'
+              summary = `${process.env.PATCHED_COUNT || '0'} patches generated but verification did not pass.`
             }
 
             await github.rest.checks.update({
@@ -378,7 +518,7 @@ jobs:
               status: 'completed',
               conclusion,
               output: { title, summary },
-            });
+            })
 
       - name: Stop local server
         if: always()
