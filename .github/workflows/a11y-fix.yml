@@ -200,6 +200,9 @@ jobs:
             SCRIPT_OUTPUT_FILE="$RUNNER_TEMP/script-output-${CURRENT_ID}.txt"
             touch "$SCRIPT_OUTPUT_FILE"
 
+            CHECKPOINT_FILE="$RUNNER_TEMP/checkpoint-${CURRENT_ID}.patch"
+            git -C target diff > "$CHECKPOINT_FILE" 2>/dev/null || true
+
             IS_PATTERN_ID=false
             if [[ "$CURRENT_ID" == PAT-* ]]; then
               IS_PATTERN_ID=true
@@ -232,6 +235,9 @@ jobs:
               VERIFY_RULES="${VERIFY_RULES:+$VERIFY_RULES,}$VERIFY_RULE"
             else
               git -C target checkout -- . 2>/dev/null || true
+              if [ -s "$CHECKPOINT_FILE" ]; then
+                git -C target apply "$CHECKPOINT_FILE" 2>/dev/null || true
+              fi
             fi
 
             ENTRY=$(ENTRY_ID="$CURRENT_ID" ENTRY_STATUS="${STATUS:-failed}" ENTRY_FILE="$PATCHED_FILE" ENTRY_TITLE="$FINDING_TITLE" node -e "process.stdout.write(JSON.stringify({id:process.env.ENTRY_ID,status:process.env.ENTRY_STATUS,patched_file:process.env.ENTRY_FILE,title:process.env.ENTRY_TITLE}))")
