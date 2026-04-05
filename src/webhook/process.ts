@@ -21,6 +21,7 @@ const ISSUE_COMMENT_ACTIONS = new Set(["created"]);
 const ALLOWED_AUDIT_ASSOCIATIONS = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
 const processedDeliveries = new Set<string>();
 const processedHeads = new Set<string>();
+const postedWelcomePrs = new Set<string>();
 
 export interface ProcessWebhookInput {
   rawBody: Buffer;
@@ -92,6 +93,27 @@ async function handlePullRequestEvent(payload: {
     };
   }
 
+  let welcomeCommentPosted = false;
+
+  if (payload.action === "opened" || payload.action === "reopened") {
+    const welcomeKey = `${owner}/${repo}#${pullNumber}`;
+    if (!postedWelcomePrs.has(welcomeKey)) {
+      try {
+        const octokit = getInstallationOctokit(installationId);
+        await octokit.rest.issues.createComment({
+          owner,
+          repo,
+          issue_number: pullNumber,
+          body: buildWelcomeComment(),
+        });
+        remember(postedWelcomePrs, welcomeKey, 5000);
+        welcomeCommentPosted = true;
+      } catch {
+        // non-critical — do not fail the webhook
+      }
+    }
+  }
+
   const headKey = makeHeadKey(owner, repo, pullNumber, headSha);
   if (processedHeads.has(headKey)) {
     return {
@@ -108,8 +130,27 @@ async function handlePullRequestEvent(payload: {
       ok: true,
       reviewed: true,
       domAuditScheduled: false,
+      ...(welcomeCommentPosted && { welcomeCommentPosted: true }),
     },
   };
+}
+
+function buildWelcomeComment(): string {
+  return [
+    "## 👋 Accessibility Audit Available",
+    "",
+    "This repository has the **A11y PR Reviewer** installed. You can scan this PR for WCAG accessibility issues using the commands below.",
+    "",
+    "| Command | What it does |",
+    "|---|---|",
+    "| `/a11y-audit` | Full audit — DOM scan + static source pattern analysis |",
+    "| `/a11y-audit-dom` | DOM scan only — runs the page in a real browser |",
+    "| `/a11y-audit-source` | Source pattern scan only — fast static analysis |",
+    "",
+    "After the audit runs, use `/a11y-fix <ID>` or `/a11y-fix all` to apply automated fixes.",
+    "",
+    "> Only repository collaborators and members can trigger audits.",
+  ].join("\n");
 }
 
 function buildInitialAuditComment(requestedBy?: string, mode: AuditMode = "unified"): string {
@@ -291,7 +332,6 @@ async function handleIssueCommentEvent(payload: {
     pull_number: pullNumber,
   });
   const headSha = pull.data.head.sha;
-  const targetUrl = "local://pr-runtime";
 
   const initialBody = buildInitialAuditComment(payload.comment?.user?.login, command.auditMode);
   const { data: createdComment } = await octokit.rest.issues.createComment({
@@ -307,7 +347,6 @@ async function handleIssueCommentEvent(payload: {
     owner,
     repo,
     headSha,
-    targetUrl,
   });
 
   try {
@@ -361,7 +400,6 @@ async function handleIssueCommentEvent(payload: {
       body: {
         ok: true,
         domAuditScheduled: true,
-        targetUrl,
         pullNumber,
         checkRunId: domCheckRunId,
       },

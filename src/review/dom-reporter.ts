@@ -6,7 +6,6 @@ interface CreateDomAuditCheckInput {
   owner: string;
   repo: string;
   headSha: string;
-  targetUrl: string;
 }
 
 interface CompleteDomAuditCheckInput {
@@ -28,7 +27,7 @@ export async function createDomAuditPendingCheck(
     status: "in_progress",
     output: {
       title: "DOM audit started",
-      summary: `Running DOM accessibility audit for ${input.targetUrl}`,
+      summary: `Running accessibility audit on the pull request code`,
     },
   });
 
