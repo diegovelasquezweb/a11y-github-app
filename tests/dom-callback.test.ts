@@ -115,3 +115,71 @@ describe("buildFinalComment", () => {
     expect(result).toContain("/a11y-audit");
   });
 });
+
+describe("buildFinalComment — auditMode", () => {
+  it("auditMode dom renders DOM Audit section only", () => {
+    const result = buildFinalComment({ ...baseSummary, auditMode: "dom" });
+    expect(result).toContain("### DOM Audit");
+    expect(result).not.toContain("### Source Pattern Analysis");
+  });
+
+  it("auditMode source with patternFindings renders Source Pattern Analysis only", () => {
+    const summary: DomAuditSummary = {
+      ...baseSummary,
+      auditMode: "source",
+      patternFindings: {
+        totalFindings: 1,
+        totals: { Critical: 1, Serious: 0, Moderate: 0, Minor: 0 },
+        findings: [
+          {
+            id: "PAT-001",
+            title: "Missing label",
+            severity: "Critical",
+            file: "index.html",
+            line: 10,
+            patternId: "missing-label",
+          },
+        ],
+      },
+    };
+    const result = buildFinalComment(summary);
+    expect(result).toContain("### Source Pattern Analysis");
+    expect(result).not.toContain("### DOM Audit");
+  });
+
+  it("auditMode source with no patternFindings renders no source pattern issues message", () => {
+    const result = buildFinalComment({ ...baseSummary, auditMode: "source" });
+    expect(result).toContain("No source pattern issues found.");
+  });
+
+  it("auditMode source with empty patternFindings renders no source pattern issues message", () => {
+    const summary: DomAuditSummary = {
+      ...baseSummary,
+      auditMode: "source",
+      patternFindings: {
+        totalFindings: 0,
+        totals: { Critical: 0, Serious: 0, Moderate: 0, Minor: 0 },
+        findings: [],
+      },
+    };
+    const result = buildFinalComment(summary);
+    expect(result).toContain("No source pattern issues found.");
+  });
+
+  it("auditMode source with failure renders error without DOM section", () => {
+    const summary: DomAuditSummary = {
+      ...baseSummary,
+      auditMode: "source",
+      status: "failure",
+      error: "Source scan failed",
+    };
+    const result = buildFinalComment(summary);
+    expect(result).toContain("Source scan failed");
+    expect(result).not.toContain("### DOM Audit");
+  });
+
+  it("missing auditMode behaves like unified and renders DOM section", () => {
+    const result = buildFinalComment({ ...baseSummary });
+    expect(result).toContain("### DOM Audit");
+  });
+});

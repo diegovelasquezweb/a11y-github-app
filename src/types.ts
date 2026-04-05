@@ -1,5 +1,7 @@
 import type { SourcePatternFinding } from "@diegovelasquezweb/a11y-engine";
 
+export type AuditMode = "unified" | "dom" | "source";
+
 export interface ChangedFile {
   filename: string;
   status: string;
@@ -67,4 +69,5 @@ export interface DomAuditSummary {
   findings?: DomAuditFindingSummary[];
   patternFindings?: PatternAuditSummary;
   error?: string;
+  auditMode?: AuditMode;
 }

@@ -140,6 +140,48 @@ function buildPatternSection(patternFindings: PatternAuditSummary): string {
 }
 
 export function buildFinalComment(summary: DomAuditSummary): string {
+  const mode = summary.auditMode ?? "unified";
+
+  if (mode === "source") {
+    if (summary.status === "failure") {
+      return [
+        "### Source Pattern Analysis",
+        "",
+        "Static analysis of changed source files. Detects known accessibility anti-patterns before the code runs.",
+        "",
+        `**Error:** ${summary.error ?? "Unknown error"}`,
+        "",
+        "Run `/a11y-audit-source` to retry.",
+      ].join("\n");
+    }
+
+    const hasFindings = summary.patternFindings && summary.patternFindings.totalFindings > 0;
+    const quickFixSection = hasFindings
+      ? [
+          "",
+          "---",
+          "",
+          "### Quick Fix",
+          "",
+          "Fix a single finding: `/a11y-fix <ID>`",
+          "Fix several: `/a11y-fix <ID1> <ID2> <ID3>`",
+          "Fix all: `/a11y-fix all`",
+        ]
+      : [];
+
+    const patternBody = summary.patternFindings
+      ? buildPatternSection(summary.patternFindings)
+      : [
+          "### Source Pattern Analysis",
+          "",
+          "Static analysis of changed source files. Detects known accessibility anti-patterns before the code runs.",
+          "",
+          "No source pattern issues found.",
+        ].join("\n");
+
+    return [patternBody, ...quickFixSection].join("\n");
+  }
+
   if (summary.status === "failure") {
     return [
       "### DOM Audit",
@@ -204,6 +246,10 @@ export function buildFinalComment(summary: DomAuditSummary): string {
     ...quickFixSection,
   ].join("\n");
 
+  if (mode === "dom") {
+    return domSection;
+  }
+
   if (summary.patternFindings) {
     return `${buildPatternSection(summary.patternFindings)}\n\n---\n\n${domSection}`;
   }
@@ -236,6 +282,11 @@ export async function processDomAuditCallback(
   );
   const findings = normalizeFindings(input.payload.findings);
   const patternFindings = normalizePatternFindings(input.payload.pattern_findings);
+  const rawAuditMode = typeof input.payload.audit_mode === "string" ? input.payload.audit_mode : "";
+  const auditMode: DomAuditSummary["auditMode"] =
+    rawAuditMode === "dom" || rawAuditMode === "source" || rawAuditMode === "unified"
+      ? rawAuditMode
+      : "unified";
 
   if (!owner || !repo || !checkRunId) {
     return { status: 400, body: { ok: false, error: "Missing callback target fields" } };
@@ -250,6 +301,7 @@ export async function processDomAuditCallback(
     findings,
     patternFindings,
     error,
+    auditMode,
   };
 
   try {

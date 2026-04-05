@@ -11,7 +11,9 @@ import {
 import {
   createScanToken,
   dispatchDomAuditWorkflow,
+  dispatchSourceAuditWorkflow,
 } from "../review/dom-workflow.js";
+import type { AuditMode } from "../types.js";
 import { verifyWebhookSignature } from "./verify-signature.js";
 
 const PULL_REQUEST_ACTIONS = new Set(["opened", "reopened", "synchronize"]);
@@ -110,21 +112,30 @@ async function handlePullRequestEvent(payload: {
   };
 }
 
-function buildInitialAuditComment(requestedBy?: string): string {
+function buildInitialAuditComment(requestedBy?: string, mode: AuditMode = "unified"): string {
   const lines: string[] = ["## A11y Audit Report"];
 
   if (requestedBy) {
     lines.push("", `**Requested by:** @${requestedBy}`);
   }
 
-  lines.push(
-    "",
-    "### DOM Audit",
-    "",
-    "Dynamic scan of the rendered page in a real browser. Evaluates the live DOM against WCAG standards.",
-    "",
-    "⏳ **Audit in progress...** Results will appear here when the scan finishes.",
-  );
+  if (mode === "source") {
+    lines.push(
+      "",
+      "### Source Pattern Analysis",
+      "",
+      "⏳ Source scan in progress...",
+    );
+  } else {
+    lines.push(
+      "",
+      "### DOM Audit",
+      "",
+      "Dynamic scan of the rendered page in a real browser. Evaluates the live DOM against WCAG standards.",
+      "",
+      "⏳ **Audit in progress...** Results will appear here when the scan finishes.",
+    );
+  }
 
   return lines.join("\n");
 }
@@ -253,7 +264,7 @@ async function handleIssueCommentEvent(payload: {
     };
   }
 
-  if (!command.requested) {
+  if (!command) {
     return { status: 200, body: { ok: true, ignored: "no supported command" } };
   }
 
@@ -282,7 +293,7 @@ async function handleIssueCommentEvent(payload: {
   const headSha = pull.data.head.sha;
   const targetUrl = "local://pr-runtime";
 
-  const initialBody = buildInitialAuditComment(payload.comment?.user?.login);
+  const initialBody = buildInitialAuditComment(payload.comment?.user?.login, command.auditMode);
   const { data: createdComment } = await octokit.rest.issues.createComment({
     owner,
     repo,
@@ -306,24 +317,44 @@ async function handleIssueCommentEvent(payload: {
     const scanToken = createScanToken(owner, repo, pullNumber);
     const targetToken = await createInstallationToken(installationId);
 
-    await dispatchDomAuditWorkflow({
-      runnerOctokit,
-      runnerOwner,
-      runnerRepo,
-      workflow: CONFIG.scanRunnerWorkflow,
-      ref: CONFIG.scanRunnerRef,
-      scanToken,
-      callbackUrl,
-      callbackToken: CONFIG.domAuditCallbackToken,
-      targetOwner: owner,
-      targetRepo: repo,
-      pullNumber,
-      headSha,
-      checkRunId: domCheckRunId,
-      targetToken,
-      commentId,
-      sourceScanEnabled: CONFIG.sourcePatternsEnabled,
-    });
+    if (command.auditMode === "source") {
+      await dispatchSourceAuditWorkflow({
+        runnerOctokit,
+        runnerOwner,
+        runnerRepo,
+        workflow: CONFIG.scanSourceWorkflow,
+        ref: CONFIG.scanRunnerRef,
+        scanToken,
+        callbackUrl,
+        callbackToken: CONFIG.domAuditCallbackToken,
+        targetOwner: owner,
+        targetRepo: repo,
+        pullNumber,
+        headSha,
+        checkRunId: domCheckRunId,
+        targetToken,
+        commentId,
+      });
+    } else {
+      await dispatchDomAuditWorkflow({
+        runnerOctokit,
+        runnerOwner,
+        runnerRepo,
+        workflow: CONFIG.scanRunnerWorkflow,
+        ref: CONFIG.scanRunnerRef,
+        scanToken,
+        callbackUrl,
+        callbackToken: CONFIG.domAuditCallbackToken,
+        targetOwner: owner,
+        targetRepo: repo,
+        pullNumber,
+        headSha,
+        checkRunId: domCheckRunId,
+        targetToken,
+        commentId,
+        sourceScanEnabled: command.auditMode === "dom" ? false : CONFIG.sourcePatternsEnabled,
+      });
+    }
 
     return {
       status: 200,

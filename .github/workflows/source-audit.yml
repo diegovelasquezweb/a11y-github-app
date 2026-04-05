@@ -1,0 +1,191 @@
+name: Source Pattern Audit
+
+run-name: "source-audit-${{ inputs.scan_token }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      scan_token:
+        description: "Unique scan token"
+        required: true
+        type: string
+      callback_url:
+        description: "Callback endpoint URL"
+        required: true
+        type: string
+      callback_token:
+        description: "Callback auth token"
+        required: true
+        type: string
+      target_owner:
+        description: "Target repository owner"
+        required: true
+        type: string
+      target_repo:
+        description: "Target repository name"
+        required: true
+        type: string
+      pull_number:
+        description: "PR number"
+        required: true
+        type: string
+      head_sha:
+        description: "PR head SHA"
+        required: true
+        type: string
+      check_run_id:
+        description: "A11y Source Audit check run ID"
+        required: true
+        type: string
+      target_token:
+        description: "Installation token for target repository"
+        required: true
+        type: string
+      comment_id:
+        description: "Unified audit comment ID to update on callback"
+        required: false
+        default: "0"
+        type: string
+
+jobs:
+  source-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout runner repository
+        uses: actions/checkout@v4
+        with:
+          path: runner
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: runner/package-lock.json
+
+      - name: Install runner dependencies
+        run: npm install
+        working-directory: runner
+
+      - name: Checkout target repository at PR head
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.target_owner }}/${{ inputs.target_repo }}
+          ref: ${{ inputs.head_sha }}
+          token: ${{ inputs.target_token }}
+          path: target
+
+      - name: Run source pattern scanner
+        id: source_scan
+        run: |
+          set +e
+          mkdir -p findings
+          node runner/node_modules/@diegovelasquezweb/a11y-engine/src/source-patterns/source-scanner.mjs \
+            --project-dir target \
+            --output findings/a11y-pattern-findings.json
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Build callback payload
+        run: |
+          node <<'NODE'
+          const fs = require('fs')
+          const path = require('path')
+
+          const severityRank = {
+            critical: 0,
+            serious: 1,
+            moderate: 2,
+            minor: 3,
+          }
+
+          const exitCode = Number(process.env.SCANNER_EXIT_CODE || '1')
+          const payloadPath = path.join(process.cwd(), 'callback-payload.json')
+
+          let patternFindings = null
+          const patternFindingsPath = path.join(process.cwd(), 'findings', 'a11y-pattern-findings.json')
+          let status = exitCode === 0 ? 'success' : 'failure'
+          let error = exitCode === 0 ? undefined : 'Source pattern scanner failed'
+
+          if (fs.existsSync(patternFindingsPath)) {
+            try {
+              const patternData = JSON.parse(fs.readFileSync(patternFindingsPath, 'utf8'))
+              const pFindings = Array.isArray(patternData.findings) ? patternData.findings : []
+              const pTotals = { Critical: 0, Serious: 0, Moderate: 0, Minor: 0 }
+              for (const f of pFindings) {
+                const sev = String(f.severity || '').toLowerCase()
+                if (sev === 'critical') pTotals.Critical += 1
+                else if (sev === 'serious') pTotals.Serious += 1
+                else if (sev === 'moderate') pTotals.Moderate += 1
+                else if (sev === 'minor') pTotals.Minor += 1
+              }
+              const pSummary = pFindings
+                .slice()
+                .sort((a, b) => {
+                  const aRank = severityRank[String(a.severity || '').toLowerCase()] ?? 99
+                  const bRank = severityRank[String(b.severity || '').toLowerCase()] ?? 99
+                  return aRank !== bRank ? aRank - bRank : String(a.title || '').localeCompare(String(b.title || ''))
+                })
+                .slice(0, 10)
+                .map(f => ({
+                  id: String(f.id || ''),
+                  title: String(f.title || 'Untitled finding'),
+                  severity: String(f.severity || 'Unknown'),
+                  file: String(f.file || ''),
+                  line: f.line ? Number(f.line) : undefined,
+                  patternId: String(f.pattern_id || f.patternId || ''),
+                }))
+              patternFindings = { totalFindings: pFindings.length, totals: pTotals, findings: pSummary }
+            } catch (parseError) {
+              status = 'failure'
+              error = `Failed to parse pattern findings: ${parseError.message}`
+            }
+          } else if (status === 'success') {
+            status = 'failure'
+            error = 'Pattern findings file was not generated by the scanner'
+          }
+
+          const payload = {
+            scan_token: process.env.SCAN_TOKEN,
+            target_owner: process.env.TARGET_OWNER,
+            target_repo: process.env.TARGET_REPO,
+            pull_number: process.env.PULL_NUMBER,
+            head_sha: process.env.HEAD_SHA,
+            check_run_id: process.env.CHECK_RUN_ID,
+            comment_id: process.env.COMMENT_ID,
+            audit_mode: 'source',
+            status,
+            total_findings: 0,
+            totals: { Critical: 0, Serious: 0, Moderate: 0, Minor: 0 },
+            findings: [],
+            ...(patternFindings ? { pattern_findings: patternFindings } : {}),
+            ...(error ? { error } : {}),
+          }
+
+          fs.writeFileSync(payloadPath, JSON.stringify(payload))
+          NODE
+        env:
+          SCANNER_EXIT_CODE: ${{ steps.source_scan.outputs.exit_code }}
+          SCAN_TOKEN: ${{ inputs.scan_token }}
+          TARGET_OWNER: ${{ inputs.target_owner }}
+          TARGET_REPO: ${{ inputs.target_repo }}
+          PULL_NUMBER: ${{ inputs.pull_number }}
+          HEAD_SHA: ${{ inputs.head_sha }}
+          CHECK_RUN_ID: ${{ inputs.check_run_id }}
+          COMMENT_ID: ${{ inputs.comment_id }}
+
+      - name: Cache pattern findings
+        if: ${{ steps.source_scan.outputs.exit_code == '0' }}
+        uses: actions/cache/save@v4
+        with:
+          path: findings/a11y-pattern-findings.json
+          key: a11y-pattern-findings-${{ inputs.head_sha }}
+
+      - name: Send callback
+        if: always()
+        run: |
+          curl -sS -X POST "${{ inputs.callback_url }}" \
+            -H "Content-Type: application/json" \
+            -H "x-callback-token: ${{ inputs.callback_token }}" \
+            --data-binary @callback-payload.json
