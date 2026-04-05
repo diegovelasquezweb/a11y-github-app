@@ -23,7 +23,7 @@ export async function createDomAuditPendingCheck(
   const response = await input.octokit.rest.checks.create({
     owner: input.owner,
     repo: input.repo,
-    name: "A11y DOM Audit",
+    name: "A11y Audit",
     head_sha: input.headSha,
     status: "in_progress",
     output: {

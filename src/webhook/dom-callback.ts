@@ -91,7 +91,7 @@ function severityIcon(severity: string): string {
 function buildFinalComment(summary: DomAuditSummary, sourceSection?: string): string {
   if (summary.status === "failure") {
     return [
-      "## DOM Audit Failed",
+      "### DOM Audit",
       "",
       `**Error:** ${summary.error ?? "Unknown error"}`,
       "",
@@ -103,21 +103,23 @@ function buildFinalComment(summary: DomAuditSummary, sourceSection?: string): st
     summary.findings && summary.findings.length > 0
       ? [
           "",
-          "### Top Findings",
-          "",
-          `Showing **${summary.findings.length}**${summary.totalFindings > summary.findings.length ? ` of **${summary.totalFindings}**` : ""}`,
+          summary.totalFindings > summary.findings.length
+            ? `Showing **${summary.findings.length}** of **${summary.totalFindings}**`
+            : "",
           "",
           summary.findings
             .map((finding, index) => {
-              const parts = [
-                finding.wcag ?? "",
-                finding.selector ? `\`${finding.selector}\`` : "",
-                finding.id ? `\`/a11y-fix ${finding.id}\`` : "",
-              ].filter(Boolean).join(" · ");
-              return `${index + 1}. ${severityIcon(finding.severity)} **[${finding.severity}]** ${finding.title} — ${parts}`;
+              const lines = [
+                `${index + 1}. ${severityIcon(finding.severity)} **[${finding.severity}]** ${finding.title}`,
+              ];
+              if (finding.wcag) lines.push(`   **WCAG:** ${finding.wcag}`);
+              if (finding.selector) lines.push(`   **Selector:** \`${finding.selector}\``);
+              if (finding.url) lines.push(`   **URL:** ${finding.url}`);
+              if (finding.id) lines.push(`   **Fix:** \`/a11y-fix ${finding.id}\``);
+              return lines.join("\n");
             })
-            .join("\n"),
-        ]
+            .join("\n\n"),
+        ].filter((line) => line !== "")
       : [];
 
   const quickFixSection =
@@ -135,12 +137,10 @@ function buildFinalComment(summary: DomAuditSummary, sourceSection?: string): st
       : [];
 
   const domSection = [
-    "## DOM Audit Finished",
-    "",
-    "### Summary",
+    "### DOM Audit",
     "",
     `**Total findings:** ${summary.totalFindings}`,
-    `**Severity:** 🔴 Critical: ${summary.totals.Critical} | 🟠 Serious: ${summary.totals.Serious} | 🟡 Moderate: ${summary.totals.Moderate} | 🔵 Minor: ${summary.totals.Minor}`,
+    `🔴 Critical: ${summary.totals.Critical} | 🟠 Serious: ${summary.totals.Serious} | 🟡 Moderate: ${summary.totals.Moderate} | 🔵 Minor: ${summary.totals.Minor}`,
     ...findingsSection,
     "",
     `**Scan token:** \`${summary.scanToken}\``,
