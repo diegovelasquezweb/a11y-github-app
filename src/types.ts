@@ -43,6 +43,21 @@ export interface DomAuditFindingSummary {
   recommendedFix: string | null;
 }
 
+export interface PatternFindingSummary {
+  id: string;
+  title: string;
+  severity: string;
+  file: string;
+  line?: number;
+  patternId: string;
+}
+
+export interface PatternAuditSummary {
+  totalFindings: number;
+  totals: DomAuditTotals;
+  findings: PatternFindingSummary[];
+}
+
 export interface DomAuditSummary {
   scanToken: string;
   targetUrl: string;
@@ -50,5 +65,6 @@ export interface DomAuditSummary {
   totalFindings: number;
   totals: DomAuditTotals;
   findings?: DomAuditFindingSummary[];
+  patternFindings?: PatternAuditSummary;
   error?: string;
 }

@@ -16,6 +16,7 @@ interface DispatchDomAuditInput {
   checkRunId: number;
   targetToken: string;
   commentId: number;
+  sourceScanEnabled: boolean;
 }
 
 export function createScanToken(owner: string, repo: string, pullNumber: number): string {
@@ -41,6 +42,7 @@ export async function dispatchDomAuditWorkflow(input: DispatchDomAuditInput): Pr
       check_run_id: String(input.checkRunId),
       target_token: input.targetToken,
       comment_id: String(input.commentId),
+      source_scan_enabled: String(input.sourceScanEnabled),
     },
   });
 }

@@ -1,7 +1,5 @@
 import { CONFIG } from "../config.js";
 import { createInstallationToken, getInstallationOctokit, getRepoOctokit } from "../github/auth.js";
-import { listPullRequestFiles } from "../github/client.js";
-import { analyzePullRequest } from "../review/analyze-pr.js";
 import { parseAuditCommand } from "../review/audit-command.js";
 import { parseFixCommand } from "../review/fix-command.js";
 import { dispatchFixWorkflow } from "../review/fix-workflow.js";
@@ -14,7 +12,6 @@ import {
   createScanToken,
   dispatchDomAuditWorkflow,
 } from "../review/dom-workflow.js";
-import { buildSourcePatternsSection } from "../review/reporter.js";
 import { verifyWebhookSignature } from "./verify-signature.js";
 
 const PULL_REQUEST_ACTIONS = new Set(["opened", "reopened", "synchronize"]);
@@ -113,7 +110,7 @@ async function handlePullRequestEvent(payload: {
   };
 }
 
-function buildInitialAuditComment(sourceSection: string, requestedBy?: string): string {
+function buildInitialAuditComment(requestedBy?: string): string {
   const lines: string[] = ["## A11y Audit Report"];
 
   if (requestedBy) {
@@ -122,19 +119,11 @@ function buildInitialAuditComment(sourceSection: string, requestedBy?: string): 
 
   lines.push(
     "",
-    "---",
-    "",
-    sourceSection,
-    "",
-    "---",
-    "",
     "### DOM Audit",
     "",
     "Dynamic scan of the rendered page in a real browser. Evaluates the live DOM against WCAG standards.",
     "",
-    "⏳ **DOM audit in progress...** Results will appear here when the scan finishes.",
-    "",
-    `<!-- A11Y_SOURCE_SECTION_START:${Buffer.from(sourceSection).toString("base64")}:A11Y_SOURCE_SECTION_END -->`,
+    "⏳ **Audit in progress...** Results will appear here when the scan finishes.",
   );
 
   return lines.join("\n");
@@ -293,18 +282,7 @@ async function handleIssueCommentEvent(payload: {
   const headSha = pull.data.head.sha;
   const targetUrl = "local://pr-runtime";
 
-  const files = await listPullRequestFiles(octokit, owner, repo, pullNumber);
-  const analysis = await analyzePullRequest({
-    octokit,
-    owner,
-    repo,
-    headSha,
-    files,
-    maxInlineComments: CONFIG.maxInlineComments,
-  });
-  const sourceSection = buildSourcePatternsSection(analysis);
-
-  const initialBody = buildInitialAuditComment(sourceSection, payload.comment?.user?.login);
+  const initialBody = buildInitialAuditComment(payload.comment?.user?.login);
   const { data: createdComment } = await octokit.rest.issues.createComment({
     owner,
     repo,
@@ -344,6 +322,7 @@ async function handleIssueCommentEvent(payload: {
       checkRunId: domCheckRunId,
       targetToken,
       commentId,
+      sourceScanEnabled: CONFIG.sourcePatternsEnabled,
     });
 
     return {

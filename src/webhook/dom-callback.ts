@@ -2,19 +2,8 @@ import crypto from "node:crypto";
 import { CONFIG } from "../config.js";
 import { getRepoOctokit } from "../github/auth.js";
 import { completeDomAuditCheck } from "../review/dom-reporter.js";
-import type { DomAuditFindingSummary, DomAuditSummary } from "../types.js";
+import type { DomAuditFindingSummary, DomAuditSummary, PatternAuditSummary, PatternFindingSummary } from "../types.js";
 
-const SOURCE_MARKER_RE = /<!-- A11Y_SOURCE_SECTION_START:([A-Za-z0-9+/=]+):A11Y_SOURCE_SECTION_END -->/;
-
-function extractSourceSection(commentBody: string): string | undefined {
-  const match = commentBody.match(SOURCE_MARKER_RE);
-  if (!match) return undefined;
-  try {
-    return Buffer.from(match[1], "base64").toString("utf8");
-  } catch {
-    return undefined;
-  }
-}
 
 function safeEqual(left: string, right: string): boolean {
   if (left.length !== right.length) {
@@ -79,6 +68,31 @@ function normalizeFindings(input: unknown): DomAuditFindingSummary[] {
     .filter((finding): finding is DomAuditFindingSummary => Boolean(finding));
 }
 
+function normalizePatternFindings(input: unknown): PatternAuditSummary | undefined {
+  if (!input || typeof input !== "object") return undefined;
+  const raw = input as Record<string, unknown>;
+  const findings = Array.isArray(raw.findings)
+    ? (raw.findings as unknown[])
+        .filter((f): f is Record<string, unknown> => Boolean(f) && typeof f === "object")
+        .map((f): PatternFindingSummary => ({
+          id: typeof f.id === "string" ? f.id.trim() : "",
+          title: typeof f.title === "string" ? f.title.trim() : "",
+          severity: typeof f.severity === "string" ? f.severity.trim() : "",
+          file: typeof f.file === "string" ? f.file.trim() : "",
+          line: typeof f.line === "number" ? f.line : undefined,
+          patternId: typeof f.patternId === "string" ? f.patternId.trim() : "",
+        }))
+        .filter((f) => f.id && f.title && f.severity)
+    : [];
+  const totals = {
+    Critical: Number((raw.totals as Record<string, unknown>)?.Critical ?? 0),
+    Serious: Number((raw.totals as Record<string, unknown>)?.Serious ?? 0),
+    Moderate: Number((raw.totals as Record<string, unknown>)?.Moderate ?? 0),
+    Minor: Number((raw.totals as Record<string, unknown>)?.Minor ?? 0),
+  };
+  return { totalFindings: Number(raw.totalFindings ?? findings.length), totals, findings };
+}
+
 function severityIcon(severity: string): string {
   const normalized = severity.trim().toLowerCase();
   if (normalized === "critical") return "🔴";
@@ -88,7 +102,44 @@ function severityIcon(severity: string): string {
   return "⚪";
 }
 
-function buildFinalComment(summary: DomAuditSummary, sourceSection?: string): string {
+function buildPatternSection(patternFindings: PatternAuditSummary): string {
+  const summaryLine = `🔴 Critical: ${patternFindings.totals.Critical} | 🟠 Serious: ${patternFindings.totals.Serious} | 🟡 Moderate: ${patternFindings.totals.Moderate} | 🔵 Minor: ${patternFindings.totals.Minor}`;
+
+  if (patternFindings.findings.length === 0) {
+    return [
+      "### Source Pattern Analysis",
+      "",
+      "Static analysis of changed source files. Detects known accessibility anti-patterns before the code runs.",
+      "",
+      "No source pattern issues found.",
+    ].join("\n");
+  }
+
+  const list = patternFindings.findings
+    .map((finding, index) => {
+      const location = finding.line ? `${finding.file}:${finding.line}` : finding.file;
+      const lines = [
+        `${index + 1}. ${severityIcon(finding.severity)} **[${finding.severity}]** ${finding.title}`,
+        `   **File:** \`${location}\``,
+        `   **Rule:** \`${finding.patternId}\``,
+        `   **Fix:** \`/a11y-fix ${finding.id}\``,
+      ];
+      return lines.join("\n");
+    })
+    .join("\n\n");
+
+  return [
+    "### Source Pattern Analysis",
+    "",
+    "Static analysis of changed source files. Detects known accessibility anti-patterns before the code runs.",
+    "",
+    summaryLine,
+    "",
+    list,
+  ].join("\n");
+}
+
+export function buildFinalComment(summary: DomAuditSummary): string {
   if (summary.status === "failure") {
     return [
       "### DOM Audit",
@@ -124,19 +175,21 @@ function buildFinalComment(summary: DomAuditSummary, sourceSection?: string): st
         ].filter((line) => line !== "")
       : [];
 
-  const quickFixSection =
-    summary.findings && summary.findings.length > 0
-      ? [
-          "",
-          "---",
-          "",
-          "### Quick Fix",
-          "",
-          "Fix a single finding: `/a11y-fix <ID>`",
-          "Fix several: `/a11y-fix <ID1> <ID2> <ID3>`",
-          "Fix all: `/a11y-fix all`",
-        ]
-      : [];
+  const hasAnyFindings =
+    summary.totalFindings > 0 || (summary.patternFindings && summary.patternFindings.totalFindings > 0);
+
+  const quickFixSection = hasAnyFindings
+    ? [
+        "",
+        "---",
+        "",
+        "### Quick Fix",
+        "",
+        "Fix a single finding: `/a11y-fix <ID>`",
+        "Fix several: `/a11y-fix <ID1> <ID2> <ID3>`",
+        "Fix all: `/a11y-fix all`",
+      ]
+    : [];
 
   const domSection = [
     "### DOM Audit",
@@ -151,8 +204,8 @@ function buildFinalComment(summary: DomAuditSummary, sourceSection?: string): st
     ...quickFixSection,
   ].join("\n");
 
-  if (sourceSection && sourceSection.trim().length > 0) {
-    return `${sourceSection}\n\n---\n\n${domSection}`;
+  if (summary.patternFindings) {
+    return `${buildPatternSection(summary.patternFindings)}\n\n---\n\n${domSection}`;
   }
 
   return domSection;
@@ -182,6 +235,7 @@ export async function processDomAuditCallback(
     (input.payload.totals as Partial<Record<keyof DomAuditSummary["totals"], number>>) ?? {},
   );
   const findings = normalizeFindings(input.payload.findings);
+  const patternFindings = normalizePatternFindings(input.payload.pattern_findings);
 
   if (!owner || !repo || !checkRunId) {
     return { status: 400, body: { ok: false, error: "Missing callback target fields" } };
@@ -194,6 +248,7 @@ export async function processDomAuditCallback(
     totalFindings,
     totals,
     findings,
+    patternFindings,
     error,
   };
 
@@ -209,19 +264,8 @@ export async function processDomAuditCallback(
 
     if (pullNumber > 0) {
       const commentId = Number(input.payload.comment_id ?? 0);
-      let sourceSection: string | undefined;
 
-      if (commentId > 0) {
-        try {
-          const existing = await octokit.rest.issues.getComment({ owner, repo, comment_id: commentId });
-          sourceSection = extractSourceSection(existing.data.body ?? "");
-        } catch (getErr) {
-          const status = (getErr as { status?: number }).status;
-          if (status !== 404) throw getErr;
-        }
-      }
-
-      const finalBody = buildFinalComment(summary, sourceSection);
+      const finalBody = buildFinalComment(summary);
 
       if (commentId > 0) {
         try {
