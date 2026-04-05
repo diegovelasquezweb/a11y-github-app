@@ -93,6 +93,8 @@ function buildFinalComment(summary: DomAuditSummary, sourceSection?: string): st
     return [
       "### DOM Audit",
       "",
+      "Dynamic scan of the rendered page in a real browser. Evaluates the live DOM against WCAG standards.",
+      "",
       `**Error:** ${summary.error ?? "Unknown error"}`,
       "",
       "Run `/a11y-audit` to retry.",
@@ -138,6 +140,8 @@ function buildFinalComment(summary: DomAuditSummary, sourceSection?: string): st
 
   const domSection = [
     "### DOM Audit",
+    "",
+    "Dynamic scan of the rendered page in a real browser. Evaluates the live DOM against WCAG standards.",
     "",
     `**Total findings:** ${summary.totalFindings}`,
     `🔴 Critical: ${summary.totals.Critical} | 🟠 Serious: ${summary.totals.Serious} | 🟡 Moderate: ${summary.totals.Moderate} | 🔵 Minor: ${summary.totals.Minor}`,

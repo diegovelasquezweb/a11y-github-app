@@ -89,6 +89,8 @@ export function buildSourcePatternsSection(analysis: ReviewAnalysisResult): stri
     return [
       "### Source Pattern Analysis",
       "",
+      "Static analysis of changed source files. Detects known accessibility anti-patterns before the code runs.",
+      "",
       "No source pattern issues found.",
       "",
       `Scanned files: ${analysis.scannedFiles}`,
@@ -115,6 +117,8 @@ export function buildSourcePatternsSection(analysis: ReviewAnalysisResult): stri
 
   return [
     "### Source Pattern Analysis",
+    "",
+    "Static analysis of changed source files. Detects known accessibility anti-patterns before the code runs.",
     "",
     summaryLine,
     "",

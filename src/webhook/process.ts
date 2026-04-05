@@ -130,6 +130,8 @@ function buildInitialAuditComment(sourceSection: string, requestedBy?: string): 
     "",
     "### DOM Audit",
     "",
+    "Dynamic scan of the rendered page in a real browser. Evaluates the live DOM against WCAG standards.",
+    "",
     "⏳ **DOM audit in progress...** Results will appear here when the scan finishes.",
     "",
     `<!-- A11Y_SOURCE_SECTION_START:${Buffer.from(sourceSection).toString("base64")}:A11Y_SOURCE_SECTION_END -->`,
