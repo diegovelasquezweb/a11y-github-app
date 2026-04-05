@@ -96,21 +96,23 @@ jobs:
           const input = process.env.FINDING_IDS_INPUT.trim()
 
           if (input === 'all') {
-            const cachePath = 'findings/a11y-findings.json'
-            if (!fs.existsSync(cachePath)) {
+            const domPath = 'findings/a11y-findings.json'
+            const patternPath = 'findings/a11y-pattern-findings.json'
+            const domFindings = fs.existsSync(domPath)
+              ? (JSON.parse(fs.readFileSync(domPath, 'utf8')).findings || [])
+              : []
+            const patternFindings = fs.existsSync(patternPath)
+              ? (JSON.parse(fs.readFileSync(patternPath, 'utf8')).findings || [])
+              : []
+            const allFindings = [...domFindings, ...patternFindings]
+            if (allFindings.length === 0) {
               console.error('No cached findings found for this SHA. Run /a11y-audit first.')
               process.exit(1)
             }
-            const payload = JSON.parse(fs.readFileSync(cachePath, 'utf8'))
-            const findings = Array.isArray(payload.findings) ? payload.findings : []
-            if (findings.length === 0) {
-              console.error('Cached findings file is empty. Run /a11y-audit first.')
-              process.exit(1)
-            }
-            const ids = findings.map(f => f.id).filter(Boolean).join(',')
+            const ids = allFindings.map(f => f.id).filter(Boolean).join(',')
             const out = process.env.GITHUB_OUTPUT
             fs.appendFileSync(out, `resolved_ids=${ids}\n`)
-            fs.appendFileSync(out, `id_count=${findings.length}\n`)
+            fs.appendFileSync(out, `id_count=${allFindings.length}\n`)
           } else {
             const ids = input.split(',').map(s => s.trim()).filter(Boolean)
             const out = process.env.GITHUB_OUTPUT
