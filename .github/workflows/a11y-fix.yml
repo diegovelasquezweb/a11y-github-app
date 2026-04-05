@@ -187,18 +187,22 @@ jobs:
             CURRENT_ID="${CURRENT_ID// /}"
             if [ -z "$CURRENT_ID" ]; then continue; fi
 
-            OUTPUT=$(FINDING_ID="$CURRENT_ID" \
+            SCRIPT_OUTPUT_FILE="$RUNNER_TEMP/script-output-${CURRENT_ID}.txt"
+            touch "$SCRIPT_OUTPUT_FILE"
+
+            FINDING_ID="$CURRENT_ID" \
               TARGET_DIR="${{ github.workspace }}/target" \
               FINDINGS_PATH="${{ github.workspace }}/findings/a11y-findings.json" \
               ANTHROPIC_API_KEY="${{ secrets.ANTHROPIC_API_KEY }}" \
-              node runner/scripts/apply-finding-fix.mjs 2>&1) || true
+              GITHUB_OUTPUT="$SCRIPT_OUTPUT_FILE" \
+              node runner/scripts/apply-finding-fix.mjs 2>&1 || true
 
-            STATUS=$(echo "$OUTPUT" | grep "^status=" | head -1 | cut -d= -f2)
-            PATCHED_FILE=$(echo "$OUTPUT" | grep "^patched_file=" | head -1 | cut -d= -f2)
-            BRANCH_SLUG=$(echo "$OUTPUT" | grep "^branch_slug=" | head -1 | cut -d= -f2)
-            VERIFY_ROUTE=$(echo "$OUTPUT" | grep "^verify_route=" | head -1 | cut -d= -f2)
-            VERIFY_RULE=$(echo "$OUTPUT" | grep "^verify_rule=" | head -1 | cut -d= -f2)
-            FINDING_TITLE=$(echo "$OUTPUT" | grep "^finding_title=" | head -1 | cut -d= -f2)
+            STATUS=$(grep "^status=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2)
+            PATCHED_FILE=$(grep "^patched_file=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2)
+            BRANCH_SLUG=$(grep "^branch_slug=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2)
+            VERIFY_ROUTE=$(grep "^verify_route=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2)
+            VERIFY_RULE=$(grep "^verify_rule=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2)
+            FINDING_TITLE=$(grep "^finding_title=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2)
 
             if [ "$STATUS" = "patched" ]; then
               ALL_FAILED=false
