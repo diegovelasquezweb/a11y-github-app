@@ -206,9 +206,9 @@ jobs:
               git -C target checkout -- . 2>/dev/null || true
             fi
 
-            ENTRY=$(node -e "process.stdout.write(JSON.stringify({id:'$CURRENT_ID',status:'${STATUS:-failed}',patched_file:'$PATCHED_FILE',title:'$FINDING_TITLE'}))")
+            ENTRY=$(ENTRY_ID="$CURRENT_ID" ENTRY_STATUS="${STATUS:-failed}" ENTRY_FILE="$PATCHED_FILE" ENTRY_TITLE="$FINDING_TITLE" node -e "process.stdout.write(JSON.stringify({id:process.env.ENTRY_ID,status:process.env.ENTRY_STATUS,patched_file:process.env.ENTRY_FILE,title:process.env.ENTRY_TITLE}))")
             CURRENT_RESULTS=$(cat "$RESULTS_FILE")
-            node -e "const r=JSON.parse(process.env.R);r.push(JSON.parse(process.env.E));process.stdout.write(JSON.stringify(r))" R="$CURRENT_RESULTS" E="$ENTRY" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "$RESULTS_FILE"
+            R="$CURRENT_RESULTS" E="$ENTRY" node -e "const r=JSON.parse(process.env.R);r.push(JSON.parse(process.env.E));process.stdout.write(JSON.stringify(r))" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "$RESULTS_FILE"
           done
 
           {
