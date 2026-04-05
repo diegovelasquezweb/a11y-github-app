@@ -21,6 +21,10 @@ on:
         description: "PR head SHA"
         required: true
         type: string
+      head_ref:
+        description: "PR head branch name"
+        required: true
+        type: string
       base_ref:
         description: "PR base branch"
         required: true
@@ -409,7 +413,7 @@ jobs:
               repo: "${{ inputs.target_repo }}",
               title,
               head: "${{ steps.commit_fix.outputs.branch_name }}",
-              base: "${{ inputs.base_ref }}",
+              base: "${{ inputs.head_ref }}",
               body,
             })
             core.setOutput("pr_url", response.data.html_url)

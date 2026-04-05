@@ -202,6 +202,7 @@ async function handleIssueCommentEvent(payload: {
       pull_number: pullNumber,
     });
     const headSha = pull.data.head.sha;
+    const headRef = pull.data.head.ref;
     const baseRef = pull.data.base.ref;
     const runnerOwner = CONFIG.scanRunnerOwner || owner;
     const runnerRepo = CONFIG.scanRunnerRepo || repo;
@@ -225,6 +226,7 @@ async function handleIssueCommentEvent(payload: {
       targetRepo: repo,
       pullNumber,
       headSha,
+      headRef,
       baseRef,
       findingIds: findingIdsStr,
       requestedBy: payload.comment?.user?.login ?? "unknown",

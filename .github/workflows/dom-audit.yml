@@ -293,28 +293,33 @@ jobs:
           HEALTH_URL: ${{ steps.runtime.outputs.health_url }}
 
       - name: Save findings to cache
-        if: ${{ steps.run_audit.outputs.exit_code == '0' }}
+        id: save_findings
         run: |
           mkdir -p findings
-          node -e "
-          const fs = require('fs');
-          const path = require('path');
-          let engineAuditDir = '';
+          node <<'NODE'
+          const fs = require('fs')
+          const path = require('path')
+          let engineAuditDir = ''
           try {
-            const enginePath = fs.realpathSync(path.join(process.cwd(), 'runner', 'node_modules', '@diegovelasquezweb', 'a11y-engine'));
-            engineAuditDir = path.join(enginePath, '.audit');
+            const enginePath = fs.realpathSync(path.join(process.cwd(), 'runner', 'node_modules', '@diegovelasquezweb', 'a11y-engine'))
+            engineAuditDir = path.join(enginePath, '.audit')
           } catch {}
           const candidates = [
             engineAuditDir ? path.join(engineAuditDir, 'a11y-findings.json') : '',
             path.join(process.cwd(), 'runner', '.audit', 'a11y-findings.json'),
             path.join(process.cwd(), 'target', '.audit', 'a11y-findings.json'),
-          ].filter(Boolean);
-          const found = candidates.find(f => fs.existsSync(f));
-          if (found) fs.copyFileSync(found, 'findings/a11y-findings.json');
-          "
+          ].filter(Boolean)
+          const found = candidates.find(f => fs.existsSync(f))
+          if (found) {
+            fs.copyFileSync(found, 'findings/a11y-findings.json')
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, 'found=true\n')
+          } else {
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, 'found=false\n')
+          }
+          NODE
 
       - name: Cache findings
-        if: ${{ steps.run_audit.outputs.exit_code == '0' }}
+        if: ${{ steps.save_findings.outputs.found == 'true' }}
         uses: actions/cache/save@v4
         with:
           path: findings/a11y-findings.json
