@@ -1,0 +1,158 @@
+# Architecture
+
+**Navigation**: [Home](../README.md) • [Architecture](architecture.md) • [Commands](commands.md) • [Configuration](configuration.md) • [Runner Setup](runner-setup.md) • [Fix Engine](fix-engine.md)
+
+---
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Request Flow](#request-flow)
+- [Internal Component Roles](#internal-component-roles)
+- [Audit Data Flow](#audit-data-flow)
+- [Fix Data Flow](#fix-data-flow)
+
+## Overview
+
+The A11y GitHub App is a webhook server that listens to GitHub events on installed repositories. When a pull request is opened or a PR comment containing a command is received, the app authenticates the request, determines the action, and dispatches GitHub Actions workflows to a configured runner repository. The runner performs the actual scanning or fix work and reports results back via a callback endpoint. The app then updates the GitHub Check Run and the PR comment with the final results.
+
+## Request Flow
+
+```mermaid
+%%{init: { 'theme': 'base', 'themeVariables': { 'primaryColor': '#3b5cd9', 'primaryTextColor': '#1e293b', 'primaryBorderColor': '#1e308a', 'lineColor': '#64748b', 'secondaryColor': '#f1f5f9', 'tertiaryColor': '#fff', 'mainBkg': '#fff', 'nodeBorder': '#e2e8f0', 'clusterBkg': '#f8fafc', 'clusterBorder': '#cbd5e1' } } }%%
+flowchart TD
+    GH(["GitHub Event"])
+
+    subgraph Webhook ["POST /api/webhook"]
+        direction TB
+        V["Verify HMAC Signature"]
+        D["Deduplicate Delivery ID"]
+        R{"Route by<br/>Event Type"}
+        V --> D --> R
+    end
+
+    subgraph PR ["pull_request event"]
+        direction TB
+        PA{"action:<br/>opened / reopened?"}
+        WC["Post Welcome Comment"]
+        PA -->|yes| WC
+        PA -->|no| SKIP1["Skip"]
+    end
+
+    subgraph IC ["issue_comment event"]
+        direction TB
+        AUTH{"author_association:<br/>OWNER / MEMBER /<br/>COLLABORATOR?"}
+        PARSE["Parse Command"]
+        AUTH -->|yes| PARSE
+        AUTH -->|no| SKIP2["Ignore"]
+        PARSE --> CMD{"Command?"}
+        CMD -->|"/a11y-audit<br/>/a11y-audit-dom<br/>/a11y-audit-source"| AUDIT["Create Check Run<br/>Dispatch Audit Workflow"]
+        CMD -->|"/a11y-fix"| FIX["Create Check Run<br/>Dispatch Fix Workflow"]
+        CMD -->|"none"| SKIP3["Ignore"]
+    end
+
+    subgraph Runner ["GitHub Actions Runner"]
+        direction TB
+        RUN["Execute Scan / Fix"]
+        CB["POST /api/scan-callback"]
+        RUN --> CB
+    end
+
+    subgraph Callback ["Callback Handler"]
+        direction TB
+        TOK["Verify Callback Token"]
+        UPD["Update Check Run"]
+        CMT["Update PR Comment"]
+        TOK --> UPD --> CMT
+    end
+
+    GH --> Webhook
+    R -->|pull_request| PR
+    R -->|issue_comment| IC
+    AUDIT --> Runner
+    FIX --> Runner
+    Runner --> Callback
+
+    classDef default font-family:Inter,sans-serif,font-size:12px;
+    classDef entry fill:#1e293b,color:#fff,stroke:#0f172a;
+    classDef core fill:#3b5cd9,color:#fff,stroke:#1e308a,stroke-width:2px;
+    classDef decision fill:#f1f5f9,stroke:#cbd5e1;
+
+    class GH entry;
+    class V,RUN,TOK core;
+```
+
+## Internal Component Roles
+
+| File | Responsibility |
+|------|----------------|
+| `src/webhook/process.ts` | Entry point for all webhook events. Verifies HMAC signature, deduplicates deliveries, routes to `pull_request` or `issue_comment` handler, posts welcome comment, checks author association, parses commands, creates Check Runs, and dispatches workflows. |
+| `src/webhook/dom-callback.ts` | Handles `POST /api/scan-callback`. Validates the callback token with a timing-safe comparison, normalizes the findings payload, builds the final PR comment body (DOM section, source pattern section, quick-fix section), updates the Check Run to `completed`, and updates or creates the PR comment. |
+| `src/review/audit-command.ts` | Parses audit commands from comment text. Matches `/a11y-audit`, `/a11y-audit-dom`, and `/a11y-audit-source` and returns an `AuditCommand` with `auditMode` and optional `targetUrl`. |
+| `src/review/fix-command.ts` | Parses fix commands from comment text. Matches `/a11y-fix` followed by one or more finding IDs (or `all`) and returns a `FixCommand` with the resolved `findingIds` array. |
+| `src/review/dom-workflow.ts` | Dispatches `workflow_dispatch` events to the runner repo for DOM audits and source-only audits. Also provides `createScanToken()` which generates a unique, URL-safe token per PR scan. |
+| `src/review/fix-workflow.ts` | Dispatches `workflow_dispatch` events to the runner repo for fix runs. Passes all required inputs including finding IDs, target repo coordinates, installation token, and AI model. |
+| `src/review/dom-reporter.ts` | Creates and updates GitHub Check Runs (`A11y Audit`, `A11y Fix`). Provides `createDomAuditPendingCheck`, `completeDomAuditCheck`, `createFixPendingCheck`, and `failDomAuditCheck`. |
+| `src/config.ts` | Single source of truth for all environment variable configuration. Reads required vars at startup and throws if any are missing. |
+| `.github/workflows/dom-audit.yml` | Runner workflow for DOM audits. Builds and starts the target project locally, runs `a11y-audit` (axe + cdp + pa11y engines), optionally runs the source pattern scanner, caches findings by head SHA, and POSTs the callback payload. Timeout: 20 minutes. |
+| `.github/workflows/source-audit.yml` | Runner workflow for source-only audits. Checks out target repo and runs the source pattern scanner only. Caches pattern findings by head SHA and POSTs the callback payload. Timeout: 10 minutes. |
+| `.github/workflows/a11y-fix.yml` | Runner workflow for automated fixes. Restores cached findings, resolves finding IDs, applies patches per finding with git checkpointing, re-runs the audit for verification, commits passing patches to a new branch, and opens a PR. Timeout: 25 minutes. |
+
+## Audit Data Flow
+
+```mermaid
+%%{init: { 'theme': 'base', 'themeVariables': { 'primaryColor': '#3b5cd9', 'primaryTextColor': '#1e293b', 'primaryBorderColor': '#1e308a', 'lineColor': '#64748b', 'secondaryColor': '#f1f5f9', 'tertiaryColor': '#fff', 'mainBkg': '#fff', 'nodeBorder': '#e2e8f0', 'clusterBkg': '#f8fafc', 'clusterBorder': '#cbd5e1' } } }%%
+flowchart LR
+    CMD(["PR comment:<br/>/a11y-audit"])
+    CR1["Check Run created<br/>(in_progress)"]
+    WF["workflow_dispatch<br/>→ dom-audit.yml"]
+    BUILD["Build + start<br/>target project"]
+    SCAN["axe + cdp + pa11y<br/>scan"]
+    PAT["Source pattern<br/>scanner"]
+    CB["POST /api/scan-callback"]
+    CR2["Check Run updated<br/>(completed)"]
+    CMT["PR comment updated<br/>with findings"]
+
+    CMD --> CR1 --> WF --> BUILD --> SCAN
+    SCAN --> PAT --> CB --> CR2
+    CB --> CMT
+
+    classDef default font-family:Inter,sans-serif,font-size:12px;
+    classDef core fill:#3b5cd9,color:#fff,stroke:#1e308a,stroke-width:2px;
+    classDef trigger fill:#1e293b,color:#fff,stroke:#0f172a;
+    classDef storage fill:#f1f5f9,stroke:#cbd5e1,stroke-dasharray: 5 5;
+
+    class SCAN,PAT core;
+    class CMD trigger;
+    class CR1,CR2,CMT storage;
+```
+
+## Fix Data Flow
+
+```mermaid
+%%{init: { 'theme': 'base', 'themeVariables': { 'primaryColor': '#3b5cd9', 'primaryTextColor': '#1e293b', 'primaryBorderColor': '#1e308a', 'lineColor': '#64748b', 'secondaryColor': '#f1f5f9', 'tertiaryColor': '#fff', 'mainBkg': '#fff', 'nodeBorder': '#e2e8f0', 'clusterBkg': '#f8fafc', 'clusterBorder': '#cbd5e1' } } }%%
+flowchart LR
+    CMD2(["PR comment:<br/>/a11y-fix A11Y-001"])
+    CR3["Check Run created<br/>(in_progress)"]
+    WF2["workflow_dispatch<br/>→ a11y-fix.yml"]
+    CACHE["Restore findings<br/>from cache"]
+    APPLY["Apply patch per finding<br/>(git checkpoint)"]
+    AI["Claude API<br/>generates patch"]
+    VERIFY["Re-run audit<br/>for verification"]
+    BRANCH["Commit to<br/>new branch"]
+    PR["Open PR with<br/>fix summary"]
+    CR4["Check Run updated<br/>(completed)"]
+
+    CMD2 --> CR3 --> WF2 --> CACHE --> APPLY
+    AI --> APPLY
+    APPLY --> VERIFY --> BRANCH --> PR --> CR4
+
+    classDef default font-family:Inter,sans-serif,font-size:12px;
+    classDef core fill:#3b5cd9,color:#fff,stroke:#1e308a,stroke-width:2px;
+    classDef trigger fill:#1e293b,color:#fff,stroke:#0f172a;
+    classDef storage fill:#f1f5f9,stroke:#cbd5e1,stroke-dasharray: 5 5;
+
+    class APPLY,AI,VERIFY core;
+    class CMD2 trigger;
+    class CR3,CR4,CACHE,BRANCH,PR storage;
+```

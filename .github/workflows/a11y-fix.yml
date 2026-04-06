@@ -238,10 +238,12 @@ jobs:
             VERIFY_ROUTE=$(grep "^verify_route=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2)
             VERIFY_RULE=$(grep "^verify_rule=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2)
             FINDING_TITLE=$(grep "^finding_title=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2)
+            FINDING_REASON=$(grep "^reason=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2-)
             FINDING_INPUT_TOKENS=$(grep "^input_tokens=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2)
             FINDING_OUTPUT_TOKENS=$(grep "^output_tokens=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2)
             TOTAL_INPUT_TOKENS=$((TOTAL_INPUT_TOKENS + ${FINDING_INPUT_TOKENS:-0}))
             TOTAL_OUTPUT_TOKENS=$((TOTAL_OUTPUT_TOKENS + ${FINDING_OUTPUT_TOKENS:-0}))
+            echo "[$CURRENT_ID] status=$STATUS | reason=$FINDING_REASON | message=$FINDING_MESSAGE"
 
             if [ "$STATUS" = "patched" ]; then
               ALL_FAILED=false
