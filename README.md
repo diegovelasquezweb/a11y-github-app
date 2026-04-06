@@ -20,7 +20,7 @@ When installed on a repository, the app posts a welcome comment on every opened 
 
 Go to **GitHub Settings → Developer settings → GitHub Apps → New GitHub App** and configure:
 
-**Permissions (Repository):** Contents (Read & write), Pull requests (Read & write), Checks (Read & write), Issues (Read-only)
+**Permissions (Repository):** Contents (Read & write), Pull requests (Read & write), Checks (Read & write), Issues (Read-only), **Actions (Read & write)**
 
 **Subscribe to events:** `Pull request`, `Issue comment`
 
