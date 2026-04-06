@@ -44,3 +44,5 @@ appendOutput("verify_rule", result.verifyRule || "");
 appendOutput("verify_route", result.verifyRoute || "/");
 appendOutput("finding_title", result.findingTitle || "");
 appendOutput("branch_slug", result.branchSlug || "");
+appendOutput("input_tokens", result.usage?.input_tokens ?? 0);
+appendOutput("output_tokens", result.usage?.output_tokens ?? 0);
