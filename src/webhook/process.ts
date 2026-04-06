@@ -165,14 +165,25 @@ function buildInitialAuditComment(requestedBy?: string, mode: AuditMode = "unifi
       "",
       "### Source Pattern Analysis",
       "",
-      "⏳ Source scan in progress...",
+      "Static analysis of source code for common accessibility anti-patterns.",
+      "",
+      "⏳ **Scan in progress...** Results will appear here when the scan finishes.",
+    );
+  } else if (mode === "dom") {
+    lines.push(
+      "",
+      "### DOM Audit",
+      "",
+      "Dynamic scan of the rendered page in a real browser against WCAG standards.",
+      "",
+      "⏳ **Audit in progress...** Results will appear here when the scan finishes.",
     );
   } else {
     lines.push(
       "",
       "### DOM Audit",
       "",
-      "Dynamic scan of the rendered page in a real browser. Evaluates the live DOM against WCAG standards.",
+      "DOM scan + static source pattern analysis against WCAG standards.",
       "",
       "⏳ **Audit in progress...** Results will appear here when the scan finishes.",
     );
