@@ -45,6 +45,11 @@ on:
         description: "Check run ID to update with fix result"
         required: true
         type: string
+      ai_model:
+        description: "Claude model to use for fix generation"
+        required: false
+        default: "claude-haiku-4-5-20251001"
+        type: string
 
 permissions:
   contents: write
@@ -217,6 +222,7 @@ jobs:
                 TARGET_DIR="${{ github.workspace }}/target" \
                 FINDINGS_PATH="${{ github.workspace }}/findings/a11y-findings.json" \
                 PATTERN_FINDINGS_PATH="${{ github.workspace }}/findings/a11y-pattern-findings.json" \
+                AI_MODEL="${{ inputs.ai_model }}" \
                 ANTHROPIC_API_KEY="${{ secrets.ANTHROPIC_API_KEY }}" \
                 GITHUB_OUTPUT="$SCRIPT_OUTPUT_FILE" \
                 node runner/scripts/apply-finding-fix.mjs 2>&1 || true
@@ -416,6 +422,7 @@ jobs:
           VERIFIED_IDS: ${{ steps.commit_fix.outputs.verified_ids }}
           TOTAL_INPUT_TOKENS: ${{ steps.apply_fixes.outputs.total_input_tokens }}
           TOTAL_OUTPUT_TOKENS: ${{ steps.apply_fixes.outputs.total_output_tokens }}
+          AI_MODEL: ${{ inputs.ai_model }}
         with:
           github-token: ${{ inputs.target_token }}
           script: |
@@ -444,7 +451,7 @@ jobs:
               "### AI Usage",
               "| Metric | Value |",
               "|--------|-------|",
-              `| Model | \`claude-haiku-4-5-20251001\` |`,
+              `| Model | \`${process.env.AI_MODEL || 'claude-haiku-4-5-20251001'}\` |`,
               `| Input tokens | ${inputTokens.toLocaleString()} |`,
               `| Output tokens | ${outputTokens.toLocaleString()} |`,
               `| Estimated cost | $${estimatedCost} |`,
@@ -482,6 +489,7 @@ jobs:
           ALL_FAILED: ${{ steps.apply_fixes.outputs.all_failed }}
           TOTAL_INPUT_TOKENS: ${{ steps.apply_fixes.outputs.total_input_tokens }}
           TOTAL_OUTPUT_TOKENS: ${{ steps.apply_fixes.outputs.total_output_tokens }}
+          AI_MODEL: ${{ inputs.ai_model }}
         with:
           github-token: ${{ inputs.target_token }}
           script: |
@@ -513,7 +521,7 @@ jobs:
               "### AI Usage",
               "| Metric | Value |",
               "|--------|-------|",
-              `| Model | \`claude-haiku-4-5-20251001\` |`,
+              `| Model | \`${process.env.AI_MODEL || 'claude-haiku-4-5-20251001'}\` |`,
               `| Input tokens | ${inputTokens.toLocaleString()} |`,
               `| Output tokens | ${outputTokens.toLocaleString()} |`,
               `| Estimated cost | $${estimatedCost} |`,

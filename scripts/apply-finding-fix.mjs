@@ -5,6 +5,7 @@ const findingId = process.env.FINDING_ID || "";
 const targetDir = process.env.TARGET_DIR || "";
 const findingsPath = process.env.FINDINGS_PATH || "";
 const patternFindingsPath = process.env.PATTERN_FINDINGS_PATH || "";
+const aiModel = process.env.AI_MODEL || "";
 const githubOutput = process.env.GITHUB_OUTPUT || "";
 
 function appendOutput(name, value) {
@@ -35,6 +36,7 @@ const result = await applyFindingFix({
   payload,
   patternPayload,
   projectDir: targetDir,
+  ...(aiModel ? { ai: { model: aiModel } } : {}),
 });
 
 appendOutput("status", result.status);
