@@ -17,6 +17,7 @@ interface DispatchFixWorkflowInput {
   targetToken: string;
   checkRunId: number;
   aiModel: string;
+  projectHints?: string;
 }
 
 export async function dispatchFixWorkflow(input: DispatchFixWorkflowInput): Promise<void> {
@@ -37,6 +38,7 @@ export async function dispatchFixWorkflow(input: DispatchFixWorkflowInput): Prom
       target_token: input.targetToken,
       check_run_id: String(input.checkRunId),
       ai_model: input.aiModel,
+      project_hints: input.projectHints ?? "",
     },
   });
 }

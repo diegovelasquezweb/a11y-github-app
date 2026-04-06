@@ -38,4 +38,36 @@ describe("parseFixCommand", () => {
     const result = parseFixCommand("/a11y-fix  F-001   F-002");
     expect(result.findingIds).toEqual(["F-001", "F-002"]);
   });
+
+  it("parses hint from 'all' command", () => {
+    expect(parseFixCommand('/a11y-fix all "use sr-only labels"')).toEqual({
+      requested: true,
+      findingIds: ["all"],
+      hint: "use sr-only labels",
+    });
+  });
+
+  it("parses hint with multiple IDs", () => {
+    expect(parseFixCommand('/a11y-fix A11Y-abc123 A11Y-def456 "use sr-only labels"')).toEqual({
+      requested: true,
+      findingIds: ["A11Y-abc123", "A11Y-def456"],
+      hint: "use sr-only labels",
+    });
+  });
+
+  it("parses hint with single ID", () => {
+    expect(parseFixCommand('/a11y-fix A11Y-abc123 "prefer aria-label over title"')).toEqual({
+      requested: true,
+      findingIds: ["A11Y-abc123"],
+      hint: "prefer aria-label over title",
+    });
+  });
+
+  it("does not set hint when no quotes present", () => {
+    expect(parseFixCommand("/a11y-fix all").hint).toBeUndefined();
+  });
+
+  it("does not set hint for empty quoted string", () => {
+    expect(parseFixCommand('/a11y-fix all ""').hint).toBeUndefined();
+  });
 });

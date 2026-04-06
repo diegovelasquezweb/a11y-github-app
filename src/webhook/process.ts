@@ -283,6 +283,7 @@ async function handleIssueCommentEvent(payload: {
       targetToken,
       checkRunId,
       aiModel: CONFIG.fixAiModel,
+      ...(fixCommand.hint ? { projectHints: fixCommand.hint } : {}),
     });
 
     const confirmationMessage =
