@@ -229,8 +229,8 @@ jobs:
             fi
 
             STATUS=$(grep "^status=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2)
-            REASON=$(grep "^reason=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2-)
-            if [ "$STATUS" != "patched" ] && echo "$REASON" | grep -qi "search block not found"; then
+            FINDING_MESSAGE=$(grep "^message=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2-)
+            if [ "$STATUS" != "patched" ] && echo "$FINDING_MESSAGE" | grep -qi "search block not found"; then
               STATUS="skipped"
             fi
             PATCHED_FILE=$(grep "^patched_file=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2)

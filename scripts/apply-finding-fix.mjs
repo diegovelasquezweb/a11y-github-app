@@ -41,6 +41,7 @@ const result = await applyFindingFix({
 
 appendOutput("status", result.status);
 appendOutput("reason", result.reason || "");
+appendOutput("message", result.message || "");
 appendOutput("patched_file", result.patchedFile || "");
 appendOutput("verify_rule", result.verifyRule || "");
 appendOutput("verify_route", result.verifyRoute || "/");
