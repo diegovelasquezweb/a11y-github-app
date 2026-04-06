@@ -184,6 +184,17 @@ jobs:
         run: bash -lc "${{ steps.runtime.outputs.build_command }}"
         working-directory: ${{ steps.runtime.outputs.workdir }}
 
+      - name: Read project hints
+        id: read_hints
+        run: |
+          HINTS_PATH="${{ github.workspace }}/target/.a11y-hints.json"
+          if [ -f "$HINTS_PATH" ]; then
+            HINTS=$(cat "$HINTS_PATH")
+            echo "project_hints=$HINTS" >> "$GITHUB_OUTPUT"
+          else
+            echo "project_hints=" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Apply finding fixes
         id: apply_fixes
         run: |
@@ -223,6 +234,7 @@ jobs:
                 FINDINGS_PATH="${{ github.workspace }}/findings/a11y-findings.json" \
                 PATTERN_FINDINGS_PATH="${{ github.workspace }}/findings/a11y-pattern-findings.json" \
                 AI_MODEL="${{ inputs.ai_model }}" \
+                PROJECT_HINTS="${{ steps.read_hints.outputs.project_hints }}" \
                 ANTHROPIC_API_KEY="${{ secrets.ANTHROPIC_API_KEY }}" \
                 GITHUB_OUTPUT="$SCRIPT_OUTPUT_FILE" \
                 node runner/scripts/apply-finding-fix.mjs 2>&1 || true

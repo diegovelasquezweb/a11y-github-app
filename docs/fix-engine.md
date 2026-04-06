@@ -10,6 +10,7 @@
 - [Fix Strategies](#fix-strategies)
   - [DOM Findings (A11Y-*)](#dom-findings-a11y-)
   - [Pattern Findings (PAT-*)](#pattern-findings-pat-)
+- [Project Hints (.a11y-hints.json)](#project-hints-a11y-hintsjson)
 - [Git Checkpoint Pattern](#git-checkpoint-pattern)
 - [Fix Result Statuses](#fix-result-statuses)
 - [AI Usage Reporting](#ai-usage-reporting)
@@ -45,6 +46,37 @@ Pattern findings originate from the static source pattern scanner. Each finding 
 3. Call the Claude API with the surrounding code context and the pattern's remediation guidance.
 4. Apply the generated patch to the target file.
 5. No DOM re-verification is performed for pattern findings — the fix is marked `patched` after successful application.
+
+## Project Hints (.a11y-hints.json)
+
+You can customize how the AI applies fixes by placing an `.a11y-hints.json` file in the root of your target repository. The workflow reads this file before each fix run and passes its contents to the engine as project context.
+
+**Example `.a11y-hints.json`:**
+
+```json
+{
+  "labelStrategy": "sr-only",
+  "cssFramework": "tailwind",
+  "conventions": [
+    "Use sr-only utility class for visually hidden labels instead of aria-label",
+    "Button text must be wrapped in a <span class=\"sr-only\"> when using icon-only buttons"
+  ]
+}
+```
+
+The contents are injected verbatim into the Claude prompt as project context. Claude reads these conventions before generating any patch and applies them alongside the WCAG guidance from the engine's intelligence database.
+
+**When the file is absent**, the workflow proceeds normally with no additional context — there is zero impact on runs where `.a11y-hints.json` does not exist.
+
+**Supported fields** (all optional, free-form — Claude interprets them):
+
+| Field | Example | Effect |
+|-------|---------|--------|
+| `labelStrategy` | `"sr-only"` | Preferred technique for visually hidden labels |
+| `cssFramework` | `"tailwind"` | Tells Claude which utility classes are available |
+| `conventions` | `["..."]` | Free-text rules Claude must follow when patching |
+
+Any valid JSON is accepted. You can add any fields that describe your project's conventions — Claude reads the whole object.
 
 ## Git Checkpoint Pattern
 

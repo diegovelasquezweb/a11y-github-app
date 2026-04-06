@@ -6,6 +6,7 @@ const targetDir = process.env.TARGET_DIR || "";
 const findingsPath = process.env.FINDINGS_PATH || "";
 const patternFindingsPath = process.env.PATTERN_FINDINGS_PATH || "";
 const aiModel = process.env.AI_MODEL || "";
+const projectHintsRaw = process.env.PROJECT_HINTS || "";
 const githubOutput = process.env.GITHUB_OUTPUT || "";
 
 function appendOutput(name, value) {
@@ -31,11 +32,21 @@ if (!payload) {
   process.exit(1);
 }
 
+let projectHints = "";
+if (projectHintsRaw) {
+  try {
+    projectHints = JSON.stringify(JSON.parse(projectHintsRaw));
+  } catch {
+    projectHints = projectHintsRaw;
+  }
+}
+
 const result = await applyFindingFix({
   findingId,
   payload,
   patternPayload,
   projectDir: targetDir,
+  ...(projectHints ? { projectHints } : {}),
   ...(aiModel ? { ai: { model: aiModel } } : {}),
 });
 

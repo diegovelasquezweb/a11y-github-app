@@ -166,6 +166,8 @@ export function buildFinalComment(summary: DomAuditSummary): string {
           "Fix a single finding: `/a11y-fix <ID>`",
           "Fix several: `/a11y-fix <ID1> <ID2> <ID3>`",
           "Fix all: `/a11y-fix all`",
+          "",
+          "> 💡 Add `.a11y-hints.json` to your repo to customize how fixes are applied (e.g. prefer `sr-only` labels, Tailwind classes).",
         ]
       : [];
 
@@ -229,6 +231,8 @@ export function buildFinalComment(summary: DomAuditSummary): string {
         "Fix a single finding: `/a11y-fix <ID>`",
         "Fix several: `/a11y-fix <ID1> <ID2> <ID3>`",
         "Fix all: `/a11y-fix all`",
+        "",
+        "> 💡 Add `.a11y-hints.json` to your repo to customize how fixes are applied (e.g. prefer `sr-only` labels, Tailwind classes).",
       ]
     : [];
 
