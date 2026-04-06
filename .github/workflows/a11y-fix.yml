@@ -229,6 +229,10 @@ jobs:
             fi
 
             STATUS=$(grep "^status=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2)
+            REASON=$(grep "^reason=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2-)
+            if [ "$STATUS" != "patched" ] && echo "$REASON" | grep -qi "search block not found"; then
+              STATUS="skipped"
+            fi
             PATCHED_FILE=$(grep "^patched_file=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2)
             BRANCH_SLUG=$(grep "^branch_slug=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2)
             VERIFY_ROUTE=$(grep "^verify_route=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2)
