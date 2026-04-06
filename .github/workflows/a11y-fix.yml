@@ -258,7 +258,7 @@ jobs:
               fi
             fi
 
-            ENTRY=$(ENTRY_ID="$CURRENT_ID" ENTRY_STATUS="${STATUS:-failed}" ENTRY_FILE="$PATCHED_FILE" ENTRY_TITLE="$FINDING_TITLE" node -e "process.stdout.write(JSON.stringify({id:process.env.ENTRY_ID,status:process.env.ENTRY_STATUS,patched_file:process.env.ENTRY_FILE,title:process.env.ENTRY_TITLE}))")
+            ENTRY=$(ENTRY_ID="$CURRENT_ID" ENTRY_STATUS="${STATUS:-failed}" ENTRY_FILE="$PATCHED_FILE" ENTRY_TITLE="$FINDING_TITLE" ENTRY_MESSAGE="$FINDING_MESSAGE" node -e "process.stdout.write(JSON.stringify({id:process.env.ENTRY_ID,status:process.env.ENTRY_STATUS,patched_file:process.env.ENTRY_FILE,title:process.env.ENTRY_TITLE,message:process.env.ENTRY_MESSAGE}))")
             CURRENT_RESULTS=$(cat "$RESULTS_FILE")
             R="$CURRENT_RESULTS" E="$ENTRY" node -e "const r=JSON.parse(process.env.R);r.push(JSON.parse(process.env.E));process.stdout.write(JSON.stringify(r))" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "$RESULTS_FILE"
           done
@@ -437,11 +437,11 @@ jobs:
             const verifiedIds = (process.env.VERIFIED_IDS || '').split(',').filter(Boolean)
 
             const rows = results.map(r => {
-              const icon = r.verified ? '✅' : r.status === 'patched' || r.status === 'unverified' ? '⚠️' : '❌'
+              const icon = r.verified ? '✅' : r.status === 'patched' || r.status === 'unverified' ? '⚠️' : r.status === 'skipped' ? '⏭️' : '❌'
               const statusText = r.verified ? 'Fixed & verified'
                 : r.status === 'unverified' ? 'Patched but not verified'
                 : r.status === 'skipped' ? 'Skipped'
-                : 'Failed'
+                : r.message ? `Failed: ${r.message}` : 'Failed'
               return `| ${icon} | \`${r.id}\` | ${r.title || '—'} | ${statusText} | ${r.patched_file ? `\`${r.patched_file}\`` : '—'} |`
             }).join('\n')
 
@@ -515,7 +515,7 @@ jobs:
               const statusText = r.verified ? 'Fixed & verified'
                 : r.status === 'unverified' ? 'Patched but not verified'
                 : r.status === 'skipped' ? 'Skipped'
-                : 'Failed'
+                : r.message ? `Failed: ${r.message}` : 'Failed'
               return `| ${icon} | \`${r.id}\` | ${r.title || '—'} | ${statusText} |`
             })
 
