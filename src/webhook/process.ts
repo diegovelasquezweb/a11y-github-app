@@ -137,7 +137,7 @@ async function handlePullRequestEvent(payload: {
 
 function buildWelcomeComment(): string {
   return [
-    "## 👋 Accessibility Audit Available",
+    "## Accessibility Audit Available",
     "",
     "This repository has the **A11y PR Reviewer** installed. You can scan this PR for WCAG accessibility issues using the commands below.",
     "",
