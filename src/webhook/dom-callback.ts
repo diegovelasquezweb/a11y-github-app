@@ -209,7 +209,6 @@ export function buildFinalComment(summary: DomAuditSummary): string {
               ];
               if (finding.wcag) lines.push(`   **WCAG:** ${finding.wcag}`);
               if (finding.selector) lines.push(`   **Selector:** \`${finding.selector}\``);
-              if (finding.url) lines.push(`   **URL:** ${finding.url}`);
               if (finding.id) lines.push(`   **Fix:** \`/a11y-fix ${finding.id}\``);
               return lines.join("\n");
             })
