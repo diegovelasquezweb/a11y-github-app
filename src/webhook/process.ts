@@ -181,8 +181,6 @@ function buildInitialAuditComment(requestedBy?: string, mode: AuditMode = "unifi
   } else {
     lines.push(
       "",
-      "### DOM Audit",
-      "",
       "DOM scan + static source pattern analysis against WCAG standards.",
       "",
       "⏳ **Audit in progress...** Results will appear here when the scan finishes.",
