@@ -211,9 +211,9 @@ export function buildFinalComment(summary: DomAuditSummary): string {
               ];
               if (finding.url) {
                 try {
-                  let path = new URL(finding.url).pathname;
-                  path = path.replace(/\/index\.html$/, "/").replace(/\.html$/, "");
-                  lines.push(`   **Page:** \`${path || "/"}\``);
+                  const pathname = new URL(finding.url).pathname;
+                  const name = pathname.replace(/\/index\.html$/, "/").replace(/\.html$/, "").replace(/^\//, "") || "home";
+                  lines.push(`   **Page:** \`${name}\``);
                 } catch { /* ignore unparseable URLs */ }
               }
               if (finding.wcag) lines.push(`   **WCAG:** ${finding.wcag}`);
