@@ -451,9 +451,13 @@ jobs:
               return `| ${icon} | \`${r.id}\` | ${r.title || '—'} | ${statusText} | ${r.patched_file ? `\`${r.patched_file}\`` : '—'} |`
             }).join('\n')
 
-            const title = verifiedIds.length === 1
-              ? `fix(a11y): resolve ${verifiedIds[0]}`
-              : `fix(a11y): resolve ${verifiedIds.length} findings`
+            const verifiedTitles = results
+              .filter(r => verifiedIds.includes(r.id) && r.title)
+              .map(r => r.title)
+            const titleSuffix = verifiedTitles.length > 0
+              ? verifiedTitles.join(', ')
+              : verifiedIds.join(', ')
+            const title = `fix(a11y): ${titleSuffix.length > 72 ? titleSuffix.slice(0, 72) + '…' : titleSuffix}`
 
             const inputTokens = parseInt(process.env.TOTAL_INPUT_TOKENS || '0', 10)
             const outputTokens = parseInt(process.env.TOTAL_OUTPUT_TOKENS || '0', 10)

@@ -139,7 +139,7 @@ function buildWelcomeComment(): string {
   return [
     "## Accessibility Audit Available",
     "",
-    "This repository has the **A11y PR Reviewer** installed. You can scan this PR for WCAG accessibility issues using the commands below.",
+    "Detect accessibility issues in this PR for WCAG compliance. Use the commands below to run a scan.",
     "",
     "| Command | What it does |",
     "|---|---|",
@@ -147,9 +147,7 @@ function buildWelcomeComment(): string {
     "| `/a11y-audit-dom` | DOM scan only — runs the page in a real browser |",
     "| `/a11y-audit-source` | Source pattern scan only — fast static analysis |",
     "",
-    "After the audit runs, use `/a11y-fix <ID>` or `/a11y-fix all` to apply automated fixes.",
-    "",
-    "> Only repository collaborators and members can trigger audits.",
+    "> 💡 The DOM scan typically takes 1–2 minutes depending on the number of routes.",
   ].join("\n");
 }
 

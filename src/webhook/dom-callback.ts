@@ -167,7 +167,7 @@ export function buildFinalComment(summary: DomAuditSummary): string {
           "Fix several: `/a11y-fix <ID1> <ID2> <ID3>`",
           "Fix all: `/a11y-fix all`",
           "",
-          "> 💡 Add `.a11y-hints.json` to your repo to customize how fixes are applied (e.g. prefer `sr-only` labels, Tailwind classes).",
+          "> 💡 Pass a hint to guide the fix: `/a11y-fix all \"use sr-only labels\"` or `/a11y-fix <ID> \"prefer Tailwind classes\"`",
         ]
       : [];
 
@@ -232,22 +232,28 @@ export function buildFinalComment(summary: DomAuditSummary): string {
         "Fix several: `/a11y-fix <ID1> <ID2> <ID3>`",
         "Fix all: `/a11y-fix all`",
         "",
-        "> 💡 Add `.a11y-hints.json` to your repo to customize how fixes are applied (e.g. prefer `sr-only` labels, Tailwind classes).",
+        "> 💡 Pass a hint to guide the fix: `/a11y-fix all \"use sr-only labels\"` or `/a11y-fix <ID> \"prefer Tailwind classes\"`",
       ]
     : [];
 
-  const domSection = [
-    "### DOM Audit",
-    "",
-    "Dynamic scan of the rendered page in a real browser. Evaluates the live DOM against WCAG standards.",
-    "",
-    `**Total findings:** ${summary.totalFindings}`,
-    `🔴 Critical: ${summary.totals.Critical} | 🟠 Serious: ${summary.totals.Serious} | 🟡 Moderate: ${summary.totals.Moderate} | 🔵 Minor: ${summary.totals.Minor}`,
-    ...findingsSection,
-    "",
-    `**Scan token:** \`${summary.scanToken}\``,
-    ...quickFixSection,
-  ].join("\n");
+  const domSection = summary.totalFindings === 0
+    ? [
+        "### DOM Audit",
+        "",
+        "Dynamic scan of the rendered page in a real browser. Evaluates the live DOM against WCAG standards.",
+        "",
+        "No DOM accessibility issues found.",
+      ].join("\n")
+    : [
+        "### DOM Audit",
+        "",
+        "Dynamic scan of the rendered page in a real browser. Evaluates the live DOM against WCAG standards.",
+        "",
+        `**Total findings:** ${summary.totalFindings}`,
+        `🔴 Critical: ${summary.totals.Critical} | 🟠 Serious: ${summary.totals.Serious} | 🟡 Moderate: ${summary.totals.Moderate} | 🔵 Minor: ${summary.totals.Minor}`,
+        ...findingsSection,
+        ...quickFixSection,
+      ].join("\n");
 
   if (mode === "dom") {
     return domSection;
