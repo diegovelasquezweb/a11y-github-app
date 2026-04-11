@@ -213,9 +213,7 @@ export function buildFinalComment(summary: DomAuditSummary): string {
                 try {
                   const path = new URL(finding.url).pathname;
                   lines.push(`   **Page:** \`${path}\``);
-                } catch {
-                  lines.push(`   **Page:** \`${finding.url}\``);
-                }
+                } catch { /* ignore unparseable URLs */ }
               }
               if (finding.wcag) lines.push(`   **WCAG:** ${finding.wcag}`);
               if (finding.selector) lines.push(`   **Selector:** \`${finding.selector}\``);
