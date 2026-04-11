@@ -253,8 +253,8 @@ jobs:
               fi
             fi
 
-            # Write DOM entries to RESULTS_FILE directly (no eval — avoids silent failure)
-            node -e "
+            # Write DOM entries to RESULTS_FILE directly (env vars BEFORE node)
+            F="$DOM_RESULTS_FILE" R="$RESULTS_FILE" node -e "
               const fs = require('fs');
               const results = JSON.parse(fs.readFileSync(process.env.F,'utf8'));
               const entries = results.map(r => ({
@@ -266,10 +266,10 @@ jobs:
               }));
               const current = JSON.parse(fs.readFileSync(process.env.R,'utf8'));
               fs.writeFileSync(process.env.R, JSON.stringify([...current,...entries]));
-            " F="$DOM_RESULTS_FILE" R="$RESULTS_FILE" 2>&1 || echo "[warn] failed to write DOM entries to RESULTS_FILE"
+            " 2>&1 || echo "[warn] failed to write DOM entries to RESULTS_FILE"
 
             # Update shell variables (PATCHED_IDS, tokens, etc.) via eval
-            eval "$(node -e "
+            eval "$(F="$DOM_RESULTS_FILE" node -e "
               const fs = require('fs');
               const results = JSON.parse(fs.readFileSync(process.env.F,'utf8'));
               let patchedIds = [], verifyRoutes = [], verifyRules = [], inTok = 0, outTok = 0;
@@ -293,7 +293,7 @@ jobs:
               }
               process.stdout.write('TOTAL_INPUT_TOKENS=\$((TOTAL_INPUT_TOKENS + ' + inTok + '))\n');
               process.stdout.write('TOTAL_OUTPUT_TOKENS=\$((TOTAL_OUTPUT_TOKENS + ' + outTok + '))\n');
-            " F="$DOM_RESULTS_FILE" 2>/dev/null || true)"
+            " 2>/dev/null || true)"
 
             echo "[debug] RESULTS_FILE content after DOM eval:"
             cat "$RESULTS_FILE" || echo "(empty or missing)"
