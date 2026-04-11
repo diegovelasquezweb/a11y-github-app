@@ -50,13 +50,30 @@ if (findingIds) {
     .map((id) => id.trim())
     .filter(Boolean);
 
-  const { results } = await applyFindingsFix({
-    findingIds: ids,
-    findingsPayload: payload,
-    projectDir: targetDir,
-    ...(projectHints ? { projectHints } : {}),
-    ...(aiModel ? { ai: { model: aiModel } } : {}),
-  });
+  let results;
+  try {
+    ({ results } = await applyFindingsFix({
+      findingIds: ids,
+      findingsPayload: payload,
+      projectDir: targetDir,
+      ...(projectHints ? { projectHints } : {}),
+      ...(aiModel ? { ai: { model: aiModel } } : {}),
+    }));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    process.stderr.write(`[apply-findings-fix] error: ${msg}\n`);
+    results = ids.map((id) => ({
+      id,
+      status: "error",
+      reason: "patch-generation-failed",
+      message: msg,
+      patchedFile: "",
+      findingTitle: "",
+      verifyRule: "",
+      verifyRoute: "/",
+      usage: { input_tokens: 0, output_tokens: 0 },
+    }));
+  }
 
   if (resultsOutputPath) {
     fs.writeFileSync(resultsOutputPath, JSON.stringify(results, null, 2), "utf8");
