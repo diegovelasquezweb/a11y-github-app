@@ -237,9 +237,6 @@ jobs:
               echo "[]" > "$DOM_RESULTS_FILE"
             fi
 
-            echo "[debug] DOM_RESULTS_FILE content:"
-            cat "$DOM_RESULTS_FILE" || echo "(empty or missing)"
-
             # Detect if any DOM finding was patched
             DOM_ANY_PATCHED=$(node -e "
               const results = JSON.parse(require('fs').readFileSync(process.env.F,'utf8'));
@@ -295,8 +292,6 @@ jobs:
               process.stdout.write('TOTAL_OUTPUT_TOKENS=\$((TOTAL_OUTPUT_TOKENS + ' + outTok + '))\n');
             " 2>/dev/null || true)"
 
-            echo "[debug] RESULTS_FILE content after DOM eval:"
-            cat "$RESULTS_FILE" || echo "(empty or missing)"
           fi
 
           # ── PAT-* per-finding loop ────────────────────────────────────────────────
