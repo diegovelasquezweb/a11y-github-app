@@ -35,3 +35,5 @@ export function createServer(): Application {
 
   return app;
 }
+
+export default createServer();
