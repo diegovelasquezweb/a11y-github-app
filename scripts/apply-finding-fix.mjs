@@ -1,5 +1,7 @@
 import fs from "node:fs";
-import { applyFindingFix, applyFindingsFix } from "@diegovelasquezweb/a11y-engine";
+import * as engineModule from "@diegovelasquezweb/a11y-engine";
+const applyFindingFix = engineModule.applyFindingFix;
+const applyFindingsFix = engineModule.applyFindingsFix;
 
 const findingId = process.env.FINDING_ID || "";
 const findingIds = process.env.FINDING_IDS || "";
