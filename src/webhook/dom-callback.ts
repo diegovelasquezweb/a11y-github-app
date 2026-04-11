@@ -209,7 +209,14 @@ export function buildFinalComment(summary: DomAuditSummary): string {
               const lines = [
                 `${index + 1}. ${severityIcon(finding.severity)} **[${finding.severity}]** ${finding.title}`,
               ];
-              if (finding.url) lines.push(`   **Page:** ${finding.url}`);
+              if (finding.url) {
+                try {
+                  const path = new URL(finding.url).pathname;
+                  lines.push(`   **Page:** \`${path}\``);
+                } catch {
+                  lines.push(`   **Page:** \`${finding.url}\``);
+                }
+              }
               if (finding.wcag) lines.push(`   **WCAG:** ${finding.wcag}`);
               if (finding.selector) lines.push(`   **Selector:** \`${finding.selector}\``);
               if (finding.id) lines.push(`   **Fix:** \`/a11y-fix ${finding.id}\``);
