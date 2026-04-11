@@ -216,7 +216,7 @@ export function buildFinalComment(summary: DomAuditSummary): string {
                   lines.push(`   **Page:** \`${name}\``);
                 } catch { /* ignore unparseable URLs */ }
               }
-              if (finding.wcag) lines.push(`   **WCAG:** ${finding.wcag}`);
+              if (finding.wcag && finding.wcag !== "WCAG") lines.push(`   **WCAG:** ${finding.wcag}`);
               if (finding.selector) lines.push(`   **Selector:** \`${finding.selector}\``);
               if (finding.id) lines.push(`   **Fix:** \`/a11y-fix ${finding.id}\``);
               return lines.join("\n");
