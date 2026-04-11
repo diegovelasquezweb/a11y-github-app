@@ -1,13 +1,15 @@
 import fs from "node:fs";
-import { applyFindingFix } from "@diegovelasquezweb/a11y-engine";
+import { applyFindingFix, applyFindingsFix } from "@diegovelasquezweb/a11y-engine";
 
 const findingId = process.env.FINDING_ID || "";
+const findingIds = process.env.FINDING_IDS || "";
 const targetDir = process.env.TARGET_DIR || "";
 const findingsPath = process.env.FINDINGS_PATH || "";
 const patternFindingsPath = process.env.PATTERN_FINDINGS_PATH || "";
 const aiModel = process.env.AI_MODEL || "";
 const projectHintsRaw = process.env.PROJECT_HINTS || "";
 const githubOutput = process.env.GITHUB_OUTPUT || "";
+const resultsOutputPath = process.env.RESULTS_OUTPUT_PATH || "";
 
 function appendOutput(name, value) {
   if (!githubOutput) {
@@ -41,6 +43,30 @@ if (projectHintsRaw) {
   }
 }
 
+// Multi-finding DOM batch path (FINDING_IDS env var, comma-separated, no PAT-* IDs)
+if (findingIds) {
+  const ids = findingIds
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+
+  const { results } = await applyFindingsFix({
+    findingIds: ids,
+    findingsPayload: payload,
+    projectDir: targetDir,
+    ...(projectHints ? { projectHints } : {}),
+    ...(aiModel ? { ai: { model: aiModel } } : {}),
+  });
+
+  if (resultsOutputPath) {
+    fs.writeFileSync(resultsOutputPath, JSON.stringify(results, null, 2), "utf8");
+  } else {
+    process.stdout.write(JSON.stringify(results, null, 2) + "\n");
+  }
+  process.exit(0);
+}
+
+// Single-finding path (FINDING_ID env var — handles both DOM and PAT-* findings)
 const result = await applyFindingFix({
   findingId,
   payload,

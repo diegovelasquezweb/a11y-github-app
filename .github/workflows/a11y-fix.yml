@@ -204,70 +204,146 @@ jobs:
           TOTAL_INPUT_TOKENS=0
           TOTAL_OUTPUT_TOKENS=0
 
+          # Split resolved IDs into DOM (A11Y-*) and pattern (PAT-*) lists
+          DOM_IDS=""
+          PAT_IDS=""
           IFS=',' read -ra IDS <<< "$RESOLVED_IDS"
-          for CURRENT_ID in "${IDS[@]}"; do
-            CURRENT_ID="${CURRENT_ID// /}"
-            if [ -z "$CURRENT_ID" ]; then continue; fi
-
-            SCRIPT_OUTPUT_FILE="$RUNNER_TEMP/script-output-${CURRENT_ID}.txt"
-            touch "$SCRIPT_OUTPUT_FILE"
-
-            CHECKPOINT_FILE="$RUNNER_TEMP/checkpoint-${CURRENT_ID}.patch"
-            git -C target diff > "$CHECKPOINT_FILE" 2>/dev/null || true
-
-            IS_PATTERN_ID=false
-            if [[ "$CURRENT_ID" == PAT-* ]]; then
-              IS_PATTERN_ID=true
-            fi
-
-            if [ "$IS_PATTERN_ID" = "true" ] && [ ! -f "${{ github.workspace }}/findings/a11y-pattern-findings.json" ]; then
-              echo "status=no-cache" >> "$SCRIPT_OUTPUT_FILE"
+          for ID in "${IDS[@]}"; do
+            ID="${ID// /}"
+            if [ -z "$ID" ]; then continue; fi
+            if [[ "$ID" == PAT-* ]]; then
+              PAT_IDS="${PAT_IDS:+$PAT_IDS,}$ID"
             else
-              FINDING_ID="$CURRENT_ID" \
-                TARGET_DIR="${{ github.workspace }}/target" \
-                FINDINGS_PATH="${{ github.workspace }}/findings/a11y-findings.json" \
-                PATTERN_FINDINGS_PATH="${{ github.workspace }}/findings/a11y-pattern-findings.json" \
-                AI_MODEL="${{ inputs.ai_model }}" \
-                PROJECT_HINTS="${{ inputs.project_hints }}" \
-                ANTHROPIC_API_KEY="${{ secrets.ANTHROPIC_API_KEY }}" \
-                GITHUB_OUTPUT="$SCRIPT_OUTPUT_FILE" \
-                node runner/scripts/apply-finding-fix.mjs 2>&1 || true
+              DOM_IDS="${DOM_IDS:+$DOM_IDS,}$ID"
+            fi
+          done
+
+          # ── DOM batch ────────────────────────────────────────────────────────────
+          if [ -n "$DOM_IDS" ]; then
+            DOM_RESULTS_FILE="$RUNNER_TEMP/dom-results.json"
+            DOM_CHECKPOINT="$RUNNER_TEMP/dom-batch.patch"
+            git -C target diff > "$DOM_CHECKPOINT" 2>/dev/null || true
+
+            FINDING_IDS="$DOM_IDS" \
+              TARGET_DIR="${{ github.workspace }}/target" \
+              FINDINGS_PATH="${{ github.workspace }}/findings/a11y-findings.json" \
+              AI_MODEL="${{ inputs.ai_model }}" \
+              PROJECT_HINTS="${{ inputs.project_hints }}" \
+              ANTHROPIC_API_KEY="${{ secrets.ANTHROPIC_API_KEY }}" \
+              RESULTS_OUTPUT_PATH="$DOM_RESULTS_FILE" \
+              node runner/scripts/apply-finding-fix.mjs 2>&1 || true
+
+            if [ ! -f "$DOM_RESULTS_FILE" ]; then
+              echo "[]" > "$DOM_RESULTS_FILE"
             fi
 
-            STATUS=$(grep "^status=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2)
-            FINDING_MESSAGE=$(grep "^message=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2-)
-            if [ "$STATUS" != "patched" ] && echo "$FINDING_MESSAGE" | grep -qi "search block not found"; then
-              STATUS="skipped"
-            fi
-            PATCHED_FILE=$(grep "^patched_file=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2)
-            BRANCH_SLUG=$(grep "^branch_slug=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2)
-            VERIFY_ROUTE=$(grep "^verify_route=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2)
-            VERIFY_RULE=$(grep "^verify_rule=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2)
-            FINDING_TITLE=$(grep "^finding_title=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2)
-            FINDING_REASON=$(grep "^reason=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2-)
-            FINDING_INPUT_TOKENS=$(grep "^input_tokens=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2)
-            FINDING_OUTPUT_TOKENS=$(grep "^output_tokens=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2)
-            TOTAL_INPUT_TOKENS=$((TOTAL_INPUT_TOKENS + ${FINDING_INPUT_TOKENS:-0}))
-            TOTAL_OUTPUT_TOKENS=$((TOTAL_OUTPUT_TOKENS + ${FINDING_OUTPUT_TOKENS:-0}))
-            echo "[$CURRENT_ID] status=$STATUS | reason=$FINDING_REASON | message=$FINDING_MESSAGE"
+            # Detect if any DOM finding was patched
+            DOM_ANY_PATCHED=$(node -e "
+              const results = JSON.parse(require('fs').readFileSync(process.env.F,'utf8'));
+              process.stdout.write(results.some(r=>r.status==='patched')?'true':'false');
+            " F="$DOM_RESULTS_FILE" 2>/dev/null || echo "false")
 
-            if [ "$STATUS" = "patched" ]; then
-              ALL_FAILED=false
-              PATCHED_COUNT=$((PATCHED_COUNT + 1))
-              PATCHED_IDS="${PATCHED_IDS:+$PATCHED_IDS,}$CURRENT_ID"
-              VERIFY_ROUTES="${VERIFY_ROUTES:+$VERIFY_ROUTES,}$VERIFY_ROUTE"
-              VERIFY_RULES="${VERIFY_RULES:+$VERIFY_RULES,}$VERIFY_RULE"
-            else
+            if [ "$DOM_ANY_PATCHED" = "false" ]; then
               git -C target checkout -- . 2>/dev/null || true
-              if [ -s "$CHECKPOINT_FILE" ]; then
-                git -C target apply "$CHECKPOINT_FILE" 2>/dev/null || true
+              if [ -s "$DOM_CHECKPOINT" ]; then
+                git -C target apply "$DOM_CHECKPOINT" 2>/dev/null || true
               fi
             fi
 
-            ENTRY=$(ENTRY_ID="$CURRENT_ID" ENTRY_STATUS="${STATUS:-failed}" ENTRY_FILE="$PATCHED_FILE" ENTRY_TITLE="$FINDING_TITLE" ENTRY_MESSAGE="$FINDING_MESSAGE" node -e "process.stdout.write(JSON.stringify({id:process.env.ENTRY_ID,status:process.env.ENTRY_STATUS,patched_file:process.env.ENTRY_FILE,title:process.env.ENTRY_TITLE,message:process.env.ENTRY_MESSAGE}))")
-            CURRENT_RESULTS=$(cat "$RESULTS_FILE")
-            R="$CURRENT_RESULTS" E="$ENTRY" node -e "const r=JSON.parse(process.env.R);r.push(JSON.parse(process.env.E));process.stdout.write(JSON.stringify(r))" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "$RESULTS_FILE"
-          done
+            # Unpack DOM results into aggregate counters and RESULTS_FILE
+            eval "$(node -e "
+              const fs = require('fs');
+              const results = JSON.parse(fs.readFileSync(process.env.F,'utf8'));
+              let patchedIds = [], verifyRoutes = [], verifyRules = [], inTok = 0, outTok = 0;
+              const entries = [];
+              for (const r of results) {
+                const status = r.status === 'patched' ? 'patched'
+                  : (r.status !== 'patched' && (r.message||'').toLowerCase().includes('search block not found') ? 'skipped' : r.status||'failed');
+                console.log('echo [' + r.id + '] status=' + status + ' | message=' + (r.message||''));
+                if (r.status === 'patched') {
+                  patchedIds.push(r.id);
+                  if (r.verifyRoute) verifyRoutes.push(r.verifyRoute);
+                  if (r.verifyRule) verifyRules.push(r.verifyRule);
+                }
+                inTok += r.usage?.input_tokens || 0;
+                outTok += r.usage?.output_tokens || 0;
+                entries.push({id:r.id,status,patched_file:r.patchedFile||'',title:r.findingTitle||'',message:r.message||''});
+              }
+              if (patchedIds.length) {
+                console.log('PATCHED_IDS=\"\${PATCHED_IDS:+\${PATCHED_IDS},}' + patchedIds.join(',') + '\"');
+                console.log('PATCHED_COUNT=\$((PATCHED_COUNT + ' + patchedIds.length + '))');
+                console.log('VERIFY_ROUTES=\"\${VERIFY_ROUTES:+\${VERIFY_ROUTES},}' + verifyRoutes.join(',') + '\"');
+                console.log('VERIFY_RULES=\"\${VERIFY_RULES:+\${VERIFY_RULES},}' + verifyRules.join(',') + '\"');
+                console.log('ALL_FAILED=false');
+              }
+              console.log('TOTAL_INPUT_TOKENS=\$((TOTAL_INPUT_TOKENS + ' + inTok + '))');
+              console.log('TOTAL_OUTPUT_TOKENS=\$((TOTAL_OUTPUT_TOKENS + ' + outTok + '))');
+              const current = JSON.parse(fs.readFileSync(process.env.R,'utf8'));
+              fs.writeFileSync(process.env.R, JSON.stringify([...current,...entries]));
+            " F="$DOM_RESULTS_FILE" R="$RESULTS_FILE" 2>/dev/null || true)"
+          fi
+
+          # ── PAT-* per-finding loop ────────────────────────────────────────────────
+          if [ -n "$PAT_IDS" ]; then
+            IFS=',' read -ra PAT_ID_ARR <<< "$PAT_IDS"
+            for CURRENT_ID in "${PAT_ID_ARR[@]}"; do
+              CURRENT_ID="${CURRENT_ID// /}"
+              if [ -z "$CURRENT_ID" ]; then continue; fi
+
+              SCRIPT_OUTPUT_FILE="$RUNNER_TEMP/script-output-${CURRENT_ID}.txt"
+              touch "$SCRIPT_OUTPUT_FILE"
+
+              CHECKPOINT_FILE="$RUNNER_TEMP/checkpoint-${CURRENT_ID}.patch"
+              git -C target diff > "$CHECKPOINT_FILE" 2>/dev/null || true
+
+              if [ ! -f "${{ github.workspace }}/findings/a11y-pattern-findings.json" ]; then
+                echo "status=no-cache" >> "$SCRIPT_OUTPUT_FILE"
+              else
+                FINDING_ID="$CURRENT_ID" \
+                  TARGET_DIR="${{ github.workspace }}/target" \
+                  FINDINGS_PATH="${{ github.workspace }}/findings/a11y-findings.json" \
+                  PATTERN_FINDINGS_PATH="${{ github.workspace }}/findings/a11y-pattern-findings.json" \
+                  AI_MODEL="${{ inputs.ai_model }}" \
+                  PROJECT_HINTS="${{ inputs.project_hints }}" \
+                  ANTHROPIC_API_KEY="${{ secrets.ANTHROPIC_API_KEY }}" \
+                  GITHUB_OUTPUT="$SCRIPT_OUTPUT_FILE" \
+                  node runner/scripts/apply-finding-fix.mjs 2>&1 || true
+              fi
+
+              STATUS=$(grep "^status=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2)
+              FINDING_MESSAGE=$(grep "^message=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2-)
+              if [ "$STATUS" != "patched" ] && echo "$FINDING_MESSAGE" | grep -qi "search block not found"; then
+                STATUS="skipped"
+              fi
+              PATCHED_FILE=$(grep "^patched_file=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2)
+              VERIFY_ROUTE=$(grep "^verify_route=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2)
+              VERIFY_RULE=$(grep "^verify_rule=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2)
+              FINDING_TITLE=$(grep "^finding_title=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2)
+              FINDING_REASON=$(grep "^reason=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2-)
+              FINDING_INPUT_TOKENS=$(grep "^input_tokens=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2)
+              FINDING_OUTPUT_TOKENS=$(grep "^output_tokens=" "$SCRIPT_OUTPUT_FILE" | head -1 | cut -d= -f2)
+              TOTAL_INPUT_TOKENS=$((TOTAL_INPUT_TOKENS + ${FINDING_INPUT_TOKENS:-0}))
+              TOTAL_OUTPUT_TOKENS=$((TOTAL_OUTPUT_TOKENS + ${FINDING_OUTPUT_TOKENS:-0}))
+              echo "[$CURRENT_ID] status=$STATUS | reason=$FINDING_REASON | message=$FINDING_MESSAGE"
+
+              if [ "$STATUS" = "patched" ]; then
+                ALL_FAILED=false
+                PATCHED_COUNT=$((PATCHED_COUNT + 1))
+                PATCHED_IDS="${PATCHED_IDS:+$PATCHED_IDS,}$CURRENT_ID"
+                VERIFY_ROUTES="${VERIFY_ROUTES:+$VERIFY_ROUTES,}$VERIFY_ROUTE"
+                VERIFY_RULES="${VERIFY_RULES:+$VERIFY_RULES,}$VERIFY_RULE"
+              else
+                git -C target checkout -- . 2>/dev/null || true
+                if [ -s "$CHECKPOINT_FILE" ]; then
+                  git -C target apply "$CHECKPOINT_FILE" 2>/dev/null || true
+                fi
+              fi
+
+              ENTRY=$(ENTRY_ID="$CURRENT_ID" ENTRY_STATUS="${STATUS:-failed}" ENTRY_FILE="$PATCHED_FILE" ENTRY_TITLE="$FINDING_TITLE" ENTRY_MESSAGE="$FINDING_MESSAGE" node -e "process.stdout.write(JSON.stringify({id:process.env.ENTRY_ID,status:process.env.ENTRY_STATUS,patched_file:process.env.ENTRY_FILE,title:process.env.ENTRY_TITLE,message:process.env.ENTRY_MESSAGE}))")
+              CURRENT_RESULTS=$(cat "$RESULTS_FILE")
+              R="$CURRENT_RESULTS" E="$ENTRY" node -e "const r=JSON.parse(process.env.R);r.push(JSON.parse(process.env.E));process.stdout.write(JSON.stringify(r))" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "$RESULTS_FILE"
+            done
+          fi
 
           {
             echo "patched_count=$PATCHED_COUNT"
