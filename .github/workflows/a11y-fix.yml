@@ -253,16 +253,29 @@ jobs:
               fi
             fi
 
-            # Unpack DOM results into aggregate counters and RESULTS_FILE
+            # Write DOM entries to RESULTS_FILE directly (no eval — avoids silent failure)
+            node -e "
+              const fs = require('fs');
+              const results = JSON.parse(fs.readFileSync(process.env.F,'utf8'));
+              const entries = results.map(r => ({
+                id: r.id,
+                status: r.status === 'patched' ? 'patched' : ((r.message||'').toLowerCase().includes('search block not found') ? 'skipped' : r.status||'failed'),
+                patched_file: r.patchedFile||'',
+                title: r.findingTitle||'',
+                message: r.message||''
+              }));
+              const current = JSON.parse(fs.readFileSync(process.env.R,'utf8'));
+              fs.writeFileSync(process.env.R, JSON.stringify([...current,...entries]));
+            " F="$DOM_RESULTS_FILE" R="$RESULTS_FILE" 2>&1 || echo "[warn] failed to write DOM entries to RESULTS_FILE"
+
+            # Update shell variables (PATCHED_IDS, tokens, etc.) via eval
             eval "$(node -e "
               const fs = require('fs');
               const results = JSON.parse(fs.readFileSync(process.env.F,'utf8'));
               let patchedIds = [], verifyRoutes = [], verifyRules = [], inTok = 0, outTok = 0;
-              const entries = [];
               for (const r of results) {
-                const status = r.status === 'patched' ? 'patched'
-                  : (r.status !== 'patched' && (r.message||'').toLowerCase().includes('search block not found') ? 'skipped' : r.status||'failed');
-                console.log('echo [' + r.id + '] status=' + status + ' | message=' + (r.message||''));
+                const status = r.status === 'patched' ? 'patched' : ((r.message||'').toLowerCase().includes('search block not found') ? 'skipped' : r.status||'failed');
+                process.stdout.write('echo [' + r.id + '] status=' + status + '\n');
                 if (r.status === 'patched') {
                   patchedIds.push(r.id);
                   if (r.verifyRoute) verifyRoutes.push(r.verifyRoute);
@@ -270,20 +283,17 @@ jobs:
                 }
                 inTok += r.usage?.input_tokens || 0;
                 outTok += r.usage?.output_tokens || 0;
-                entries.push({id:r.id,status,patched_file:r.patchedFile||'',title:r.findingTitle||'',message:r.message||''});
               }
               if (patchedIds.length) {
-                console.log('PATCHED_IDS=\"\${PATCHED_IDS:+\${PATCHED_IDS},}' + patchedIds.join(',') + '\"');
-                console.log('PATCHED_COUNT=\$((PATCHED_COUNT + ' + patchedIds.length + '))');
-                console.log('VERIFY_ROUTES=\"\${VERIFY_ROUTES:+\${VERIFY_ROUTES},}' + verifyRoutes.join(',') + '\"');
-                console.log('VERIFY_RULES=\"\${VERIFY_RULES:+\${VERIFY_RULES},}' + verifyRules.join(',') + '\"');
-                console.log('ALL_FAILED=false');
+                process.stdout.write('PATCHED_IDS=\"\${PATCHED_IDS:+\${PATCHED_IDS},}' + patchedIds.join(',') + '\"\n');
+                process.stdout.write('PATCHED_COUNT=\$((PATCHED_COUNT + ' + patchedIds.length + '))\n');
+                process.stdout.write('VERIFY_ROUTES=\"\${VERIFY_ROUTES:+\${VERIFY_ROUTES},}' + verifyRoutes.join(',') + '\"\n');
+                process.stdout.write('VERIFY_RULES=\"\${VERIFY_RULES:+\${VERIFY_RULES},}' + verifyRules.join(',') + '\"\n');
+                process.stdout.write('ALL_FAILED=false\n');
               }
-              console.log('TOTAL_INPUT_TOKENS=\$((TOTAL_INPUT_TOKENS + ' + inTok + '))');
-              console.log('TOTAL_OUTPUT_TOKENS=\$((TOTAL_OUTPUT_TOKENS + ' + outTok + '))');
-              const current = JSON.parse(fs.readFileSync(process.env.R,'utf8'));
-              fs.writeFileSync(process.env.R, JSON.stringify([...current,...entries]));
-            " F="$DOM_RESULTS_FILE" R="$RESULTS_FILE" 2>/dev/null || true)"
+              process.stdout.write('TOTAL_INPUT_TOKENS=\$((TOTAL_INPUT_TOKENS + ' + inTok + '))\n');
+              process.stdout.write('TOTAL_OUTPUT_TOKENS=\$((TOTAL_OUTPUT_TOKENS + ' + outTok + '))\n');
+            " F="$DOM_RESULTS_FILE" 2>/dev/null || true)"
 
             echo "[debug] RESULTS_FILE content after DOM eval:"
             cat "$RESULTS_FILE" || echo "(empty or missing)"
