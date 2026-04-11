@@ -282,10 +282,12 @@ jobs:
                 outTok += r.usage?.output_tokens || 0;
               }
               if (patchedIds.length) {
+                const uniqueRoutes = [...new Set(verifyRoutes)];
+                const uniqueRules = [...new Set(verifyRules)];
                 process.stdout.write('PATCHED_IDS=\"\${PATCHED_IDS:+\${PATCHED_IDS},}' + patchedIds.join(',') + '\"\n');
                 process.stdout.write('PATCHED_COUNT=\$((PATCHED_COUNT + ' + patchedIds.length + '))\n');
-                process.stdout.write('VERIFY_ROUTES=\"\${VERIFY_ROUTES:+\${VERIFY_ROUTES},}' + verifyRoutes.join(',') + '\"\n');
-                process.stdout.write('VERIFY_RULES=\"\${VERIFY_RULES:+\${VERIFY_RULES},}' + verifyRules.join(',') + '\"\n');
+                process.stdout.write('VERIFY_ROUTES=\"\${VERIFY_ROUTES:+\${VERIFY_ROUTES},}' + uniqueRoutes.join(',') + '\"\n');
+                process.stdout.write('VERIFY_RULES=\"\${VERIFY_RULES:+\${VERIFY_RULES},}' + uniqueRules.join(',') + '\"\n');
                 process.stdout.write('ALL_FAILED=false\n');
               }
               process.stdout.write('TOTAL_INPUT_TOKENS=\$((TOTAL_INPUT_TOKENS + ' + inTok + '))\n');
@@ -418,7 +420,6 @@ jobs:
             --project-dir "target" \
             --routes "${{ steps.apply_fixes.outputs.verify_routes }}" \
             --only-rule "${{ steps.apply_fixes.outputs.verify_rules }}" \
-            --max-routes "1" \
             --wait-until "domcontentloaded" \
             --timeout-ms "45000" \
             --engines "axe,cdp,pa11y"
