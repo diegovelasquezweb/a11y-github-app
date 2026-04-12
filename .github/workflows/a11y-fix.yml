@@ -716,9 +716,9 @@ jobs:
               body = [
                 "## A11y Fix Ready",
                 "",
-                `**PR:** ${process.env.PR_URL}`,
+                `Review the changes and merge the Pull Request if everything looks correct.`,
                 "",
-                "Review the changes and merge the PR if everything looks correct. Then run `/a11y-audit` again to confirm all findings pass.",
+                `**Pull Request:** ${process.env.PR_URL}`,
                 "",
                 ...tableHeader,
                 ...rows,
