@@ -471,8 +471,11 @@ jobs:
             const orig = origFindings.find(f => f.id === id)
             let verified = scanOk
             if (verified && orig && orig.selector) {
+              const origRoute = orig.area || orig.url || ''
               verified = !verifyFindings.some(
-                f => f.rule_id === orig.rule_id && f.selector === orig.selector
+                f => f.rule_id === orig.rule_id &&
+                     f.selector === orig.selector &&
+                     (!origRoute || f.area === origRoute || f.url === origRoute)
               )
             }
             const entry = results.find(r => r.id === id)
