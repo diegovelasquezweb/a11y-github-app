@@ -467,6 +467,11 @@ jobs:
 
           let verifiedCount = 0
           const verifiedIds = []
+
+          // First pass: determine verified status per finding
+          const verifiedBySelector = new Map() // "selector|route" -> bool
+          const findingVerified = new Map()
+
           for (const id of patchedIds) {
             const orig = origFindings.find(f => f.id === id)
             let verified = scanOk
@@ -477,6 +482,23 @@ jobs:
                      f.selector === orig.selector &&
                      (!origRoute || f.area === origRoute || f.url === origRoute)
               )
+              // Track verified state by selector+route so cross-engine duplicates benefit
+              const key = `${orig.selector}|${origRoute}`
+              if (verified) verifiedBySelector.set(key, true)
+              else if (!verifiedBySelector.has(key)) verifiedBySelector.set(key, false)
+            }
+            findingVerified.set(id, { orig, verified })
+          }
+
+          // Second pass: a finding is verified if its own check passed OR another finding
+          // with the same selector+route was verified (same element, different engine)
+          for (const id of patchedIds) {
+            const { orig, verified: ownVerified } = findingVerified.get(id)
+            let verified = ownVerified
+            if (!verified && orig && orig.selector) {
+              const origRoute = orig.area || orig.url || ''
+              const key = `${orig.selector}|${origRoute}`
+              verified = verifiedBySelector.get(key) === true
             }
             const entry = results.find(r => r.id === id)
             if (entry) {
