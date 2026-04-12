@@ -239,15 +239,17 @@ jobs:
 
             # Parse DOM results, set shell vars, and decide rollback in one pass
             DOM_BATCH_PATCHED="false"
-            eval "$(F="$DOM_RESULTS_FILE" R="$RESULTS_FILE" node -e "
+            DOM_DEBUG_FILE="$RUNNER_TEMP/dom-debug.log"
+            > "$DOM_DEBUG_FILE"
+            eval "$(F="$DOM_RESULTS_FILE" R="$RESULTS_FILE" D="$DOM_DEBUG_FILE" node -e "
               const fs = require('fs');
               const results = JSON.parse(fs.readFileSync(process.env.F,'utf8'));
               let patchedIds = [], verifyRoutes = [], verifyRules = [], inTok = 0, outTok = 0;
               const entries = [];
               for (const r of results) {
                 const status = r.status === 'patched' ? 'patched' : ((r.message||'').toLowerCase().includes('search block not found') ? 'skipped' : r.status||'failed');
-                const safeMsg = (r.message||'').replace(/[\r\n]+/g,' ').replace(/['"\\`$]/g,'').slice(0,120);
-                process.stdout.write('echo "[' + r.id + '] status=' + status + ' | ' + safeMsg + '"\n');
+                process.stdout.write('echo [' + r.id + '] status=' + status + '\n');
+                fs.appendFileSync(process.env.D, '[' + r.id + '] ' + status + ' | ' + (r.message||'').replace(/[\r\n]+/g,' ').slice(0,150) + '\n');
                 entries.push({ id: r.id, status, patched_file: r.patchedFile||'', title: r.findingTitle||'', message: r.message||'' });
                 if (r.status === 'patched') {
                   patchedIds.push(r.id);
@@ -272,6 +274,8 @@ jobs:
               process.stdout.write('TOTAL_INPUT_TOKENS=\$((TOTAL_INPUT_TOKENS + ' + inTok + '))\n');
               process.stdout.write('TOTAL_OUTPUT_TOKENS=\$((TOTAL_OUTPUT_TOKENS + ' + outTok + '))\n');
             " 2>/dev/null || true)"
+
+            cat "$DOM_DEBUG_FILE" 2>/dev/null || true
 
             if [ "$DOM_BATCH_PATCHED" != "true" ]; then
               git -C target checkout -- . 2>/dev/null || true
