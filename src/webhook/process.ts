@@ -147,14 +147,14 @@ function buildWelcomeComment(): string {
     "| `/a11y-audit dom` | DOM scan only, runs the page in a real browser |",
     "| `/a11y-audit source` | Source pattern scan only, fast static analysis |",
     "",
-    "> 📟 Spins up a headless browser, renders each route, runs axe-core + CDP + pa11y against the live DOM, and posts findings here in about 1–2 minutes.",
+    "> 📟 Spins up a headless browser, renders each route, and runs axe-core + CDP + pa11y against the live DOM.",
     "",
     "### Suggested workflow",
     "",
     "- [ ] Run `/a11y-audit` to scan for accessibility findings",
     "- [ ] Review findings, then fix: `/a11y-fix all` (all at once) or `/a11y-fix <ID>` (per issue)",
     "- [ ] Review and merge the newly generated fix PR",
-    "- [ ] Run `/a11y-audit` again to confirm everything is clean",
+    "- [ ] Run `/a11y-audit` again to confirm everything passes",
   ].join("\n");
 }
 
