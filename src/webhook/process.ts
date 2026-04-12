@@ -144,8 +144,6 @@ function buildWelcomeComment(): string {
     "| Command | What it does |",
     "|---|---|",
     "| `/a11y-audit` | Full audit — DOM scan + static source pattern analysis |",
-    "| `/a11y-audit-dom` | DOM scan only — runs the page in a real browser |",
-    "| `/a11y-audit-source` | Source pattern scan only — fast static analysis |",
     "",
     "> 💡 The DOM scan typically takes 1–2 minutes depending on the number of routes.",
     "",
