@@ -246,7 +246,8 @@ jobs:
               const entries = [];
               for (const r of results) {
                 const status = r.status === 'patched' ? 'patched' : ((r.message||'').toLowerCase().includes('search block not found') ? 'skipped' : r.status||'failed');
-                process.stdout.write('echo [' + r.id + '] status=' + status + '\n');
+                const safeMsg = (r.message||'').replace(/[\r\n]+/g,' ').replace(/['"\\`$]/g,'').slice(0,120);
+                process.stdout.write('echo "[' + r.id + '] status=' + status + ' | ' + safeMsg + '"\n');
                 entries.push({ id: r.id, status, patched_file: r.patchedFile||'', title: r.findingTitle||'', message: r.message||'' });
                 if (r.status === 'patched') {
                   patchedIds.push(r.id);
