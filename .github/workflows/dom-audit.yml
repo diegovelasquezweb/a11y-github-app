@@ -371,6 +371,18 @@ jobs:
           } else {
             fs.appendFileSync(process.env.GITHUB_OUTPUT, 'found=false\n')
           }
+
+          // Also save remediation.md if available
+          const remediationCandidates = [
+            engineAuditDir ? path.join(engineAuditDir, 'remediation.md') : '',
+            path.join(process.cwd(), 'runner', '.audit', 'remediation.md'),
+            path.join(process.cwd(), 'target', '.audit', 'remediation.md'),
+          ].filter(Boolean)
+          const foundRemediation = remediationCandidates.find(f => fs.existsSync(f))
+          if (foundRemediation) {
+            fs.copyFileSync(foundRemediation, 'findings/a11y-remediation.md')
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, 'remediation_found=true\n')
+          }
           NODE
 
       - name: Cache findings
@@ -386,6 +398,13 @@ jobs:
         with:
           path: findings/a11y-pattern-findings.json
           key: a11y-pattern-findings-${{ inputs.head_sha }}
+
+      - name: Cache remediation guide
+        if: ${{ steps.save_findings.outputs.remediation_found == 'true' }}
+        uses: actions/cache/save@v4
+        with:
+          path: findings/a11y-remediation.md
+          key: a11y-remediation-${{ inputs.head_sha }}
 
       - name: Send callback
         if: always()

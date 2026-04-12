@@ -101,6 +101,14 @@ jobs:
           key: a11y-pattern-findings-${{ inputs.head_sha }}
           fail-on-cache-miss: false
 
+      - name: Restore remediation guide from cache
+        id: remediation_cache
+        uses: actions/cache/restore@v4
+        with:
+          path: findings/a11y-remediation.md
+          key: a11y-remediation-${{ inputs.head_sha }}
+          fail-on-cache-miss: false
+
       - name: Resolve finding IDs
         id: resolve_ids
         run: |
@@ -230,6 +238,7 @@ jobs:
             FINDING_IDS="$DOM_IDS" \
               TARGET_DIR="${{ github.workspace }}/target" \
               FINDINGS_PATH="${{ github.workspace }}/findings/a11y-findings.json" \
+              REMEDIATION_PATH="${{ github.workspace }}/findings/a11y-remediation.md" \
               AI_MODEL="${{ inputs.ai_model }}" \
               PROJECT_HINTS="${{ inputs.project_hints }}" \
               ANTHROPIC_API_KEY="${{ secrets.ANTHROPIC_API_KEY }}" \
@@ -353,6 +362,7 @@ jobs:
                   TARGET_DIR="${{ github.workspace }}/target" \
                   FINDINGS_PATH="${{ github.workspace }}/findings/a11y-findings.json" \
                   PATTERN_FINDINGS_PATH="${{ github.workspace }}/findings/a11y-pattern-findings.json" \
+                  REMEDIATION_PATH="${{ github.workspace }}/findings/a11y-remediation.md" \
                   AI_MODEL="${{ inputs.ai_model }}" \
                   PROJECT_HINTS="${{ inputs.project_hints }}" \
                   ANTHROPIC_API_KEY="${{ secrets.ANTHROPIC_API_KEY }}" \
