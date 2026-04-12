@@ -138,6 +138,7 @@ jobs:
                   file: String(f.file || ''),
                   line: f.line ? Number(f.line) : undefined,
                   patternId: String(f.pattern_id || f.patternId || ''),
+                  status: String(f.status || 'confirmed'),
                 }))
               patternFindings = { totalFindings: pFindings.length, totals: pTotals, findings: pSummary }
             } catch (parseError) {
