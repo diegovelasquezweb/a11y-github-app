@@ -35,7 +35,16 @@ export function parseAuditCommand(input: string): AuditCommand | null {
   }
 
   const tokens = args.split(/\s+/);
-  const urlToken = tokens.find((token) => isHttpUrl(token));
 
+  if (tokens[0] === "dom") {
+    const urlToken = tokens.slice(1).find((token) => isHttpUrl(token));
+    return { auditMode: "dom", targetUrl: urlToken };
+  }
+
+  if (tokens[0] === "source") {
+    return { auditMode: "source" };
+  }
+
+  const urlToken = tokens.find((token) => isHttpUrl(token));
   return { auditMode: "unified", targetUrl: urlToken };
 }
