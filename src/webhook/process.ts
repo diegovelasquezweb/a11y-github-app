@@ -152,7 +152,7 @@ function buildWelcomeComment(): string {
     "### Suggested workflow",
     "",
     "- [ ] Run `/a11y-audit` — scan for accessibility findings",
-    "- [ ] Run `/a11y-fix all` — auto-fix all reported findings",
+    "- [ ] Review findings, then fix: `/a11y-fix all` (all at once) or `/a11y-fix <ID>` (per issue)",
     "- [ ] Run `/a11y-audit` again — verify all fixes are clean",
   ].join("\n");
 }
