@@ -690,6 +690,15 @@ jobs:
               `| Estimated cost | $${estimatedCost} |`,
             ].join("\n")
 
+            const runUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
+            const agentSection = [
+              "",
+              "---",
+              "",
+              `📄 **Want a second opinion?** [Download the fix report](${runUrl}) and share it with your AI agent to verify each change independently.`,
+              "> Go to the **Artifacts** section of the workflow run.",
+            ].join("\n")
+
             let body
             if (process.env.ANY_VERIFIED === 'true' && process.env.PR_URL) {
               body = [
@@ -700,6 +709,7 @@ jobs:
                 ...tableHeader,
                 ...rows,
                 usageSection,
+                agentSection,
               ].join("\n")
             } else if (process.env.ALL_FAILED === 'true') {
               body = [
@@ -825,13 +835,13 @@ jobs:
             if (r.patched_file) lines.push(`**File:** \`${r.patched_file}\``)
             if (r.message) lines.push(`**Note:** ${r.message}`)
 
-            // Before/after diff from git
+            // Diff from committed changes (git show HEAD -- file)
             const patchedFile = r.patched_file
             if (patchedFile && (r.verified || r.status === 'unverified')) {
               try {
                 const { execSync } = require('child_process')
                 const diff = execSync(
-                  `git -C target diff HEAD -- "${patchedFile}" 2>/dev/null || git -C target show HEAD:"${patchedFile}" 2>/dev/null | head -0`,
+                  `git -C target show HEAD -- "${patchedFile}"`,
                   { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }
                 ).trim()
                 if (diff) {
