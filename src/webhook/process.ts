@@ -147,7 +147,7 @@ function buildWelcomeComment(): string {
     "| `/a11y-audit dom` | DOM scan only, runs the page in a real browser |",
     "| `/a11y-audit source` | Source pattern scan only, fast static analysis |",
     "",
-    "> 📟 Spins up a headless browser, renders each route, and runs axe-core + CDP + pa11y against the live DOM.",
+    "> 📟 Runs [axe-core](https://github.com/dequelabs/axe-core) + [CDP](https://chromedevtools.github.io/devtools-protocol/) + [pa11y](https://pa11y.org/) against the live DOM, plus static source pattern analysis.",
     "",
     "### Suggested workflow",
     "",
