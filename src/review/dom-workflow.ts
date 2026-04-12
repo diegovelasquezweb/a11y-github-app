@@ -82,7 +82,6 @@ export async function dispatchSourceAuditWorkflow(input: DispatchSourceAuditInpu
       check_run_id: String(input.checkRunId),
       target_token: input.targetToken,
       comment_id: String(input.commentId),
-      audit_mode: "source",
     },
   });
 }
