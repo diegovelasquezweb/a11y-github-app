@@ -74,6 +74,7 @@ function normalizePatternFindings(input: unknown): PatternAuditSummary | undefin
   const findings = Array.isArray(raw.findings)
     ? (raw.findings as unknown[])
         .filter((f): f is Record<string, unknown> => Boolean(f) && typeof f === "object")
+        .filter((f) => f.status !== "potential")
         .map((f): PatternFindingSummary => ({
           id: typeof f.id === "string" ? f.id.trim() : "",
           title: typeof f.title === "string" ? f.title.trim() : "",
@@ -85,12 +86,12 @@ function normalizePatternFindings(input: unknown): PatternAuditSummary | undefin
         .filter((f) => f.id && f.title && f.severity)
     : [];
   const totals = {
-    Critical: Number((raw.totals as Record<string, unknown>)?.Critical ?? 0),
-    Serious: Number((raw.totals as Record<string, unknown>)?.Serious ?? 0),
-    Moderate: Number((raw.totals as Record<string, unknown>)?.Moderate ?? 0),
-    Minor: Number((raw.totals as Record<string, unknown>)?.Minor ?? 0),
+    Critical: findings.filter((f) => f.severity.toLowerCase() === "critical").length,
+    Serious: findings.filter((f) => f.severity.toLowerCase() === "serious").length,
+    Moderate: findings.filter((f) => f.severity.toLowerCase() === "moderate").length,
+    Minor: findings.filter((f) => f.severity.toLowerCase() === "minor").length,
   };
-  return { totalFindings: Number(raw.totalFindings ?? findings.length), totals, findings };
+  return { totalFindings: findings.length, totals, findings };
 }
 
 function severityIcon(severity: string): string {
@@ -236,9 +237,11 @@ export function buildFinalComment(summary: DomAuditSummary): string {
         "",
         "### Quick Fix",
         "",
-        "Fix a single finding: `/a11y-fix <ID>`",
-        "Fix several: `/a11y-fix <ID1> <ID2> <ID3>`",
-        "Fix all: `/a11y-fix all`",
+        "| Command | What it does |",
+        "|---|---|",
+        "| `/a11y-fix all` | Fix all findings at once |",
+        "| `/a11y-fix <ID>` | Fix a single finding |",
+        "| `/a11y-fix <ID1> <ID2>` | Fix specific findings |",
         "",
         "> 💡 Pass a hint to guide the fix: `/a11y-fix all \"use sr-only labels\"` or `/a11y-fix <ID> \"prefer Tailwind classes\"`",
       ]
@@ -268,7 +271,11 @@ export function buildFinalComment(summary: DomAuditSummary): string {
   }
 
   if (summary.patternFindings) {
-    return `${buildPatternSection(summary.patternFindings)}\n\n---\n\n${domSection}`;
+    const combined = `${buildPatternSection(summary.patternFindings)}\n\n---\n\n${domSection}`;
+    if (summary.totalFindings === 0 && quickFixSection.length > 0) {
+      return `${combined}\n${quickFixSection.join("\n")}`;
+    }
+    return combined;
   }
 
   return domSection;
