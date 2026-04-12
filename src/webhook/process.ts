@@ -147,7 +147,7 @@ function buildWelcomeComment(): string {
     "| `/a11y-audit dom` | DOM scan only, runs the page in a real browser |",
     "| `/a11y-audit source` | Source pattern scan only, fast static analysis |",
     "",
-    "> 📟 Runs [axe-core](https://github.com/dequelabs/axe-core) + [CDP](https://chromedevtools.github.io/devtools-protocol/) + [pa11y](https://pa11y.org/) against the live DOM, plus static source pattern analysis.",
+    "> 📟 Runs [axe-core](https://www.deque.com/axe/) + [CDP](https://chromedevtools.github.io/devtools-protocol/) + [pa11y](https://pa11y.org/) against the live DOM, plus static source pattern analysis.",
     "",
     "### Suggested workflow",
     "",
