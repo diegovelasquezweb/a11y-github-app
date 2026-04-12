@@ -153,6 +153,7 @@ function buildWelcomeComment(): string {
     "",
     "- [ ] Run `/a11y-audit` — scan for accessibility findings",
     "- [ ] Run `/a11y-fix all` — auto-fix all reported findings",
+    "- [ ] Run `/a11y-audit` again — verify all fixes are clean",
   ].join("\n");
 }
 
