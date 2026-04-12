@@ -237,42 +237,17 @@ jobs:
               echo "[]" > "$DOM_RESULTS_FILE"
             fi
 
-            # Detect if any DOM finding was patched
-            DOM_ANY_PATCHED=$(node -e "
-              const results = JSON.parse(require('fs').readFileSync(process.env.F,'utf8'));
-              process.stdout.write(results.some(r=>r.status==='patched')?'true':'false');
-            " F="$DOM_RESULTS_FILE" 2>/dev/null || echo "false")
-
-            if [ "$DOM_ANY_PATCHED" = "false" ]; then
-              git -C target checkout -- . 2>/dev/null || true
-              if [ -s "$DOM_CHECKPOINT" ]; then
-                git -C target apply "$DOM_CHECKPOINT" 2>/dev/null || true
-              fi
-            fi
-
-            # Write DOM entries to RESULTS_FILE directly (env vars BEFORE node)
-            F="$DOM_RESULTS_FILE" R="$RESULTS_FILE" node -e "
-              const fs = require('fs');
-              const results = JSON.parse(fs.readFileSync(process.env.F,'utf8'));
-              const entries = results.map(r => ({
-                id: r.id,
-                status: r.status === 'patched' ? 'patched' : ((r.message||'').toLowerCase().includes('search block not found') ? 'skipped' : r.status||'failed'),
-                patched_file: r.patchedFile||'',
-                title: r.findingTitle||'',
-                message: r.message||''
-              }));
-              const current = JSON.parse(fs.readFileSync(process.env.R,'utf8'));
-              fs.writeFileSync(process.env.R, JSON.stringify([...current,...entries]));
-            " 2>&1 || echo "[warn] failed to write DOM entries to RESULTS_FILE"
-
-            # Update shell variables (PATCHED_IDS, tokens, etc.) via eval
-            eval "$(F="$DOM_RESULTS_FILE" node -e "
+            # Parse DOM results, set shell vars, and decide rollback in one pass
+            DOM_BATCH_PATCHED="false"
+            eval "$(F="$DOM_RESULTS_FILE" R="$RESULTS_FILE" node -e "
               const fs = require('fs');
               const results = JSON.parse(fs.readFileSync(process.env.F,'utf8'));
               let patchedIds = [], verifyRoutes = [], verifyRules = [], inTok = 0, outTok = 0;
+              const entries = [];
               for (const r of results) {
                 const status = r.status === 'patched' ? 'patched' : ((r.message||'').toLowerCase().includes('search block not found') ? 'skipped' : r.status||'failed');
                 process.stdout.write('echo [' + r.id + '] status=' + status + '\n');
+                entries.push({ id: r.id, status, patched_file: r.patchedFile||'', title: r.findingTitle||'', message: r.message||'' });
                 if (r.status === 'patched') {
                   patchedIds.push(r.id);
                   if (r.verifyRoute) verifyRoutes.push(r.verifyRoute);
@@ -281,9 +256,12 @@ jobs:
                 inTok += r.usage?.input_tokens || 0;
                 outTok += r.usage?.output_tokens || 0;
               }
+              const current = JSON.parse(fs.readFileSync(process.env.R,'utf8'));
+              fs.writeFileSync(process.env.R, JSON.stringify([...current,...entries]));
               if (patchedIds.length) {
                 const uniqueRoutes = [...new Set(verifyRoutes)];
                 const uniqueRules = [...new Set(verifyRules)];
+                process.stdout.write('DOM_BATCH_PATCHED=true\n');
                 process.stdout.write('PATCHED_IDS=\"\${PATCHED_IDS:+\${PATCHED_IDS},}' + patchedIds.join(',') + '\"\n');
                 process.stdout.write('PATCHED_COUNT=\$((PATCHED_COUNT + ' + patchedIds.length + '))\n');
                 process.stdout.write('VERIFY_ROUTES=\"\${VERIFY_ROUTES:+\${VERIFY_ROUTES},}' + uniqueRoutes.join(',') + '\"\n');
@@ -293,6 +271,13 @@ jobs:
               process.stdout.write('TOTAL_INPUT_TOKENS=\$((TOTAL_INPUT_TOKENS + ' + inTok + '))\n');
               process.stdout.write('TOTAL_OUTPUT_TOKENS=\$((TOTAL_OUTPUT_TOKENS + ' + outTok + '))\n');
             " 2>/dev/null || true)"
+
+            if [ "$DOM_BATCH_PATCHED" != "true" ]; then
+              git -C target checkout -- . 2>/dev/null || true
+              if [ -s "$DOM_CHECKPOINT" ]; then
+                git -C target apply "$DOM_CHECKPOINT" 2>/dev/null || true
+              fi
+            fi
 
           fi
 
