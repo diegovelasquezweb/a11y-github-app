@@ -139,7 +139,7 @@ function buildWelcomeComment(): string {
   return [
     "## Accessibility Audit Available",
     "",
-    "Detect accessibility issues in this PR against **WCAG 2.2 AA**. Use the commands below to run a scan.",
+    "Detect accessibility issues in this PR against **[WCAG 2.2 AA](https://www.w3.org/TR/WCAG22/)**. Use the commands below to run a scan.",
     "",
     "| Command | What it does |",
     "|---|---|",
