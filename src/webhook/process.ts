@@ -148,6 +148,11 @@ function buildWelcomeComment(): string {
     "| `/a11y-audit-source` | Source pattern scan only — fast static analysis |",
     "",
     "> 💡 The DOM scan typically takes 1–2 minutes depending on the number of routes.",
+    "",
+    "### Suggested workflow",
+    "",
+    "- [ ] Run `/a11y-audit` — scan for accessibility findings",
+    "- [ ] Run `/a11y-fix all` — auto-fix all reported findings",
   ].join("\n");
 }
 
