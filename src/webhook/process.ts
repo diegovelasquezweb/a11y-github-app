@@ -147,7 +147,7 @@ function buildWelcomeComment(): string {
     "| `/a11y-audit dom` | DOM scan only, runs the page in a real browser |",
     "| `/a11y-audit source` | Source pattern scan only, fast static analysis |",
     "",
-    "> 💡 The DOM scan typically takes 1–2 minutes depending on the number of routes.",
+    "> 📟 Spins up a headless browser, renders each route, runs axe-core + CDP + pa11y against the live DOM, and posts findings here in about 1–2 minutes.",
     "",
     "### Suggested workflow",
     "",
