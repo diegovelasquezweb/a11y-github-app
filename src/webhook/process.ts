@@ -153,7 +153,8 @@ function buildWelcomeComment(): string {
     "",
     "- [ ] Run `/a11y-audit` — scan for accessibility findings",
     "- [ ] Review findings, then fix: `/a11y-fix all` (all at once) or `/a11y-fix <ID>` (per issue)",
-    "- [ ] Run `/a11y-audit` again — verify all fixes are clean",
+    "- [ ] Review and merge the newly generated fix PR",
+    "- [ ] Run `/a11y-audit` again to confirm everything is clean",
   ].join("\n");
 }
 
