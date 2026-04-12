@@ -288,6 +288,50 @@ jobs:
 
           # ── PAT-* per-finding loop ────────────────────────────────────────────────
           if [ -n "$PAT_IDS" ]; then
+            # Deduplicate PAT findings by file+line+patternId before processing.
+            # When two IDs share the same location and rule, only one needs fixing —
+            # the second would fail because the file was already modified by the first.
+            DEDUP_OUTPUT=$(PAT_IDS="$PAT_IDS" PATTERN_FILE="${{ github.workspace }}/findings/a11y-pattern-findings.json" node -e "
+              const fs = require('fs');
+              const ids = (process.env.PAT_IDS || '').split(',').filter(Boolean);
+              let findings = [];
+              try { findings = JSON.parse(fs.readFileSync(process.env.PATTERN_FILE, 'utf8')).findings || []; } catch {}
+              const seen = new Set();
+              const keep = [];
+              const skip = [];
+              for (const id of ids) {
+                const f = findings.find(f => f.id === id);
+                const key = f ? [f.file, f.line, f.pattern_id || f.patternId].join('|') : id;
+                if (seen.has(key)) { skip.push(id); } else { seen.add(key); keep.push(id); }
+              }
+              process.stdout.write('DEDUP_KEEP=' + keep.join(',') + '\n');
+              process.stdout.write('DEDUP_SKIP=' + skip.join(',') + '\n');
+            " 2>/dev/null || echo "DEDUP_KEEP=$PAT_IDS")
+            eval "$DEDUP_OUTPUT"
+            PAT_IDS="$DEDUP_KEEP"
+
+            # Mark skipped duplicates as patched (same fix already applied by sibling finding)
+            if [ -n "$DEDUP_SKIP" ]; then
+              IFS=',' read -ra SKIP_ARR <<< "$DEDUP_SKIP"
+              for SKIP_ID in "${SKIP_ARR[@]}"; do
+                SKIP_ID="${SKIP_ID// /}"
+                [ -z "$SKIP_ID" ] && continue
+                SKIP_TITLE=$(PAT_IDS="$SKIP_ID" PATTERN_FILE="${{ github.workspace }}/findings/a11y-pattern-findings.json" node -e "
+                  const fs = require('fs');
+                  let findings = [];
+                  try { findings = JSON.parse(fs.readFileSync(process.env.PATTERN_FILE, 'utf8')).findings || []; } catch {}
+                  const f = findings.find(f => f.id === process.env.PAT_IDS);
+                  process.stdout.write((f && f.title) || '');
+                " 2>/dev/null || true)
+                ENTRY=$(ENTRY_ID="$SKIP_ID" ENTRY_STATUS="patched" ENTRY_TITLE="$SKIP_TITLE" ENTRY_MESSAGE="Duplicate of a sibling finding — fix already applied" node -e "process.stdout.write(JSON.stringify({id:process.env.ENTRY_ID,status:process.env.ENTRY_STATUS,patched_file:'',title:process.env.ENTRY_TITLE,message:process.env.ENTRY_MESSAGE}))")
+                CURRENT_RESULTS=$(cat "$RESULTS_FILE")
+                R="$CURRENT_RESULTS" E="$ENTRY" node -e "const r=JSON.parse(process.env.R);r.push(JSON.parse(process.env.E));process.stdout.write(JSON.stringify(r))" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "$RESULTS_FILE"
+                PATCHED_COUNT=$((PATCHED_COUNT + 1))
+                PATCHED_IDS="${PATCHED_IDS:+$PATCHED_IDS,}$SKIP_ID"
+                ALL_FAILED=false
+              done
+            fi
+
             IFS=',' read -ra PAT_ID_ARR <<< "$PAT_IDS"
             for CURRENT_ID in "${PAT_ID_ARR[@]}"; do
               CURRENT_ID="${CURRENT_ID// /}"
