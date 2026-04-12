@@ -47,6 +47,9 @@ on:
         default: "0"
         type: string
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   source-audit:
     runs-on: ubuntu-latest

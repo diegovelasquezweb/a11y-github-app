@@ -52,6 +52,9 @@ on:
         default: "true"
         type: string
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   dom-audit:
     runs-on: ubuntu-latest
