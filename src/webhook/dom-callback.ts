@@ -169,6 +169,7 @@ export function buildFinalComment(summary: DomAuditSummary): string {
           "| `/a11y-fix all` | Fix all findings at once |",
           "| `/a11y-fix <ID>` | Fix a single finding |",
           "| `/a11y-fix <ID1> <ID2>` | Fix specific findings |",
+          "| `/a11y-fix sonnet all` | Fix using a specific model (`haiku` · `sonnet` · `opus`) |",
           "",
           "> 💡 Pass a hint to guide the fix: `/a11y-fix all \"use sr-only labels\"` or `/a11y-fix <ID> \"prefer Tailwind classes\"`",
         ]
@@ -242,6 +243,7 @@ export function buildFinalComment(summary: DomAuditSummary): string {
         "| `/a11y-fix all` | Fix all findings at once |",
         "| `/a11y-fix <ID>` | Fix a single finding |",
         "| `/a11y-fix <ID1> <ID2>` | Fix specific findings |",
+        "| `/a11y-fix sonnet all` | Fix using a specific model (`haiku` · `sonnet` · `opus`) |",
         "",
         "> 💡 Pass a hint to guide the fix: `/a11y-fix all \"use sr-only labels\"` or `/a11y-fix <ID> \"prefer Tailwind classes\"`",
       ]
