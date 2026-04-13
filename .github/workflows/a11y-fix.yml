@@ -711,6 +711,16 @@ jobs:
               `🤖 **Want to review with your agent?** [Download the fix report](${runUrl}) and share it with your AI agent to verify each change.`,
             ].join("\n")
 
+            const failedIds = results
+              .filter(r => !r.verified && r.status !== 'patched' && r.status !== 'unverified' && r.status !== 'skipped')
+              .map(r => r.id)
+            const retrySection = failedIds.length > 0
+              ? [
+                  "",
+                  `> ♻️ **Some findings could not be patched.** Re-run the fix with: \`/a11y-fix ${failedIds.join(' ')}\``,
+                ].join("\n")
+              : ""
+
             let body
             if (process.env.ANY_VERIFIED === 'true' && process.env.PR_URL) {
               body = [
@@ -722,6 +732,7 @@ jobs:
                 "",
                 ...tableHeader,
                 ...rows,
+                retrySection,
                 usageSection,
                 agentSection,
               ].join("\n")
