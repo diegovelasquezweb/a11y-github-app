@@ -714,11 +714,8 @@ jobs:
             const failedIds = results
               .filter(r => !r.verified && r.status !== 'patched' && r.status !== 'unverified' && r.status !== 'skipped')
               .map(r => r.id)
-            const retrySection = failedIds.length > 0
-              ? [
-                  "",
-                  `> ♻️ **Some findings could not be patched.** Re-run the fix with: \`/a11y-fix ${failedIds.join(' ')}\``,
-                ].join("\n")
+            const retryNote = failedIds.length > 0
+              ? ` If some findings could not be patched, retry with: \`/a11y-fix ${failedIds.join(' ')}\``
               : ""
 
             let body
@@ -726,13 +723,12 @@ jobs:
               body = [
                 "## A11y Fix Ready",
                 "",
-                `Review the changes and merge the Pull Request if everything looks correct.`,
+                `Review the changes and merge the Pull Request if everything looks correct.${retryNote}`,
                 "",
                 `**Pull Request:** ${process.env.PR_URL}`,
                 "",
                 ...tableHeader,
                 ...rows,
-                retrySection,
                 usageSection,
                 agentSection,
               ].join("\n")
