@@ -708,7 +708,7 @@ jobs:
               "",
               "---",
               "",
-              `📄 **Want a second opinion?** [Download the fix report](${runUrl}) and share it with your AI agent to verify each change.`,
+              `🤖 **Want to review with your agent?** [Download the fix report](${runUrl}) and share it with your AI agent to verify each change.`,
             ].join("\n")
 
             let body
