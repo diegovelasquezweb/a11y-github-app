@@ -5,6 +5,10 @@ import { completeDomAuditCheck } from "../review/dom-reporter.js";
 import type { DomAuditFindingSummary, DomAuditSummary, PatternAuditSummary, PatternFindingSummary } from "../types.js";
 
 
+function escapeHtmlTags(text: string): string {
+  return text.replace(/<\/?([a-zA-Z][a-zA-Z0-9]*)[^>]*>/g, (_, tag) => `\`<${tag}>\``);
+}
+
 function safeEqual(left: string, right: string): boolean {
   if (left.length !== right.length) {
     return false;
@@ -120,7 +124,7 @@ function buildPatternSection(patternFindings: PatternAuditSummary): string {
     .map((finding, index) => {
       const location = finding.line ? `${finding.file}:${finding.line}` : finding.file;
       const lines = [
-        `${index + 1}. ${severityIcon(finding.severity)} **[${finding.severity}]** ${finding.title}`,
+        `${index + 1}. ${severityIcon(finding.severity)} **[${finding.severity}]** ${escapeHtmlTags(finding.title)}`,
         `   **File:** \`${location}\``,
         `   **Rule:** \`${finding.patternId}\``,
         `   **Fix:** \`/a11y-fix ${finding.id}\``,
@@ -211,7 +215,7 @@ export function buildFinalComment(summary: DomAuditSummary): string {
           summary.findings
             .map((finding, index) => {
               const lines = [
-                `${index + 1}. ${severityIcon(finding.severity)} **[${finding.severity}]** ${finding.title}`,
+                `${index + 1}. ${severityIcon(finding.severity)} **[${finding.severity}]** ${escapeHtmlTags(finding.title)}`,
               ];
               if (finding.url) {
                 try {

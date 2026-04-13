@@ -601,6 +601,7 @@ jobs:
             const fs = require('fs')
             const results = JSON.parse(fs.readFileSync(process.env.RESULTS_FILE, 'utf8'))
             const verifiedIds = (process.env.VERIFIED_IDS || '').split(',').filter(Boolean)
+            const escHtml = t => (t || '').replace(/<\/?([a-zA-Z][a-zA-Z0-9]*)[^>]*>/g, (_, tag) => `\`<${tag}>\``)
 
             const rows = results.map(r => {
               const icon = r.verified ? '✅' : r.status === 'patched' || r.status === 'unverified' ? '⚠️' : r.status === 'skipped' ? '⏭️' : '❌'
@@ -608,7 +609,7 @@ jobs:
                 : r.status === 'unverified' ? 'Patched but not verified'
                 : r.status === 'skipped' ? 'Skipped'
                 : `Could not patch — retry with \`/a11y-fix ${r.id}\``
-              return `| ${icon} | \`${r.id}\` | ${r.title || '—'} | ${statusText} | ${r.patched_file ? `\`${r.patched_file}\`` : '—'} |`
+              return `| ${icon} | \`${r.id}\` | ${escHtml(r.title) || '—'} | ${statusText} | ${r.patched_file ? `\`${r.patched_file}\`` : '—'} |`
             }).join('\n')
 
             const verifiedTitles = results
@@ -675,6 +676,7 @@ jobs:
             if (resultsFile && fs.existsSync(resultsFile)) {
               results = JSON.parse(fs.readFileSync(resultsFile, 'utf8'))
             }
+            const escHtml = t => (t || '').replace(/<\/?([a-zA-Z][a-zA-Z0-9]*)[^>]*>/g, (_, tag) => `\`<${tag}>\``)
 
             const tableHeader = [
               "| Status | Finding | Title | Outcome |",
@@ -686,7 +688,7 @@ jobs:
                 : r.status === 'unverified' ? 'Patched but not verified'
                 : r.status === 'skipped' ? 'Skipped'
                 : `Could not patch — retry with \`/a11y-fix ${r.id}\``
-              return `| ${icon} | \`${r.id}\` | ${r.title || '—'} | ${statusText} |`
+              return `| ${icon} | \`${r.id}\` | ${escHtml(r.title) || '—'} | ${statusText} |`
             })
 
             const inputTokens = parseInt(process.env.TOTAL_INPUT_TOKENS || '0', 10)
@@ -807,6 +809,7 @@ jobs:
 
           let results = []
           try { results = JSON.parse(fs.readFileSync(resultsFile, 'utf8')) } catch {}
+          const escHtml = t => (t || '').replace(/<\/?([a-zA-Z][a-zA-Z0-9]*)[^>]*>/g, (_, tag) => `\`<${tag}>\``)
 
           // Load original findings to get before/after context
           let origFindings = []
@@ -843,7 +846,7 @@ jobs:
               : r.status === 'skipped' ? 'Skipped'
               : 'Could not patch'
 
-            lines.push(`## ${icon} \`${r.id}\` — ${r.title || 'Unknown'}`)
+            lines.push(`## ${icon} \`${r.id}\` — ${escHtml(r.title) || 'Unknown'}`)
             lines.push('')
             lines.push(`**Status:** ${outcome}`)
             if (r.patched_file) lines.push(`**File:** \`${r.patched_file}\``)
