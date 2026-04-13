@@ -2,10 +2,24 @@ export interface FixCommand {
   requested: boolean;
   findingIds: string[];
   hint?: string;
+  model?: string;
 }
 
 const FIX_COMMAND_RE = /^\/a11y-fix(?:\s+(.+))?$/i;
 const HINT_RE = /"([^"]+)"\s*$/;
+
+const MODEL_ALIASES: Record<string, string> = {
+  haiku: "claude-haiku-4-5-20251001",
+  sonnet: "claude-sonnet-4-6",
+  opus: "claude-opus-4-6",
+};
+
+function resolveModel(token: string): string | null {
+  const lower = token.toLowerCase();
+  if (MODEL_ALIASES[lower]) return MODEL_ALIASES[lower];
+  if (/^claude-(haiku|sonnet|opus)/.test(lower)) return lower;
+  return null;
+}
 
 export function parseFixCommand(input: string): FixCommand {
   const text = input.trim();
@@ -26,6 +40,22 @@ export function parseFixCommand(input: string): FixCommand {
     args = args.slice(0, args.lastIndexOf(`"${hintMatch[1]}"`)).trim();
   }
 
-  const findingIds = args ? args.split(/\s+/).filter(Boolean) : [];
-  return { requested: true, findingIds, ...(hint ? { hint } : {}) };
+  let model: string | undefined;
+  const tokens = args ? args.split(/\s+/).filter(Boolean) : [];
+  const remaining: string[] = [];
+  for (const token of tokens) {
+    const resolved = resolveModel(token);
+    if (resolved && !model) {
+      model = resolved;
+    } else {
+      remaining.push(token);
+    }
+  }
+
+  return {
+    requested: true,
+    findingIds: remaining,
+    ...(hint ? { hint } : {}),
+    ...(model ? { model } : {}),
+  };
 }

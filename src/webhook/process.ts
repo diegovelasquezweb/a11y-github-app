@@ -287,7 +287,7 @@ async function handleIssueCommentEvent(payload: {
       requestedBy: payload.comment?.user?.login ?? "unknown",
       targetToken,
       checkRunId,
-      aiModel: CONFIG.fixAiModel,
+      aiModel: fixCommand.model ?? CONFIG.fixAiModel,
       ...(fixCommand.hint ? { projectHints: fixCommand.hint } : {}),
     });
 
