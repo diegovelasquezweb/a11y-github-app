@@ -711,19 +711,12 @@ jobs:
               `🤖 **Want to review with your agent?** [Download the fix report](${runUrl}) and share it with your AI agent to verify each change.`,
             ].join("\n")
 
-            const failedIds = results
-              .filter(r => !r.verified && r.status !== 'patched' && r.status !== 'unverified' && r.status !== 'skipped')
-              .map(r => r.id)
-            const retryNote = failedIds.length > 0
-              ? ` If some findings could not be patched, retry with: \`/a11y-fix ${failedIds.join(' ')}\``
-              : ""
-
             let body
             if (process.env.ANY_VERIFIED === 'true' && process.env.PR_URL) {
               body = [
                 "## A11y Fix Ready",
                 "",
-                `Review the changes and merge the Pull Request if everything looks correct.${retryNote}`,
+                `Review the changes and merge the Pull Request if everything looks correct. If any finding failed, try running \`/a11y-fix <ID>\` again.`,
                 "",
                 `**Pull Request:** ${process.env.PR_URL}`,
                 "",
