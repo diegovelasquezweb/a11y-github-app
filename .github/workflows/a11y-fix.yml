@@ -604,8 +604,10 @@ jobs:
             const escHtml = t => (t || '').replace(/<\/?([a-zA-Z][a-zA-Z0-9]*)[^>]*>/g, (_, tag) => `\`<${tag}>\``)
 
             const rows = results.map(r => {
-              const icon = r.verified ? '✅' : r.status === 'patched' || r.status === 'unverified' ? '⚠️' : r.status === 'skipped' ? '⏭️' : '❌'
-              const statusText = r.verified ? 'Fixed & verified'
+              const alreadyResolved = (r.message || '').toLowerCase().includes('already resolved')
+              const icon = alreadyResolved ? '✅' : r.verified ? '✅' : r.status === 'patched' || r.status === 'unverified' ? '⚠️' : r.status === 'skipped' ? '⏭️' : '❌'
+              const statusText = alreadyResolved ? 'Already resolved'
+                : r.verified ? 'Fixed & verified'
                 : r.status === 'unverified' ? 'Patched but not verified'
                 : r.status === 'skipped' ? 'Skipped'
                 : `Could not patch — retry with \`/a11y-fix ${r.id}\``
@@ -683,8 +685,10 @@ jobs:
               "|--------|---------|-------|---------|",
             ]
             const rows = results.map(r => {
-              const icon = r.verified ? '✅' : r.status === 'unverified' ? '⚠️' : r.status === 'skipped' ? '⏭️' : '❌'
-              const statusText = r.verified ? 'Fixed & verified'
+              const alreadyResolved = (r.message || '').toLowerCase().includes('already resolved')
+              const icon = alreadyResolved ? '✅' : r.verified ? '✅' : r.status === 'unverified' ? '⚠️' : r.status === 'skipped' ? '⏭️' : '❌'
+              const statusText = alreadyResolved ? 'Already resolved'
+                : r.verified ? 'Fixed & verified'
                 : r.status === 'unverified' ? 'Patched but not verified'
                 : r.status === 'skipped' ? 'Skipped'
                 : `Could not patch — retry with \`/a11y-fix ${r.id}\``
