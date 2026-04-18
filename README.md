@@ -1,8 +1,8 @@
 # a11y GitHub App
 
-A GitHub App that automatically audits pull requests for WCAG accessibility issues and applies AI-generated fixes — triggered entirely through PR comments.
+A GitHub App that automatically audits repositories for WCAG accessibility issues and applies AI-generated fixes — triggered through PR comments, Issue comments, or Slack.
 
-When installed on a repository, the app posts a welcome comment on every opened or reopened pull request listing the available commands. Collaborators, members, and owners can then trigger audits or request fixes on demand.
+When installed on a repository, the app posts a welcome comment on every opened PR or Issue listing the available commands. Collaborators, members, and owners can then trigger audits or request fixes on demand.
 
 ## Documentation
 
@@ -13,6 +13,7 @@ When installed on a repository, the app posts a welcome comment on every opened 
 | [Configuration](docs/configuration.md) | Environment variables reference and Vercel setup |
 | [Runner Setup](docs/runner-setup.md) | GitHub Actions runner repo setup and required workflow files |
 | [Fix Engine](docs/fix-engine.md) | How AI-powered fixes work, git checkpoint pattern, result statuses |
+| [Slack Setup](docs/slack-setup.md) | Slack App configuration, slash command setup, interactive modals |
 
 ## Quick Start
 
@@ -20,9 +21,9 @@ When installed on a repository, the app posts a welcome comment on every opened 
 
 Go to **GitHub Settings → Developer settings → GitHub Apps → New GitHub App** and configure:
 
-**Permissions (Repository):** Contents (Read & write), Pull requests (Read & write), Checks (Read & write), Issues (Read-only), **Actions (Read & write)**
+**Permissions (Repository):** Contents (Read & write), Pull requests (Read & write), Checks (Read & write), Issues (Read & write), **Actions (Read & write)**
 
-**Subscribe to events:** `Pull request`, `Issue comment`
+**Subscribe to events:** `Pull request`, `Issues`, `Issue comment`
 
 ### 2. Deploy to Vercel
 
