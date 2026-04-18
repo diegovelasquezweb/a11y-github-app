@@ -159,18 +159,12 @@ function buildWelcomeComment(context: "pr" | "issue" = "pr"): string {
     ? "Audit any branch of this repository against **[WCAG 2.2 AA](https://www.w3.org/TR/WCAG22/)**. Comment with one of the commands below."
     : "Detect accessibility issues in this PR against **[WCAG 2.2 AA](https://www.w3.org/TR/WCAG22/)**. Use the commands below to run a scan.";
 
-  const commands = context === "issue"
-    ? [
-        "| `/a11y-audit` | Full audit on the default branch |",
-        "| `/a11y-audit branch:stage` | Full audit on a specific branch |",
-        "| `/a11y-audit dom branch:stage` | DOM scan only |",
-        "| `/a11y-audit source branch:stage` | Source pattern scan only |",
-      ]
-    : [
-        "| `/a11y-audit` | Full audit: DOM scan + static source pattern analysis |",
-        "| `/a11y-audit dom` | DOM scan only, runs the page in a real browser |",
-        "| `/a11y-audit source` | Source pattern scan only, fast static analysis |",
-      ];
+  const commands = [
+    "| `/a11y-audit` | Full audit: DOM scan + static source pattern analysis |",
+    "| `/a11y-audit dom` | DOM scan only, runs the page in a real browser |",
+    "| `/a11y-audit source` | Source pattern scan only, fast static analysis |",
+    ...(context === "issue" ? ["| `/a11y-audit branch:stage` | Audit a specific branch |"] : []),
+  ];
 
   return [
     "## Accessibility Audit Available",
