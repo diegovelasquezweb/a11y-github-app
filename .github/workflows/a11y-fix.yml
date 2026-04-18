@@ -578,7 +578,7 @@ jobs:
           git -C target checkout -b "$BRANCH_NAME"
           git -C target config user.name "a11y-pr-reviewer[bot]"
           git -C target config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git -C target add -A
+          git -C target add -u
           git -C target commit -m "fix(a11y): resolve ${{ steps.apply_fixes.outputs.patched_ids }}"
           git -C target remote set-url origin "https://x-access-token:${{ inputs.target_token }}@github.com/${{ inputs.target_owner }}/${{ inputs.target_repo }}.git"
           git -C target push origin "$BRANCH_NAME"
