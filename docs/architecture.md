@@ -14,7 +14,11 @@
 
 ## Overview
 
-The A11y GitHub App is a webhook server that listens to GitHub events on installed repositories. When a pull request is opened or a PR comment containing a command is received, the app authenticates the request, determines the action, and dispatches GitHub Actions workflows to a configured runner repository. The runner performs the actual scanning or fix work and reports results back via a callback endpoint. The app then updates the GitHub Check Run and the PR comment with the final results.
+The A11y GitHub App is a webhook server that listens to GitHub events on installed repositories. When a pull request is opened, an issue is created, or a comment containing a command is posted on either, the app authenticates the request, determines the action, and dispatches GitHub Actions workflows to a configured runner repository. The runner performs the actual scanning or fix work and reports results back via a callback endpoint. The app then updates the GitHub Check Run and the comment with the final results.
+
+The app supports two contexts:
+- **Pull Request**: audit/fix the PR head branch. Commands in PR comments.
+- **Issue**: audit/fix any branch in the repo (defaults to the repo's default branch). Commands in issue comments. Use `branch:X` to target a specific branch.
 
 ## Request Flow
 
@@ -39,15 +43,24 @@ flowchart TD
         PA -->|no| SKIP1["Skip"]
     end
 
+    subgraph ISS ["issues event"]
+        direction TB
+        IA{"action:<br/>opened?"}
+        IWC["Post Welcome Comment"]
+        IA -->|yes| IWC
+        IA -->|no| SKIP4["Skip"]
+    end
+
     subgraph IC ["issue_comment event"]
         direction TB
+        CTX{"PR or<br/>Issue?"}
         AUTH{"author_association:<br/>OWNER / MEMBER /<br/>COLLABORATOR?"}
-        PARSE["Parse Command"]
-        AUTH -->|yes| PARSE
+        CTX --> AUTH
+        AUTH -->|yes| PARSE["Parse Command"]
         AUTH -->|no| SKIP2["Ignore"]
         PARSE --> CMD{"Command?"}
-        CMD -->|"/a11y-audit<br/>/a11y-audit-dom<br/>/a11y-audit-source"| AUDIT["Create Check Run<br/>Dispatch Audit Workflow"]
-        CMD -->|"/a11y-fix"| FIX["Create Check Run<br/>Dispatch Fix Workflow"]
+        CMD -->|"/a11y-audit<br/>/a11y-audit dom<br/>/a11y-audit source"| AUDIT["Resolve Branch<br/>Create Check Run<br/>Dispatch Audit Workflow"]
+        CMD -->|"/a11y-fix"| FIX["Resolve Branch<br/>Create Check Run<br/>Dispatch Fix Workflow"]
         CMD -->|"none"| SKIP3["Ignore"]
     end
 
@@ -68,6 +81,7 @@ flowchart TD
 
     GH --> Webhook
     R -->|pull_request| PR
+    R -->|issues| ISS
     R -->|issue_comment| IC
     AUDIT --> Runner
     FIX --> Runner
@@ -86,10 +100,10 @@ flowchart TD
 
 | File | Responsibility |
 |------|----------------|
-| `src/webhook/process.ts` | Entry point for all webhook events. Verifies HMAC signature, deduplicates deliveries, routes to `pull_request` or `issue_comment` handler, posts welcome comment, checks author association, parses commands, creates Check Runs, and dispatches workflows. |
-| `src/webhook/dom-callback.ts` | Handles `POST /api/scan-callback`. Validates the callback token with a timing-safe comparison, normalizes the findings payload, builds the final PR comment body (DOM section, source pattern section, quick-fix section), updates the Check Run to `completed`, and updates or creates the PR comment. |
-| `src/review/audit-command.ts` | Parses audit commands from comment text. Matches `/a11y-audit`, `/a11y-audit-dom`, and `/a11y-audit-source` and returns an `AuditCommand` with `auditMode` and optional `targetUrl`. |
-| `src/review/fix-command.ts` | Parses fix commands from comment text. Matches `/a11y-fix` followed by one or more finding IDs (or `all`) and returns a `FixCommand` with the resolved `findingIds` array. |
+| `src/webhook/process.ts` | Entry point for all webhook events. Verifies HMAC signature, deduplicates deliveries, routes to `pull_request`, `issues`, or `issue_comment` handler, posts welcome comments (PR and Issue), checks author association, parses commands, resolves branch references (PR head or issue branch), creates Check Runs, and dispatches workflows. |
+| `src/webhook/dom-callback.ts` | Handles `POST /api/scan-callback`. Validates the callback token with a timing-safe comparison, normalizes the findings payload, builds the final comment body (DOM section, source pattern section, quick-fix section), updates the Check Run to `completed`, and updates or creates the comment. Supports `branch` parameter to include `branch:X` in fix commands for issue-based scans. |
+| `src/review/audit-command.ts` | Parses audit commands from comment text. Matches `/a11y-audit`, `/a11y-audit dom`, and `/a11y-audit source` and returns an `AuditCommand` with `auditMode` and optional `branch`. Validates that `branch:` has a value — bare `branch` without a value returns null. |
+| `src/review/fix-command.ts` | Parses fix commands from comment text. Matches `/a11y-fix` followed by one or more finding IDs (or `all`), an optional model name, and an optional hint. Returns a `FixCommand` with the resolved `findingIds` array and optional `branch`. Bare `branch` without a value returns an invalid command. |
 | `src/review/dom-workflow.ts` | Dispatches `workflow_dispatch` events to the runner repo for DOM audits and source-only audits. Also provides `createScanToken()` which generates a unique, URL-safe token per PR scan. |
 | `src/review/fix-workflow.ts` | Dispatches `workflow_dispatch` events to the runner repo for fix runs. Passes all required inputs including finding IDs, target repo coordinates, installation token, and AI model. |
 | `src/review/dom-reporter.ts` | Creates and updates GitHub Check Runs (`A11y Audit`, `A11y Fix`). Provides `createDomAuditPendingCheck`, `completeDomAuditCheck`, `createFixPendingCheck`, and `failDomAuditCheck`. |

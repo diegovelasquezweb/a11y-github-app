@@ -109,8 +109,9 @@ Dispatched by `dispatchDomAuditWorkflow()` in `src/review/dom-workflow.ts`.
 | `head_sha` | Yes | PR head commit SHA. Used to check out the target and as the findings cache key. |
 | `check_run_id` | Yes | ID of the Check Run to update on callback. |
 | `target_token` | Yes | GitHub installation token with write access to the target repository. |
-| `comment_id` | No | ID of the initial PR comment to update with results. `"0"` = create a new comment. |
-| `source_scan_enabled` | No | Whether to run the source pattern scanner (`"true"` / `"false"`). Set to `"false"` for `/a11y-audit-dom`. |
+| `comment_id` | No | ID of the initial comment to update with results. `"0"` = create a new comment. |
+| `source_scan_enabled` | No | Whether to run the source pattern scanner (`"true"` / `"false"`). Set to `"false"` for `/a11y-audit dom`. |
+| `branch` | No | Branch name being audited. Used in issue-based scans to include `branch:X` in fix commands. |
 
 ### source-audit.yml inputs
 
@@ -123,11 +124,12 @@ Dispatched by `dispatchSourceAuditWorkflow()` in `src/review/dom-workflow.ts`. A
 | `callback_token` | Yes | Token for the `x-callback-token` header. |
 | `target_owner` | Yes | Owner of the repository being scanned. |
 | `target_repo` | Yes | Name of the repository being scanned. |
-| `pull_number` | Yes | PR number as a string. |
-| `head_sha` | Yes | PR head commit SHA. |
+| `pull_number` | Yes | PR or issue number as a string. |
+| `head_sha` | Yes | Target commit SHA. |
 | `check_run_id` | Yes | ID of the Check Run to update on callback. |
 | `target_token` | Yes | GitHub installation token with access to the target repository. |
-| `comment_id` | No | ID of the initial PR comment to update with results. |
+| `comment_id` | No | ID of the initial comment to update with results. |
+| `branch` | No | Branch name being audited. Used in issue-based scans. |
 
 ### a11y-fix.yml inputs
 
@@ -192,7 +194,30 @@ flowchart TD
 
 ## Target Project Runtime Config
 
-The DOM audit and fix workflows read an optional `.a11y-runner.json` file from the root of the checked-out target repository. This file lets the project control how the local server is started during scans.
+### Automatic Stack Detection (default)
+
+When no `.a11y-runner.json` file is present, the DOM audit and fix workflows **auto-detect the project stack** using a two-phase approach:
+
+**Phase 1 — Pre-build detection** (checks `package.json`):
+- If `package.json` exists → sets `installCommand: "npm install"` and `buildCommand: "npm run build"` (if a `build` script exists).
+- If no `package.json` → falls back to the static file server default.
+
+**Phase 2 — Post-build detection** (checks build output):
+After install and build complete, the workflow detects the output directory and selects the appropriate server:
+
+| Detected | Server command |
+|----------|---------------|
+| `out/index.html` | `npx serve out -l 4173` (static export) |
+| `dist/index.html` | `npx serve dist -l 4173` (Vite, etc.) |
+| `build/index.html` | `npx serve build -l 4173` (CRA, etc.) |
+| `.next/` directory | `npx next start -p 4173` (Next.js) |
+| None of the above | `python3 -m http.server 4173` (plain HTML) |
+
+This means **most projects work without any configuration file** — the workflow auto-detects the stack and serves the project correctly.
+
+### Manual Override (`.a11y-runner.json`)
+
+For projects that need custom server commands, create an `.a11y-runner.json` file in the repository root. When present, auto-detection is skipped entirely.
 
 | Field | Default | Description |
 |-------|---------|-------------|

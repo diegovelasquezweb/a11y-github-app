@@ -30,7 +30,7 @@ These permissions must be set when creating (or updating) the GitHub App. All of
 | **Contents** | Read & write | Check out PR code; push fix branches |
 | **Pull requests** | Read & write | Post PR comments; create fix PRs |
 | **Checks** | Read & write | Create and update Check Runs (audit status indicators) |
-| **Issues** | Read-only | Read `issue_comment` events (commands are posted as issue comments) |
+| **Issues** | Read & write | Read `issue_comment` and `issues` events; post comments on issues |
 | **Actions** | Read & write | Dispatch `workflow_dispatch` events to the runner repository |
 
 > **`Actions: Read & write` is required.** Without it the app cannot trigger workflows and all audit/fix commands will silently fail at dispatch time.
@@ -42,7 +42,8 @@ Subscribe to these webhook events in the GitHub App settings:
 | Event | Why |
 |-------|-----|
 | `Pull request` | Detects PR opened/reopened/synchronize to post the welcome comment |
-| `Issue comment` | Detects `/a11y-audit`, `/a11y-audit-dom`, `/a11y-audit-source`, `/a11y-fix` commands |
+| `Issues` | Detects issue opened to post the welcome comment |
+| `Issue comment` | Detects `/a11y-audit`, `/a11y-audit dom`, `/a11y-audit source`, `/a11y-fix` commands on PRs and Issues |
 
 ### App Installation
 
