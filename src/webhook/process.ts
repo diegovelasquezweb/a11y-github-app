@@ -165,10 +165,6 @@ function buildWelcomeComment(context: "pr" | "issue" = "pr"): string {
         "| `/a11y-audit branch:stage` | Full audit on a specific branch |",
         "| `/a11y-audit dom branch:stage` | DOM scan only |",
         "| `/a11y-audit source branch:stage` | Source pattern scan only |",
-        "| `/a11y-fix all` | Fix all findings from the last audit |",
-        "| `/a11y-fix all branch:stage` | Fix all findings on a specific branch |",
-        "| `/a11y-fix <ID>` | Fix a specific finding |",
-        "| `/a11y-fix sonnet all` | Fix using a specific model (`haiku` · `sonnet` · `opus`) |",
       ]
     : [
         "| `/a11y-audit` | Full audit: DOM scan + static source pattern analysis |",
