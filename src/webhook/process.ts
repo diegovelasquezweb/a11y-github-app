@@ -161,11 +161,12 @@ function buildWelcomeComment(context: "pr" | "issue" = "pr"): string {
 
   const commands = context === "issue"
     ? [
-        "| `/a11y-audit` | Full audit: DOM scan + static source pattern analysis |",
-        "| `/a11y-audit dom` | DOM scan only, runs the page in a real browser |",
-        "| `/a11y-audit source` | Source pattern scan only, fast static analysis |",
-        "| `/a11y-audit branch:stage` | Audit a specific branch |",
+        "| `/a11y-audit` | Full audit on the default branch |",
+        "| `/a11y-audit branch:stage` | Full audit on a specific branch |",
+        "| `/a11y-audit dom branch:stage` | DOM scan only |",
+        "| `/a11y-audit source branch:stage` | Source pattern scan only |",
         "| `/a11y-fix all` | Fix all findings from the last audit |",
+        "| `/a11y-fix all branch:stage` | Fix all findings on a specific branch |",
         "| `/a11y-fix <ID>` | Fix a specific finding |",
         "| `/a11y-fix sonnet all` | Fix using a specific model (`haiku` · `sonnet` · `opus`) |",
       ]
@@ -173,9 +174,6 @@ function buildWelcomeComment(context: "pr" | "issue" = "pr"): string {
         "| `/a11y-audit` | Full audit: DOM scan + static source pattern analysis |",
         "| `/a11y-audit dom` | DOM scan only, runs the page in a real browser |",
         "| `/a11y-audit source` | Source pattern scan only, fast static analysis |",
-        "| `/a11y-fix all` | Fix all findings from the last audit |",
-        "| `/a11y-fix <ID>` | Fix a specific finding |",
-        "| `/a11y-fix sonnet all` | Fix using a specific model (`haiku` · `sonnet` · `opus`) |",
       ];
 
   return [
