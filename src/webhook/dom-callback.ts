@@ -367,6 +367,28 @@ export async function processDomAuditCallback(
       }
     }
 
+    const slackChannelId = typeof input.payload.slack_channel_id === "string" ? input.payload.slack_channel_id.trim() : "";
+    const slackMessageTs = typeof input.payload.slack_message_ts === "string" ? input.payload.slack_message_ts.trim() : "";
+    const slackThreadTs = typeof input.payload.slack_thread_ts === "string" ? input.payload.slack_thread_ts.trim() : "";
+
+    if (slackChannelId && slackMessageTs) {
+      try {
+        const { getSlackClient } = await import("../slack/client.js");
+        const { updateWithAuditResults } = await import("../slack/notifier.js");
+        const client = getSlackClient();
+        if (client) {
+          await updateWithAuditResults(
+            client,
+            { channelId: slackChannelId, messageTs: slackMessageTs, threadTs: slackThreadTs || undefined },
+            summary,
+            { owner, repo, branch },
+          );
+        }
+      } catch (slackErr) {
+        console.warn("[slack] dual-post failed:", slackErr);
+      }
+    }
+
     return { status: 200, body: { ok: true, updated: true } };
   } catch (callbackError) {
     const message = callbackError instanceof Error ? callbackError.message : "Unknown error";

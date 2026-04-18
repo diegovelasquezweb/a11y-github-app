@@ -55,6 +55,21 @@ on:
         required: false
         default: ""
         type: string
+      slack_channel_id:
+        description: "Slack channel ID for dual posting (optional)"
+        required: false
+        default: ""
+        type: string
+      slack_message_ts:
+        description: "Slack message timestamp to update (optional)"
+        required: false
+        default: ""
+        type: string
+      slack_thread_ts:
+        description: "Slack thread timestamp (optional)"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: write

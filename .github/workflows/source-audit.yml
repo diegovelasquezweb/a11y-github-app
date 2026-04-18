@@ -51,6 +51,21 @@ on:
         required: false
         default: ""
         type: string
+      slack_channel_id:
+        description: "Slack channel ID for dual posting (optional)"
+        required: false
+        default: ""
+        type: string
+      slack_message_ts:
+        description: "Slack message timestamp to update (optional)"
+        required: false
+        default: ""
+        type: string
+      slack_thread_ts:
+        description: "Slack thread timestamp (optional)"
+        required: false
+        default: ""
+        type: string
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -164,6 +179,9 @@ jobs:
             check_run_id: process.env.CHECK_RUN_ID,
             comment_id: process.env.COMMENT_ID,
             ...(process.env.BRANCH ? { branch: process.env.BRANCH } : {}),
+            ...(process.env.SLACK_CHANNEL_ID ? { slack_channel_id: process.env.SLACK_CHANNEL_ID } : {}),
+            ...(process.env.SLACK_MESSAGE_TS ? { slack_message_ts: process.env.SLACK_MESSAGE_TS } : {}),
+            ...(process.env.SLACK_THREAD_TS ? { slack_thread_ts: process.env.SLACK_THREAD_TS } : {}),
             audit_mode: 'source',
             status,
             total_findings: 0,
@@ -185,6 +203,9 @@ jobs:
           CHECK_RUN_ID: ${{ inputs.check_run_id }}
           COMMENT_ID: ${{ inputs.comment_id }}
           BRANCH: ${{ inputs.branch }}
+          SLACK_CHANNEL_ID: ${{ inputs.slack_channel_id }}
+          SLACK_MESSAGE_TS: ${{ inputs.slack_message_ts }}
+          SLACK_THREAD_TS: ${{ inputs.slack_thread_ts }}
 
       - name: Cache pattern findings
         if: ${{ steps.source_scan.outputs.exit_code == '0' }}

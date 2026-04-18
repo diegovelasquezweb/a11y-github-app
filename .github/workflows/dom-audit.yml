@@ -56,6 +56,21 @@ on:
         required: false
         default: ""
         type: string
+      slack_channel_id:
+        description: "Slack channel ID for dual posting (optional)"
+        required: false
+        default: ""
+        type: string
+      slack_message_ts:
+        description: "Slack message timestamp to update (optional)"
+        required: false
+        default: ""
+        type: string
+      slack_thread_ts:
+        description: "Slack thread timestamp (optional)"
+        required: false
+        default: ""
+        type: string
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -368,6 +383,9 @@ jobs:
             check_run_id: process.env.CHECK_RUN_ID,
             comment_id: process.env.COMMENT_ID,
             ...(process.env.BRANCH ? { branch: process.env.BRANCH } : {}),
+            ...(process.env.SLACK_CHANNEL_ID ? { slack_channel_id: process.env.SLACK_CHANNEL_ID } : {}),
+            ...(process.env.SLACK_MESSAGE_TS ? { slack_message_ts: process.env.SLACK_MESSAGE_TS } : {}),
+            ...(process.env.SLACK_THREAD_TS ? { slack_thread_ts: process.env.SLACK_THREAD_TS } : {}),
             status,
             total_findings: totalFindings,
             totals,
@@ -389,6 +407,9 @@ jobs:
           COMMENT_ID: ${{ inputs.comment_id }}
           HEALTH_URL: ${{ steps.server_detect.outputs.health_url || steps.runtime.outputs.health_url }}
           BRANCH: ${{ inputs.branch }}
+          SLACK_CHANNEL_ID: ${{ inputs.slack_channel_id }}
+          SLACK_MESSAGE_TS: ${{ inputs.slack_message_ts }}
+          SLACK_THREAD_TS: ${{ inputs.slack_thread_ts }}
 
       - name: Save findings to cache
         id: save_findings
