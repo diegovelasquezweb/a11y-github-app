@@ -1,4 +1,4 @@
-import type { WebClient } from "@slack/web-api";
+import type { KnownBlock, WebClient } from "@slack/web-api";
 import type { DomAuditSummary, SlackContext } from "../types.js";
 import { formatAuditResultBlocks, formatScanningBlocks, formatFixProgressBlocks } from "./formatter.js";
 
@@ -12,7 +12,7 @@ export async function postScanningMessage(
   threadTs?: string,
 ): Promise<SlackContext | null> {
   try {
-    const blocks = formatScanningBlocks(owner, repo, mode, branch);
+    const blocks = formatScanningBlocks(owner, repo, mode, branch) as unknown as KnownBlock[];
     const result = await client.chat.postMessage({
       channel: channelId,
       blocks,
@@ -34,7 +34,7 @@ export async function updateWithAuditResults(
   context: { owner: string; repo: string; branch?: string; githubCommentUrl?: string },
 ): Promise<void> {
   try {
-    const blocks = formatAuditResultBlocks(summary, context);
+    const blocks = formatAuditResultBlocks(summary, context) as unknown as KnownBlock[];
     const total = summary.totalFindings + (summary.patternFindings?.totalFindings ?? 0);
     const text = summary.status === "failure"
       ? `❌ Audit failed — ${context.owner}/${context.repo}`
@@ -50,7 +50,7 @@ export async function updateWithAuditResults(
     const status = (err as { data?: { error?: string } }).data?.error;
     if (status === "message_not_found") {
       try {
-        const blocks = formatAuditResultBlocks(summary, context);
+        const blocks = formatAuditResultBlocks(summary, context) as unknown as KnownBlock[];
         await client.chat.postMessage({
           channel: slackContext.channelId,
           blocks,
@@ -74,7 +74,7 @@ export async function postFixProgress(
   findingIds: string,
 ): Promise<SlackContext | null> {
   try {
-    const blocks = formatFixProgressBlocks(owner, repo, findingIds);
+    const blocks = formatFixProgressBlocks(owner, repo, findingIds) as unknown as KnownBlock[];
     const result = await client.chat.postMessage({
       channel: slackContext.channelId,
       blocks,

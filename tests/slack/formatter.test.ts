@@ -26,8 +26,8 @@ describe("formatAuditResultBlocks", () => {
       totalFindings: 2,
       totals: { Critical: 1, Serious: 1, Moderate: 0, Minor: 0 },
       findings: [
-        { id: "A11Y-001", title: "Missing alt text", severity: "Critical", wcag: null, url: "http://localhost/about", selector: "img.hero" },
-        { id: "A11Y-002", title: "Low contrast", severity: "Serious", wcag: null, url: "", selector: ".text" },
+        { id: "A11Y-001", title: "Missing alt text", severity: "Critical", wcag: null, url: "http://localhost/about", selector: "img.hero", recommendedFix: null },
+        { id: "A11Y-002", title: "Low contrast", severity: "Serious", wcag: null, url: "", selector: ".text", recommendedFix: null },
       ],
     };
     const blocks = formatAuditResultBlocks(summary, ctx);
@@ -40,7 +40,7 @@ describe("formatAuditResultBlocks", () => {
 
   it("caps DOM findings at 20", () => {
     const findings = Array.from({ length: 25 }, (_, i) => ({
-      id: `A11Y-${i}`, title: `Finding ${i}`, severity: "Minor", wcag: null, url: "", selector: ".x",
+      id: `A11Y-${i}`, title: `Finding ${i}`, severity: "Minor", wcag: null, url: "", selector: ".x", recommendedFix: null,
     }));
     const summary: DomAuditSummary = {
       ...baseSummary,
@@ -63,7 +63,7 @@ describe("formatAuditResultBlocks", () => {
       ...baseSummary,
       totalFindings: 1,
       totals: { Critical: 0, Serious: 1, Moderate: 0, Minor: 0 },
-      findings: [{ id: "A11Y-001", title: "Test", severity: "Serious", wcag: null, url: "", selector: "" }],
+      findings: [{ id: "A11Y-001", title: "Test", severity: "Serious", wcag: null, url: "", selector: "", recommendedFix: null }],
     };
     const blocks = formatAuditResultBlocks(summary, ctx);
     const content = JSON.stringify(blocks);
@@ -90,7 +90,7 @@ describe("formatAuditResultBlocks", () => {
       ...baseSummary,
       totalFindings: 1,
       totals: { Critical: 0, Serious: 1, Moderate: 0, Minor: 0 },
-      findings: [{ id: "A11Y-001", title: "DOM issue", severity: "Serious", wcag: null, url: "", selector: ".x" }],
+      findings: [{ id: "A11Y-001", title: "DOM issue", severity: "Serious", wcag: null, url: "", selector: ".x", recommendedFix: null }],
       patternFindings: {
         totalFindings: 1,
         totals: { Critical: 0, Serious: 0, Moderate: 1, Minor: 0 },

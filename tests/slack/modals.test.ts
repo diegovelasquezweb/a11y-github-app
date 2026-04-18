@@ -46,14 +46,14 @@ describe("buildAuditModal", () => {
 
   it("mode select has 3 options", () => {
     const modal = buildAuditModal(auditMeta);
-    const mode = modal.blocks.find((b: { block_id: string }) => b.block_id === "audit_mode_block");
+    const mode = modal.blocks.find((b: { block_id: string }) => b.block_id === "audit_mode_block")!;
     expect(mode.element.options).toHaveLength(3);
   });
 
   it("defaults mode to unified", () => {
     const modal = buildAuditModal(auditMeta);
-    const mode = modal.blocks.find((b: { block_id: string }) => b.block_id === "audit_mode_block");
-    expect(mode.element.initial_option.value).toBe("unified");
+    const mode = modal.blocks.find((b: { block_id: string }) => b.block_id === "audit_mode_block")!;
+    expect(mode.element.initial_option!.value).toBe("unified");
   });
 
   it("preserves threadTs in metadata", () => {
@@ -76,27 +76,27 @@ describe("buildFixModal", () => {
 
   it("pre-fills finding_ids with provided value", () => {
     const modal = buildFixModal(fixMeta, "A11Y-001");
-    const ids = modal.blocks.find((b: { block_id: string }) => b.block_id === "finding_ids_block");
+    const ids = modal.blocks.find((b: { block_id: string }) => b.block_id === "finding_ids_block")!;
     expect(ids.element.initial_value).toBe("A11Y-001");
   });
 
   it("defaults finding_ids to 'all'", () => {
     const modal = buildFixModal(fixMeta);
-    const ids = modal.blocks.find((b: { block_id: string }) => b.block_id === "finding_ids_block");
+    const ids = modal.blocks.find((b: { block_id: string }) => b.block_id === "finding_ids_block")!;
     expect(ids.element.initial_value).toBe("all");
   });
 
   it("model and hint blocks are optional", () => {
     const modal = buildFixModal(fixMeta);
-    const model = modal.blocks.find((b: { block_id: string }) => b.block_id === "ai_model_block");
-    const hint = modal.blocks.find((b: { block_id: string }) => b.block_id === "hint_block");
+    const model = modal.blocks.find((b: { block_id: string }) => b.block_id === "ai_model_block")!;
+    const hint = modal.blocks.find((b: { block_id: string }) => b.block_id === "hint_block")!;
     expect(model).toHaveProperty("optional", true);
     expect(hint).toHaveProperty("optional", true);
   });
 
   it("model select has 3 options", () => {
     const modal = buildFixModal(fixMeta);
-    const model = modal.blocks.find((b: { block_id: string }) => b.block_id === "ai_model_block");
+    const model = modal.blocks.find((b: { block_id: string }) => b.block_id === "ai_model_block")!;
     expect(model.element.options).toHaveLength(3);
   });
 });
