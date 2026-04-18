@@ -176,9 +176,22 @@ jobs:
           }
 
           let config = { ...defaults }
+          let postBuildDetect = false
+
           if (fs.existsSync(cfgPath)) {
             const parsed = JSON.parse(fs.readFileSync(cfgPath, 'utf8'))
             config = { ...config, ...(parsed && typeof parsed === 'object' ? parsed : {}) }
+          } else {
+            const pkgPath = path.join(process.cwd(), 'target', 'package.json')
+            if (fs.existsSync(pkgPath)) {
+              try {
+                const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'))
+                const scripts = pkg.scripts || {}
+                config.installCommand = 'npm install'
+                if (scripts.build) config.buildCommand = 'npm run build'
+                postBuildDetect = true
+              } catch {}
+            }
           }
 
           const out = process.env.GITHUB_OUTPUT
@@ -188,6 +201,7 @@ jobs:
           fs.appendFileSync(out, `start_command=${String(config.startCommand || defaults.startCommand)}\n`)
           fs.appendFileSync(out, `health_url=${String(config.healthUrl || defaults.healthUrl)}\n`)
           fs.appendFileSync(out, `ready_timeout_ms=${Number(config.readyTimeoutMs || defaults.readyTimeoutMs)}\n`)
+          fs.appendFileSync(out, `post_build_detect=${postBuildDetect}\n`)
           NODE
 
       - name: Install target dependencies
@@ -199,6 +213,28 @@ jobs:
         if: ${{ steps.runtime.outputs.build_command != '' }}
         run: bash -lc "${{ steps.runtime.outputs.build_command }}"
         working-directory: ${{ steps.runtime.outputs.workdir }}
+
+      - name: Auto-detect server config
+        id: server_detect
+        if: ${{ steps.runtime.outputs.post_build_detect == 'true' }}
+        run: |
+          node <<'NODE'
+          const fs = require('fs')
+          const path = require('path')
+          const targetDir = path.join(process.cwd(), 'target')
+          const checks = [
+            { p: path.join(targetDir, 'out', 'index.html'),   cmd: 'npx --yes serve@latest out -l 4173' },
+            { p: path.join(targetDir, 'dist', 'index.html'),  cmd: 'npx --yes serve@latest dist -l 4173' },
+            { p: path.join(targetDir, 'build', 'index.html'), cmd: 'npx --yes serve@latest build -l 4173' },
+            { p: path.join(targetDir, '.next'),                cmd: 'npx next start -p 4173' },
+          ]
+          let startCmd = 'python3 -m http.server 4173 --bind 127.0.0.1'
+          for (const check of checks) {
+            if (fs.existsSync(check.p)) { startCmd = check.cmd; break }
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `start_command=${startCmd}\nhealth_url=http://127.0.0.1:4173\n`)
+          console.log('Detected server command:', startCmd)
+          NODE
 
       - name: Apply finding fixes
         id: apply_fixes
@@ -427,14 +463,14 @@ jobs:
       - name: Restart local server for verification
         if: ${{ steps.apply_fixes.outputs.all_failed != 'true' }}
         run: |
-          nohup bash -lc "${{ steps.runtime.outputs.start_command }}" > "$RUNNER_TEMP/local-server.log" 2>&1 &
+          nohup bash -lc "${{ steps.server_detect.outputs.start_command || steps.runtime.outputs.start_command }}" > "$RUNNER_TEMP/local-server.log" 2>&1 &
           echo $! > "$RUNNER_TEMP/local-server.pid"
         working-directory: ${{ steps.runtime.outputs.workdir }}
 
       - name: Wait for local server readiness after patch
         if: ${{ steps.apply_fixes.outputs.all_failed != 'true' }}
         run: |
-          HEALTH_URL="${{ steps.runtime.outputs.health_url }}"
+          HEALTH_URL="${{ steps.server_detect.outputs.health_url || steps.runtime.outputs.health_url }}"
           TIMEOUT_MS="${{ steps.runtime.outputs.ready_timeout_ms }}"
           START=$(date +%s)
           TIMEOUT_SECONDS=$((TIMEOUT_MS / 1000))
@@ -463,7 +499,7 @@ jobs:
         run: |
           set +e
           npx --prefix runner a11y-audit \
-            --base-url "${{ steps.runtime.outputs.health_url }}" \
+            --base-url "${{ steps.server_detect.outputs.health_url || steps.runtime.outputs.health_url }}" \
             --project-dir "target" \
             --routes "${{ steps.apply_fixes.outputs.verify_routes }}" \
             --only-rule "${{ steps.apply_fixes.outputs.verify_rules }}" \
