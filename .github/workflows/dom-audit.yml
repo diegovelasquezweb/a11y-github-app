@@ -51,6 +51,11 @@ on:
         required: false
         default: "true"
         type: string
+      branch:
+        description: "Branch being audited (issue-based scans only)"
+        required: false
+        default: ""
+        type: string
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -362,6 +367,7 @@ jobs:
             head_sha: process.env.HEAD_SHA,
             check_run_id: process.env.CHECK_RUN_ID,
             comment_id: process.env.COMMENT_ID,
+            ...(process.env.BRANCH ? { branch: process.env.BRANCH } : {}),
             status,
             total_findings: totalFindings,
             totals,
@@ -382,6 +388,7 @@ jobs:
           CHECK_RUN_ID: ${{ inputs.check_run_id }}
           COMMENT_ID: ${{ inputs.comment_id }}
           HEALTH_URL: ${{ steps.server_detect.outputs.health_url || steps.runtime.outputs.health_url }}
+          BRANCH: ${{ inputs.branch }}
 
       - name: Save findings to cache
         id: save_findings

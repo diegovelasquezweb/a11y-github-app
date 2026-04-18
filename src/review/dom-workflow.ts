@@ -17,6 +17,7 @@ interface DispatchDomAuditInput {
   targetToken: string;
   commentId: number;
   sourceScanEnabled: boolean;
+  branch?: string;
 }
 
 interface DispatchSourceAuditInput {
@@ -35,6 +36,7 @@ interface DispatchSourceAuditInput {
   checkRunId: number;
   targetToken: string;
   commentId: number;
+  branch?: string;
 }
 
 export function createScanToken(owner: string, repo: string, pullNumber: number): string {
@@ -61,6 +63,7 @@ export async function dispatchDomAuditWorkflow(input: DispatchDomAuditInput): Pr
       target_token: input.targetToken,
       comment_id: String(input.commentId),
       source_scan_enabled: String(input.sourceScanEnabled),
+      ...(input.branch ? { branch: input.branch } : {}),
     },
   });
 }
@@ -82,6 +85,7 @@ export async function dispatchSourceAuditWorkflow(input: DispatchSourceAuditInpu
       check_run_id: String(input.checkRunId),
       target_token: input.targetToken,
       comment_id: String(input.commentId),
+      ...(input.branch ? { branch: input.branch } : {}),
     },
   });
 }

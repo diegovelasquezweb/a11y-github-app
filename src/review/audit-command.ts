@@ -37,6 +37,11 @@ export function parseAuditCommand(input: string): AuditCommand | null {
 
   const tokens = args.split(/\s+/);
 
+  // bare "branch" or "branch:" with no value is invalid
+  if (tokens.some((t) => /^branch:?$/i.test(t))) {
+    return null;
+  }
+
   const branchToken = tokens.find((t) => /^branch:/i.test(t));
   const branch = branchToken ? branchToken.replace(/^branch:/i, "") : undefined;
   const remaining = tokens.filter((t) => !/^branch:/i.test(t));

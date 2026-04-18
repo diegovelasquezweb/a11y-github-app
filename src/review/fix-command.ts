@@ -41,9 +41,15 @@ export function parseFixCommand(input: string): FixCommand {
     args = args.slice(0, args.lastIndexOf(`"${hintMatch[1]}"`)).trim();
   }
 
+  // bare "branch" or "branch:" with no value is invalid
+  const rawTokens = args ? args.split(/\s+/).filter(Boolean) : [];
+  if (rawTokens.some((t) => /^branch:?$/i.test(t))) {
+    return { requested: false, findingIds: [] };
+  }
+
   let model: string | undefined;
   let branch: string | undefined;
-  const tokens = args ? args.split(/\s+/).filter(Boolean) : [];
+  const tokens = rawTokens;
   const remaining: string[] = [];
   for (const token of tokens) {
     if (/^branch:/i.test(token)) {

@@ -18,10 +18,12 @@ import { verifyWebhookSignature } from "./verify-signature.js";
 
 const PULL_REQUEST_ACTIONS = new Set(["opened", "reopened", "synchronize"]);
 const ISSUE_COMMENT_ACTIONS = new Set(["created"]);
+const ISSUE_ACTIONS = new Set(["opened"]);
 const ALLOWED_AUDIT_ASSOCIATIONS = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
 const processedDeliveries = new Set<string>();
 const processedHeads = new Set<string>();
 const postedWelcomePrs = new Set<string>();
+const postedWelcomeIssues = new Set<string>();
 
 export interface ProcessWebhookInput {
   rawBody: Buffer;
@@ -173,6 +175,79 @@ function buildWelcomeComment(): string {
     "- [ ] Review and merge the newly generated fix PR",
     "- [ ] Run `/a11y-audit` again to confirm everything passes",
   ].join("\n");
+}
+
+function buildIssueWelcomeComment(): string {
+  return [
+    "## Accessibility Audit Available",
+    "",
+    "Audit any branch of this repository against **[WCAG 2.2 AA](https://www.w3.org/TR/WCAG22/)**. Comment with one of the commands below.",
+    "",
+    "| Command | What it does |",
+    "|---|---|",
+    "| `/a11y-audit` | Full audit on the default branch |",
+    "| `/a11y-audit branch:stage` | Full audit on a specific branch |",
+    "| `/a11y-audit dom branch:stage` | DOM scan only |",
+    "| `/a11y-audit source branch:stage` | Source pattern scan only |",
+    "| `/a11y-fix all` | Fix all findings from the last audit |",
+    "| `/a11y-fix all branch:stage` | Fix all findings on a specific branch |",
+    "| `/a11y-fix <ID>` | Fix a specific finding |",
+    "| `/a11y-fix sonnet all` | Fix using a specific model (`haiku` · `sonnet` · `opus`) |",
+    "",
+    "> 📟 Runs [axe-core](https://www.deque.com/axe/) + [CDP](https://chromedevtools.github.io/devtools-protocol/) + [pa11y](https://pa11y.org/) against the live DOM, plus static source pattern analysis.",
+    "",
+    "### Suggested workflow",
+    "",
+    "- [ ] Run `/a11y-audit` to scan for accessibility findings",
+    "- [ ] Review findings, then fix: `/a11y-fix all` (all at once) or `/a11y-fix <ID>` (per issue)",
+    "- [ ] Review and merge the newly generated fix PR",
+    "- [ ] Run `/a11y-audit` again to confirm everything passes",
+  ].join("\n");
+}
+
+async function handleIssueEvent(payload: {
+  action?: string;
+  installation?: { id?: number };
+  repository?: { name?: string; owner?: { login?: string } };
+  issue?: { number?: number; pull_request?: Record<string, unknown> };
+}): Promise<ProcessWebhookResult> {
+  if (!payload.action || !ISSUE_ACTIONS.has(payload.action)) {
+    return { status: 200, body: { ok: true, ignored: `unsupported action: ${payload.action}` } };
+  }
+
+  // Only handle plain issues, not PRs (which also fire issues events)
+  if (payload.issue?.pull_request) {
+    return { status: 200, body: { ok: true, ignored: "issue event on pull request" } };
+  }
+
+  const installationId = payload.installation?.id;
+  const owner = payload.repository?.owner?.login;
+  const repo = payload.repository?.name;
+  const issueNumber = payload.issue?.number;
+
+  if (!installationId || !owner || !repo || !issueNumber) {
+    return { status: 400, body: { ok: false, error: "Missing required issue fields" } };
+  }
+
+  const welcomeKey = `${owner}/${repo}#${issueNumber}`;
+  if (postedWelcomeIssues.has(welcomeKey)) {
+    return { status: 200, body: { ok: true, deduplicated: true } };
+  }
+
+  try {
+    const octokit = getInstallationOctokit(installationId);
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: issueNumber,
+      body: buildIssueWelcomeComment(),
+    });
+    remember(postedWelcomeIssues, welcomeKey, 5000);
+  } catch {
+    // non-critical
+  }
+
+  return { status: 200, body: { ok: true, welcomeCommentPosted: true } };
 }
 
 function buildInitialAuditComment(requestedBy?: string, mode: AuditMode = "unified"): string {
@@ -369,12 +444,25 @@ async function handleIssueCommentEvent(payload: {
   }
 
   let headSha: string;
+  let auditBranch: string | undefined;
   if (isPr) {
     const pull = await octokit.rest.pulls.get({ owner, repo, pull_number: pullNumber });
     headSha = pull.data.head.sha;
   } else {
-    const resolved = await resolveBranchRef(octokit, owner, repo, command.branch);
-    headSha = resolved.sha;
+    try {
+      const resolved = await resolveBranchRef(octokit, owner, repo, command.branch);
+      headSha = resolved.sha;
+      auditBranch = resolved.ref;
+    } catch {
+      const branchName = command.branch ?? "default branch";
+      await octokit.rest.issues.createComment({
+        owner,
+        repo,
+        issue_number: pullNumber,
+        body: `**A11y Audit Error:** Branch \`${branchName}\` was not found in this repository.`,
+      });
+      return { status: 200, body: { ok: true, error: "branch not found" } };
+    }
   }
 
   const initialBody = buildInitialAuditComment(payload.comment?.user?.login, command.auditMode);
@@ -417,6 +505,7 @@ async function handleIssueCommentEvent(payload: {
         checkRunId: domCheckRunId,
         targetToken,
         commentId,
+        ...(auditBranch ? { branch: auditBranch } : {}),
       });
     } else {
       await dispatchDomAuditWorkflow({
@@ -436,6 +525,7 @@ async function handleIssueCommentEvent(payload: {
         targetToken,
         commentId,
         sourceScanEnabled: command.auditMode === "dom" ? false : CONFIG.sourcePatternsEnabled,
+        ...(auditBranch ? { branch: auditBranch } : {}),
       });
     }
 
@@ -490,6 +580,10 @@ export async function processWebhook(
   try {
     if (input.event === "pull_request") {
       return await handlePullRequestEvent(payload as Parameters<typeof handlePullRequestEvent>[0]);
+    }
+
+    if (input.event === "issues") {
+      return await handleIssueEvent(payload as Parameters<typeof handleIssueEvent>[0]);
     }
 
     if (input.event === "issue_comment") {

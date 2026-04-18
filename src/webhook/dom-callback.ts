@@ -107,7 +107,7 @@ function severityIcon(severity: string): string {
   return "⚪";
 }
 
-function buildPatternSection(patternFindings: PatternAuditSummary): string {
+function buildPatternSection(patternFindings: PatternAuditSummary, branch?: string): string {
   const summaryLine = `🔴 Critical: ${patternFindings.totals.Critical} | 🟠 Serious: ${patternFindings.totals.Serious} | 🟡 Moderate: ${patternFindings.totals.Moderate} | 🔵 Minor: ${patternFindings.totals.Minor}`;
 
   if (patternFindings.findings.length === 0) {
@@ -123,11 +123,12 @@ function buildPatternSection(patternFindings: PatternAuditSummary): string {
   const list = patternFindings.findings
     .map((finding, index) => {
       const location = finding.line ? `${finding.file}:${finding.line}` : finding.file;
+      const fixCmd = branch ? `/a11y-fix ${finding.id} branch:${branch}` : `/a11y-fix ${finding.id}`;
       const lines = [
         `${index + 1}. ${severityIcon(finding.severity)} **[${finding.severity}]** ${escapeHtmlTags(finding.title)}`,
         `   **File:** \`${location}\``,
         `   **Rule:** \`${finding.patternId}\``,
-        `   **Fix:** \`/a11y-fix ${finding.id}\``,
+        `   **Fix:** \`${fixCmd}\``,
       ];
       return lines.join("\n");
     })
@@ -144,7 +145,7 @@ function buildPatternSection(patternFindings: PatternAuditSummary): string {
   ].join("\n");
 }
 
-export function buildFinalComment(summary: DomAuditSummary): string {
+export function buildFinalComment(summary: DomAuditSummary, branch?: string): string {
   const mode = summary.auditMode ?? "unified";
 
   if (mode === "source") {
@@ -180,7 +181,7 @@ export function buildFinalComment(summary: DomAuditSummary): string {
       : [];
 
     const patternBody = summary.patternFindings
-      ? buildPatternSection(summary.patternFindings)
+      ? buildPatternSection(summary.patternFindings, branch)
       : [
           "### Source Pattern Analysis",
           "",
@@ -225,7 +226,10 @@ export function buildFinalComment(summary: DomAuditSummary): string {
                 } catch { /* ignore unparseable URLs */ }
               }
               if (finding.selector) lines.push(`   **Selector:** \`${finding.selector}\``);
-              if (finding.id) lines.push(`   **Fix:** \`/a11y-fix ${finding.id}\``);
+              if (finding.id) {
+                const fixCmd = branch ? `/a11y-fix ${finding.id} branch:${branch}` : `/a11y-fix ${finding.id}`;
+                lines.push(`   **Fix:** \`${fixCmd}\``);
+              }
               return lines.join("\n");
             })
             .join("\n\n"),
@@ -277,7 +281,7 @@ export function buildFinalComment(summary: DomAuditSummary): string {
   }
 
   if (summary.patternFindings) {
-    const combined = `${buildPatternSection(summary.patternFindings)}\n\n---\n\n${domSection}`;
+    const combined = `${buildPatternSection(summary.patternFindings, branch)}\n\n---\n\n${domSection}`;
     if (summary.totalFindings === 0 && quickFixSection.length > 0) {
       return `${combined}\n${quickFixSection.join("\n")}`;
     }
@@ -317,6 +321,7 @@ export async function processDomAuditCallback(
     rawAuditMode === "dom" || rawAuditMode === "source" || rawAuditMode === "unified"
       ? rawAuditMode
       : "unified";
+  const branch = typeof input.payload.branch === "string" && input.payload.branch ? input.payload.branch : undefined;
 
   if (!owner || !repo || !checkRunId) {
     return { status: 400, body: { ok: false, error: "Missing callback target fields" } };
@@ -347,7 +352,7 @@ export async function processDomAuditCallback(
     if (pullNumber > 0) {
       const commentId = Number(input.payload.comment_id ?? 0);
 
-      const finalBody = buildFinalComment(summary);
+      const finalBody = buildFinalComment(summary, branch);
 
       if (commentId > 0) {
         try {

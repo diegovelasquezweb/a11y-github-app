@@ -46,6 +46,11 @@ on:
         required: false
         default: "0"
         type: string
+      branch:
+        description: "Branch being audited (issue-based scans only)"
+        required: false
+        default: ""
+        type: string
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -158,6 +163,7 @@ jobs:
             head_sha: process.env.HEAD_SHA,
             check_run_id: process.env.CHECK_RUN_ID,
             comment_id: process.env.COMMENT_ID,
+            ...(process.env.BRANCH ? { branch: process.env.BRANCH } : {}),
             audit_mode: 'source',
             status,
             total_findings: 0,
@@ -178,6 +184,7 @@ jobs:
           HEAD_SHA: ${{ inputs.head_sha }}
           CHECK_RUN_ID: ${{ inputs.check_run_id }}
           COMMENT_ID: ${{ inputs.comment_id }}
+          BRANCH: ${{ inputs.branch }}
 
       - name: Cache pattern findings
         if: ${{ steps.source_scan.outputs.exit_code == '0' }}
