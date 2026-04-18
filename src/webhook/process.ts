@@ -179,10 +179,10 @@ function buildWelcomeComment(context: "pr" | "issue" = "pr"): string {
     "",
     "### Suggested workflow",
     "",
-    "- [ ] Run `/a11y-audit` to scan for accessibility findings",
-    "- [ ] Review findings, then fix: `/a11y-fix all` (all at once) or `/a11y-fix <ID>` (per issue)",
-    "- [ ] Review and merge the newly generated fix PR",
-    "- [ ] Run `/a11y-audit` again to confirm everything passes",
+    "- Run `/a11y-audit` to scan for accessibility findings",
+    "- Review findings, then fix: `/a11y-fix all` (all at once) or `/a11y-fix <ID>` (per issue)",
+    "- Review and merge the newly generated fix PR",
+    "- Run `/a11y-audit` again to confirm everything passes",
   ].join("\n");
 }
 
