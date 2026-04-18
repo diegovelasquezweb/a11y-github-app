@@ -70,7 +70,7 @@ async function handlePullRequestEvent(payload: {
   repository?: { name?: string; owner?: { login?: string } };
   pull_request?: {
     number?: number;
-    head?: { sha?: string };
+    head?: { sha?: string; ref?: string };
   };
 }): Promise<ProcessWebhookResult> {
   if (!payload.action || !PULL_REQUEST_ACTIONS.has(payload.action)) {
