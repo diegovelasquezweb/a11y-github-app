@@ -3,6 +3,7 @@ import type { AuditMode } from "../types.js";
 export interface AuditCommand {
   auditMode: AuditMode;
   targetUrl?: string;
+  branch?: string;
 }
 
 const AUDIT_DOM_RE = /^\/a11y-audit-dom$/i;
@@ -36,15 +37,19 @@ export function parseAuditCommand(input: string): AuditCommand | null {
 
   const tokens = args.split(/\s+/);
 
-  if (tokens[0] === "dom") {
-    const urlToken = tokens.slice(1).find((token) => isHttpUrl(token));
-    return { auditMode: "dom", targetUrl: urlToken };
+  const branchToken = tokens.find((t) => /^branch:/i.test(t));
+  const branch = branchToken ? branchToken.replace(/^branch:/i, "") : undefined;
+  const remaining = tokens.filter((t) => !/^branch:/i.test(t));
+
+  if (remaining[0] === "dom") {
+    const urlToken = remaining.slice(1).find((token) => isHttpUrl(token));
+    return { auditMode: "dom", targetUrl: urlToken, ...(branch ? { branch } : {}) };
   }
 
-  if (tokens[0] === "source") {
-    return { auditMode: "source" };
+  if (remaining[0] === "source") {
+    return { auditMode: "source", ...(branch ? { branch } : {}) };
   }
 
-  const urlToken = tokens.find((token) => isHttpUrl(token));
-  return { auditMode: "unified", targetUrl: urlToken };
+  const urlToken = remaining.find((token) => isHttpUrl(token));
+  return { auditMode: "unified", targetUrl: urlToken, ...(branch ? { branch } : {}) };
 }

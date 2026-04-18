@@ -3,6 +3,7 @@ export interface FixCommand {
   findingIds: string[];
   hint?: string;
   model?: string;
+  branch?: string;
 }
 
 const FIX_COMMAND_RE = /^\/a11y-fix(?:\s+(.+))?$/i;
@@ -41,14 +42,19 @@ export function parseFixCommand(input: string): FixCommand {
   }
 
   let model: string | undefined;
+  let branch: string | undefined;
   const tokens = args ? args.split(/\s+/).filter(Boolean) : [];
   const remaining: string[] = [];
   for (const token of tokens) {
-    const resolved = resolveModel(token);
-    if (resolved && !model) {
-      model = resolved;
+    if (/^branch:/i.test(token)) {
+      branch = token.replace(/^branch:/i, "");
     } else {
-      remaining.push(token);
+      const resolved = resolveModel(token);
+      if (resolved && !model) {
+        model = resolved;
+      } else {
+        remaining.push(token);
+      }
     }
   }
 
@@ -57,5 +63,6 @@ export function parseFixCommand(input: string): FixCommand {
     findingIds: remaining,
     ...(hint ? { hint } : {}),
     ...(model ? { model } : {}),
+    ...(branch ? { branch } : {}),
   };
 }

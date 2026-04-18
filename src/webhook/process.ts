@@ -63,6 +63,22 @@ function getCallbackUrl(): string {
     : "";
 }
 
+async function resolveBranchRef(
+  octokit: ReturnType<typeof getInstallationOctokit>,
+  owner: string,
+  repo: string,
+  branch?: string,
+): Promise<{ ref: string; sha: string }> {
+  if (branch) {
+    const { data } = await octokit.rest.repos.getBranch({ owner, repo, branch });
+    return { ref: branch, sha: data.commit.sha };
+  }
+  const { data: repoData } = await octokit.rest.repos.get({ owner, repo });
+  const defaultBranch = repoData.default_branch;
+  const { data } = await octokit.rest.repos.getBranch({ owner, repo, branch: defaultBranch });
+  return { ref: defaultBranch, sha: data.commit.sha };
+}
+
 
 async function handlePullRequestEvent(payload: {
   action?: string;
@@ -217,8 +233,10 @@ async function handleIssueCommentEvent(payload: {
   const command = parseAuditCommand(payload.comment?.body ?? "");
   const fixCommand = parseFixCommand(payload.comment?.body ?? "");
 
-  if (!payload.issue?.pull_request) {
-    return { status: 200, body: { ok: true, ignored: "command outside pull request" } };
+  const isPr = !!payload.issue?.pull_request;
+
+  if (!isPr && !command && !fixCommand.requested) {
+    return { status: 200, body: { ok: true, ignored: "no supported command" } };
   }
 
   const association = payload.comment?.author_association ?? "";
@@ -252,14 +270,21 @@ async function handleIssueCommentEvent(payload: {
     const findingIdsStr = fixCommand.findingIds.join(",");
 
     const octokit = getInstallationOctokit(installationId);
-    const pull = await octokit.rest.pulls.get({
-      owner,
-      repo,
-      pull_number: pullNumber,
-    });
-    const headSha = pull.data.head.sha;
-    const headRef = pull.data.head.ref;
-    const baseRef = pull.data.base.ref;
+    let headSha: string;
+    let headRef: string;
+    let baseRef: string;
+
+    if (isPr) {
+      const pull = await octokit.rest.pulls.get({ owner, repo, pull_number: pullNumber });
+      headSha = pull.data.head.sha;
+      headRef = pull.data.head.ref;
+      baseRef = pull.data.base.ref;
+    } else {
+      const resolved = await resolveBranchRef(octokit, owner, repo, fixCommand.branch);
+      headSha = resolved.sha;
+      headRef = resolved.ref;
+      baseRef = resolved.ref;
+    }
     const runnerOwner = CONFIG.scanRunnerOwner || owner;
     const runnerRepo = CONFIG.scanRunnerRepo || repo;
     const runnerOctokit = await getRepoOctokit(runnerOwner, runnerRepo);
@@ -343,12 +368,14 @@ async function handleIssueCommentEvent(payload: {
     };
   }
 
-  const pull = await octokit.rest.pulls.get({
-    owner,
-    repo,
-    pull_number: pullNumber,
-  });
-  const headSha = pull.data.head.sha;
+  let headSha: string;
+  if (isPr) {
+    const pull = await octokit.rest.pulls.get({ owner, repo, pull_number: pullNumber });
+    headSha = pull.data.head.sha;
+  } else {
+    const resolved = await resolveBranchRef(octokit, owner, repo, command.branch);
+    headSha = resolved.sha;
+  }
 
   const initialBody = buildInitialAuditComment(payload.comment?.user?.login, command.auditMode);
   const { data: createdComment } = await octokit.rest.issues.createComment({
