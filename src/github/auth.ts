@@ -41,6 +41,7 @@ export async function createInstallationToken(installationId: number): Promise<s
       contents: "write",
       pull_requests: "write",
       checks: "write",
+      issues: "write",
     },
   });
   return response.data.token;
