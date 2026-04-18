@@ -65,7 +65,7 @@ function getCallbackUrl(): string {
     : "";
 }
 
-async function resolveBranchRef(
+export async function resolveBranchRef(
   octokit: ReturnType<typeof getInstallationOctokit>,
   owner: string,
   repo: string,

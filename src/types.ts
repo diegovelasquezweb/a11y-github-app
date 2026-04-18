@@ -71,3 +71,9 @@ export interface DomAuditSummary {
   error?: string;
   auditMode?: AuditMode;
 }
+
+export interface SlackContext {
+  channelId: string;
+  messageTs: string;
+  threadTs?: string;
+}

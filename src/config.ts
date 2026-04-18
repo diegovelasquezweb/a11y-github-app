@@ -33,4 +33,6 @@ export const CONFIG = {
   scanSourceWorkflow: process.env.SCAN_SOURCE_WORKFLOW?.trim() || "source-audit.yml",
   scanRunnerRef: process.env.SCAN_RUNNER_REF?.trim() || "master",
   fixAiModel: process.env.FIX_AI_MODEL?.trim() || "claude-haiku-4-5-20251001",
+  slackBotToken: process.env.SLACK_BOT_TOKEN?.trim() || "",
+  slackSigningSecret: process.env.SLACK_SIGNING_SECRET?.trim() || "",
 };

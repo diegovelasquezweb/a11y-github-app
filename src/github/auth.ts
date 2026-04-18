@@ -33,6 +33,16 @@ export async function getRepoOctokit(owner: string, repo: string): Promise<Octok
   return getInstallationOctokit(installation.data.id);
 }
 
+export async function findInstallationForRepo(owner: string, repo: string): Promise<number | null> {
+  try {
+    const appOctokit = createAppOctokit();
+    const response = await appOctokit.rest.apps.getRepoInstallation({ owner, repo });
+    return response.data.id;
+  } catch {
+    return null;
+  }
+}
+
 export async function createInstallationToken(installationId: number): Promise<string> {
   const appOctokit = createAppOctokit();
   const response = await appOctokit.rest.apps.createInstallationAccessToken({

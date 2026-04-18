@@ -18,6 +18,9 @@ interface DispatchDomAuditInput {
   commentId: number;
   sourceScanEnabled: boolean;
   branch?: string;
+  slackChannelId?: string;
+  slackMessageTs?: string;
+  slackThreadTs?: string;
 }
 
 interface DispatchSourceAuditInput {
@@ -37,6 +40,9 @@ interface DispatchSourceAuditInput {
   targetToken: string;
   commentId: number;
   branch?: string;
+  slackChannelId?: string;
+  slackMessageTs?: string;
+  slackThreadTs?: string;
 }
 
 export function createScanToken(owner: string, repo: string, pullNumber: number): string {
@@ -64,6 +70,7 @@ export async function dispatchDomAuditWorkflow(input: DispatchDomAuditInput): Pr
       comment_id: String(input.commentId),
       source_scan_enabled: String(input.sourceScanEnabled),
       ...(input.branch ? { branch: input.branch } : {}),
+      ...(input.slackChannelId ? { slack_channel_id: input.slackChannelId, slack_message_ts: input.slackMessageTs ?? "", slack_thread_ts: input.slackThreadTs ?? "" } : {}),
     },
   });
 }
@@ -86,6 +93,7 @@ export async function dispatchSourceAuditWorkflow(input: DispatchSourceAuditInpu
       target_token: input.targetToken,
       comment_id: String(input.commentId),
       ...(input.branch ? { branch: input.branch } : {}),
+      ...(input.slackChannelId ? { slack_channel_id: input.slackChannelId, slack_message_ts: input.slackMessageTs ?? "", slack_thread_ts: input.slackThreadTs ?? "" } : {}),
     },
   });
 }
