@@ -95,7 +95,8 @@ async function handlePullRequestEvent(payload: {
 
   let welcomeCommentPosted = false;
 
-  if (payload.action === "opened" || payload.action === "reopened") {
+  const headBranch = payload.pull_request?.head?.ref ?? "";
+  if ((payload.action === "opened" || payload.action === "reopened") && !headBranch.startsWith("a11y-fix/")) {
     const welcomeKey = `${owner}/${repo}#${pullNumber}`;
     if (!postedWelcomePrs.has(welcomeKey)) {
       try {
