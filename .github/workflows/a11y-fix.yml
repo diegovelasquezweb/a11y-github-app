@@ -921,12 +921,28 @@ jobs:
           fs.writeFileSync('slack-fix-payload.json', payload)
           NODE
 
-          curl -sS -X POST "${CALLBACK_URL%/scan-callback}/slack-progress" \
-            -H "Content-Type: application/json" \
-            -H "x-callback-token: ${{ inputs.callback_token }}" \
-            --data-raw "{\"owner\":\"${{ inputs.target_owner }}\",\"repo\":\"${{ inputs.target_repo }}\",\"branch\":\"${{ inputs.head_ref }}\",\"mode\":\"Fix complete\",\"current_step\":5,\"steps\":$FIX_STEPS,\"slack_channel_id\":\"${{ inputs.slack_channel_id }}\",\"slack_message_ts\":\"${{ inputs.slack_message_ts }}\"}" || true
+          node <<'SEND'
+          const fs = require('fs')
+          const payload = JSON.parse(fs.readFileSync('slack-fix-payload.json', 'utf8'))
+          const body = JSON.stringify({
+            slack_channel_id: process.env.SLACK_CHANNEL_ID,
+            slack_message_ts: process.env.SLACK_MESSAGE_TS,
+            blocks: payload.blocks,
+          })
+          fetch(`${process.env.CALLBACK_URL.replace('/scan-callback', '/slack-fix-result')}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-callback-token': process.env.CALLBACK_TOKEN,
+            },
+            body,
+          }).catch(err => console.warn('Slack fix result callback failed:', err))
+          SEND
         env:
           CALLBACK_URL: ${{ inputs.callback_url }}
+          CALLBACK_TOKEN: ${{ inputs.callback_token }}
+          SLACK_CHANNEL_ID: ${{ inputs.slack_channel_id }}
+          SLACK_MESSAGE_TS: ${{ inputs.slack_message_ts }}
           RESULTS_FILE: ${{ steps.apply_fixes.outputs.results_file }}
           PR_URL: ${{ steps.open_pr.outputs.pr_url }}
           ANY_VERIFIED: ${{ steps.verify_result.outputs.any_verified }}
