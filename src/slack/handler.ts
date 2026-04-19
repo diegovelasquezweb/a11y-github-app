@@ -10,9 +10,6 @@ import {
   buildAuditModal,
   buildFixModal,
   buildJiraProjectKeyModal,
-  buildJiraLoadingModal,
-  buildJiraIssueTypeModal,
-  buildJiraErrorModal,
 } from "./modals.js";
 import { getSlackClient } from "./client.js";
 import { postScanningMessage, postFixProgress } from "./notifier.js";
@@ -20,7 +17,6 @@ import type { SlackHandlerResult, SlackInteractionPayload, SlackSlashCommandPayl
 import type { AuditMode } from "../types.js";
 import { buildSingleFindingBody, buildSingleFindingSummary, buildBulkBody, buildBulkSummary } from "../jira/build-body.js";
 import { createJiraIssue } from "../jira/create-issue.js";
-import { fetchJiraIssueTypes } from "../jira/fetch-issue-types.js";
 import type { JiraSlackPayload, JiraSinglePayload, JiraBulkPayload, CreateIssueErrorCode } from "../jira/types.js";
 
 function parseRepoInput(input: string): [string, string] | null {
@@ -178,39 +174,7 @@ async function handleJiraProjectSubmit(interaction: SlackInteractionPayload): Pr
     return { status: 200, body: { response_action: "errors", errors: { project_key_block: "Project key is required" } } };
   }
   const metadata = JSON.parse((interaction.view as any)?.private_metadata ?? "{}") as JiraModalMetadata;
-  const viewId = (interaction.view as any)?.id as string;
-  waitUntil(hydrateJiraIssueTypes(viewId, projectKey, metadata));
-  return { status: 200, body: { response_action: "update", view: buildJiraLoadingModal(projectKey) } };
-}
-
-async function hydrateJiraIssueTypes(viewId: string, projectKey: string, metadata: JiraModalMetadata): Promise<void> {
-  const result = await fetchJiraIssueTypes(projectKey);
-  const slackClient = getSlackClient();
-  if (!slackClient) return;
-  let nextView: object;
-  if (result.ok && result.issueTypes.length > 0) {
-    nextView = buildJiraIssueTypeModal(metadata, result.issueTypes, projectKey);
-  } else if (result.ok && result.issueTypes.length === 0) {
-    nextView = buildJiraErrorModal(metadata, "No issue types found for this project.", projectKey);
-  } else {
-    const msg = errorCodeToMessage((result as { errorCode: string }).errorCode as any);
-    nextView = buildJiraErrorModal(metadata, msg, projectKey);
-  }
-  try {
-    await slackClient.views.update({ view_id: viewId, view: nextView as any });
-  } catch (err) {
-    console.warn("[slack] jira hydrate views.update failed:", err);
-  }
-}
-
-async function handleJiraIssueTypeSubmit(interaction: SlackInteractionPayload): Promise<SlackHandlerResult> {
-  const values = (interaction.view as any)?.state?.values ?? {};
-  const issueType = values.issuetype_block?.issuetype?.selected_option?.value ?? "";
-  const metadata = JSON.parse((interaction.view as any)?.private_metadata ?? "{}") as JiraModalMetadata & { projectKey?: string };
-  if (!issueType || !metadata.projectKey) {
-    return { status: 200, body: { response_action: "errors", errors: { issuetype_block: "Select an issue type" } } };
-  }
-  waitUntil(executeJiraCreateV2(metadata, metadata.projectKey, issueType));
+  waitUntil(executeJiraCreateV2(metadata, projectKey, "Task"));
   return { status: 200, body: { response_action: "clear" } };
 }
 
@@ -266,7 +230,6 @@ async function handleViewSubmission(interaction: SlackInteractionPayload): Promi
   const callbackId = interaction.view?.callback_id;
 
   if (callbackId === "a11y_jira_project_modal") return handleJiraProjectSubmit(interaction);
-  if (callbackId === "a11y_jira_issuetype_modal") return handleJiraIssueTypeSubmit(interaction);
 
   if (callbackId === "a11y_audit_modal") {
     return handleAuditSubmit(interaction);
@@ -510,19 +473,6 @@ async function handleBlockAction(interaction: SlackInteractionPayload): Promise<
       });
     } catch (err) {
       console.warn("[slack] jira modal open failed:", err);
-    }
-    return { status: 200, body: "" };
-  }
-
-  if (action.action_id === "a11y_jira_back_to_project") {
-    const meta = JSON.parse(interaction.view?.private_metadata ?? "{}") as JiraModalMetadata & { projectKey?: string };
-    try {
-      await client.views.update({
-        view_id: interaction.view!.id,
-        view: buildJiraProjectKeyModal(meta, meta.projectKey) as any,
-      });
-    } catch (err) {
-      console.warn("[slack] jira back modal update failed:", err);
     }
     return { status: 200, body: "" };
   }

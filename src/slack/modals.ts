@@ -147,7 +147,7 @@ export function buildJiraProjectKeyModal(metadata: JiraModalMetadata, initialKey
     type: "modal" as const,
     callback_id: "a11y_jira_project_modal",
     title: { type: "plain_text" as const, text: "Create Jira Ticket" },
-    submit: { type: "plain_text" as const, text: "Next" },
+    submit: { type: "plain_text" as const, text: "Create Ticket" },
     close: { type: "plain_text" as const, text: "Cancel" },
     private_metadata: JSON.stringify(metadata),
     blocks: [

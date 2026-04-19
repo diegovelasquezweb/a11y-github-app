@@ -137,9 +137,9 @@ describe("buildJiraProjectKeyModal", () => {
     expect(modal.title.text).toBe("Create Jira Ticket");
   });
 
-  it("has submit Next and close Cancel", () => {
+  it("has submit Create Ticket and close Cancel", () => {
     const modal = buildJiraProjectKeyModal(jiraMeta);
-    expect(modal.submit?.text).toBe("Next");
+    expect(modal.submit?.text).toBe("Create Ticket");
     expect(modal.close?.text).toBe("Cancel");
   });
 

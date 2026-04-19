@@ -21,9 +21,6 @@ vi.mock("../../src/jira/create-issue.js", () => ({
   createJiraIssue: vi.fn(),
 }));
 
-vi.mock("../../src/jira/fetch-issue-types.js", () => ({
-  fetchJiraIssueTypes: vi.fn(),
-}));
 
 vi.mock("../../src/slack/verify.js", () => ({
   verifySlackSignature: vi.fn().mockReturnValue(true),
@@ -39,7 +36,6 @@ vi.mock("@vercel/functions", () => ({
 
 import { errorCodeToMessage, executeDeferredWork, verifyAndRoute } from "../../src/slack/handler.js";
 import { createJiraIssue } from "../../src/jira/create-issue.js";
-import { fetchJiraIssueTypes } from "../../src/jira/fetch-issue-types.js";
 import { getSlackClient } from "../../src/slack/client.js";
 
 const mockViewsOpen = vi.fn().mockResolvedValue({ ok: true });
@@ -179,8 +175,8 @@ describe("Jira project key modal submission", () => {
     expect(body.errors?.project_key_block).toBeTruthy();
   });
 
-  it("returns update with loading modal when project key is valid", async () => {
-    vi.mocked(fetchJiraIssueTypes).mockResolvedValue({ ok: true, issueTypes: [{ id: "1", name: "Bug" }] });
+  it("returns clear and triggers ticket creation when project key is valid", async () => {
+    vi.mocked(createJiraIssue).mockResolvedValue({ ok: true, issueKey: "PROJ-1", issueUrl: "https://example.atlassian.net/browse/PROJ-1" });
 
     const result = await verifyAndRoute({
       rawBody: makeViewSubmissionPayload(
@@ -193,78 +189,8 @@ describe("Jira project key modal submission", () => {
     });
 
     expect(result.status).toBe(200);
-    const body = result.body as { response_action: string; view?: { callback_id: string } };
-    expect(body.response_action).toBe("update");
-    expect(body.view?.callback_id).toBe("a11y_jira_loading_modal");
-  });
-});
-
-describe("Jira issue type modal submission", () => {
-  it("returns clear when issue type and projectKey are valid", async () => {
-    vi.mocked(createJiraIssue).mockResolvedValue({ ok: true, issueKey: "PROJ-1", issueUrl: "https://example.atlassian.net/browse/PROJ-1" });
-
-    const metadata = JSON.stringify({ payload: makeSingleValue(), channelId: "C1", userId: "U1", projectKey: "PROJ" });
-    const result = await verifyAndRoute({
-      rawBody: makeViewSubmissionPayload(
-        "a11y_jira_issuetype_modal",
-        { issuetype_block: { issuetype: { type: "static_select", selected_option: { value: "Bug" } } } },
-        metadata,
-      ),
-      timestamp: "12345",
-      signature: "v0=fake",
-    });
-
-    expect(result.status).toBe(200);
     const body = result.body as { response_action: string };
     expect(body.response_action).toBe("clear");
-  });
-
-  it("returns errors when issue type is missing", async () => {
-    const metadata = JSON.stringify({ payload: makeSingleValue(), channelId: "C1", userId: "U1", projectKey: "PROJ" });
-    const result = await verifyAndRoute({
-      rawBody: makeViewSubmissionPayload(
-        "a11y_jira_issuetype_modal",
-        { issuetype_block: { issuetype: { type: "static_select" } } },
-        metadata,
-      ),
-      timestamp: "12345",
-      signature: "v0=fake",
-    });
-
-    expect(result.status).toBe(200);
-    const body = result.body as { response_action: string; errors?: Record<string, string> };
-    expect(body.response_action).toBe("errors");
-    expect(body.errors?.issuetype_block).toBeTruthy();
-  });
-});
-
-describe("Jira back button → views.update called", () => {
-  it("calls views.update with a11y_jira_project_modal when back button clicked", async () => {
-    const privateMetadata = JSON.stringify({
-      payload: makeSingleValue(),
-      channelId: "C1",
-      userId: "U1",
-      projectKey: "PROJ",
-    });
-    const payload = {
-      type: "block_actions",
-      trigger_id: "trig123",
-      user: { id: "U123", username: "testuser" },
-      view: { id: "V999", callback_id: "a11y_jira_issuetype_modal", private_metadata: privateMetadata, state: { values: {} } },
-      actions: [{ action_id: "a11y_jira_back_to_project", block_id: "blk" }],
-    };
-
-    const result = await verifyAndRoute({
-      rawBody: `payload=${encodeURIComponent(JSON.stringify(payload))}`,
-      timestamp: "12345",
-      signature: "v0=fake",
-    });
-
-    expect(result.status).toBe(200);
-    expect(mockViewsUpdate).toHaveBeenCalledOnce();
-    const callArg = mockViewsUpdate.mock.calls[0][0] as { view_id: string; view: { callback_id: string } };
-    expect(callArg.view_id).toBe("V999");
-    expect(callArg.view.callback_id).toBe("a11y_jira_project_modal");
   });
 });
 
