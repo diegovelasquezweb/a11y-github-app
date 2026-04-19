@@ -2,7 +2,7 @@ import type { DomAuditSummary, PatternAuditSummary } from "../types.js";
 
 function severityTag(severity: string): string {
   const s = severity.trim().toLowerCase();
-  if (s === "critical") return ":slack: `Critical`";
+  if (s === "critical") return ":red_circle: `Critical`";
   if (s === "serious") return ":large_orange_circle: `Serious`";
   if (s === "moderate") return ":large_yellow_circle: `Moderate`";
   if (s === "minor") return ":large_blue_circle: `Minor`";
