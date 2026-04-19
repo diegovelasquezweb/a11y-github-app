@@ -29,11 +29,8 @@ export interface SlackRequestInput {
   signature?: string;
 }
 
-export interface SlackRequestResult extends SlackHandlerResult {
-  deferred?: () => Promise<void>;
-}
 
-export async function processSlackRequest(input: SlackRequestInput): Promise<SlackRequestResult> {
+export async function processSlackRequest(input: SlackRequestInput): Promise<SlackHandlerResult> {
   if (!CONFIG.slackSigningSecret || !CONFIG.slackBotToken) {
     return { status: 503, body: { ok: false, error: "Slack integration not configured" } };
   }
@@ -52,11 +49,7 @@ export async function processSlackRequest(input: SlackRequestInput): Promise<Sla
         return handleViewSubmission(interaction);
       }
       if (interaction.type === "block_actions") {
-        return {
-          status: 200,
-          body: "",
-          deferred: () => handleBlockAction(interaction).then(() => {}),
-        };
+        return handleBlockAction(interaction);
       }
       return { status: 200, body: "" };
     } catch {
@@ -315,23 +308,26 @@ async function handleBlockAction(interaction: SlackInteractionPayload): Promise<
     }
 
     try {
-      await client.views.open({
+      console.log("[slack] opening fix modal", { findingLabel, triggerId: interaction.trigger_id, fixCtx });
+      const view = buildFixModal({
+        channelId,
+        messageTs,
+        userId: interaction.user?.id ?? "",
+        owner: String(fixCtx.o ?? ""),
+        repo: String(fixCtx.r ?? ""),
+        headSha: String(fixCtx.s ?? ""),
+        headRef: String(fixCtx.h ?? ""),
+        baseRef: String(fixCtx.b ?? ""),
+        pullNumber: 0,
+        installationId: Number(fixCtx.i ?? 0),
+      }, findingLabel);
+      const result = await client.views.open({
         trigger_id: interaction.trigger_id,
-        view: buildFixModal({
-          channelId,
-          messageTs,
-          userId: interaction.user?.id ?? "",
-          owner: String(fixCtx.o ?? ""),
-          repo: String(fixCtx.r ?? ""),
-          headSha: String(fixCtx.s ?? ""),
-          headRef: String(fixCtx.h ?? ""),
-          baseRef: String(fixCtx.b ?? ""),
-          pullNumber: 0,
-          installationId: Number(fixCtx.i ?? 0),
-        }, findingLabel) as Parameters<typeof client.views.open>[0]["view"],
+        view: view as Parameters<typeof client.views.open>[0]["view"],
       });
+      console.log("[slack] fix modal opened", { ok: result.ok });
     } catch (err) {
-      console.warn("[slack] fix modal open failed:", err);
+      console.error("[slack] fix modal open failed:", err);
     }
     return { status: 200, body: "" };
   }
