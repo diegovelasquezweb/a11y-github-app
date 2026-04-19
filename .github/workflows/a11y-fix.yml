@@ -873,6 +873,63 @@ jobs:
               body,
             })
 
+      - name: Send Slack fix result callback
+        if: ${{ inputs.slack_channel_id != '' && inputs.callback_url != '' }}
+        run: |
+          RESULTS_FILE="${{ steps.apply_fixes.outputs.results_file }}"
+          PR_URL="${{ steps.open_pr.outputs.pr_url }}"
+          ANY_VERIFIED="${{ steps.verify_result.outputs.any_verified }}"
+          ALL_FAILED="${{ steps.apply_fixes.outputs.all_failed }}"
+
+          STATUS="success"
+          SUMMARY="Fix completed"
+          if [ "$ALL_FAILED" = "true" ]; then
+            STATUS="failure"
+            SUMMARY="No findings could be automatically fixed"
+          fi
+
+          node <<'NODE'
+          const fs = require('fs')
+          const resultsFile = process.env.RESULTS_FILE
+          let results = []
+          if (resultsFile && fs.existsSync(resultsFile)) {
+            results = JSON.parse(fs.readFileSync(resultsFile, 'utf8'))
+          }
+
+          const rows = results.map(r => {
+            const resolved = (r.message || '').toLowerCase().includes('already resolved')
+            const icon = resolved ? ':white_check_mark:' : r.verified ? ':white_check_mark:' : r.status === 'skipped' ? ':fast_forward:' : ':x:'
+            const text = resolved ? 'Already resolved' : r.verified ? 'Fixed & verified' : r.status === 'skipped' ? 'Skipped' : 'Failed'
+            return `${icon}  \`${r.id}\` ${r.title || '—'} — ${text}`
+          }).join('\n')
+
+          const prUrl = process.env.PR_URL || ''
+          const blocks = [
+            { type: 'header', text: { type: 'plain_text', text: process.env.STATUS === 'failure' ? '❌ Fix Failed' : '✅ Fix Complete' } },
+            { type: 'section', text: { type: 'mrkdwn', text: rows || 'No results' } },
+          ]
+          if (prUrl) {
+            blocks.push({ type: 'actions', elements: [
+              { type: 'button', text: { type: 'plain_text', text: 'View Fix PR' }, url: prUrl, action_id: 'view_fix_pr' },
+            ]})
+          }
+
+          const payload = JSON.stringify({ blocks })
+          fs.writeFileSync('slack-fix-payload.json', payload)
+          NODE
+
+          curl -sS -X POST "${CALLBACK_URL%/scan-callback}/slack-progress" \
+            -H "Content-Type: application/json" \
+            -H "x-callback-token: ${{ inputs.callback_token }}" \
+            --data-raw "{\"owner\":\"${{ inputs.target_owner }}\",\"repo\":\"${{ inputs.target_repo }}\",\"branch\":\"${{ inputs.head_ref }}\",\"mode\":\"Fix complete\",\"current_step\":5,\"steps\":$FIX_STEPS,\"slack_channel_id\":\"${{ inputs.slack_channel_id }}\",\"slack_message_ts\":\"${{ inputs.slack_message_ts }}\"}" || true
+        env:
+          CALLBACK_URL: ${{ inputs.callback_url }}
+          RESULTS_FILE: ${{ steps.apply_fixes.outputs.results_file }}
+          PR_URL: ${{ steps.open_pr.outputs.pr_url }}
+          ANY_VERIFIED: ${{ steps.verify_result.outputs.any_verified }}
+          ALL_FAILED: ${{ steps.apply_fixes.outputs.all_failed }}
+          STATUS: ${{ steps.verify_result.outputs.any_verified == 'true' && 'success' || 'failure' }}
+
       - name: Update fix check run
         if: always()
         uses: actions/github-script@v7
