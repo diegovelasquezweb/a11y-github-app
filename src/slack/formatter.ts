@@ -188,8 +188,9 @@ export function formatAuditResultBlocks(
                 url: `https://jira.atlassian.net/secure/CreateIssueDetails!init.jspa?summary=${encodeURIComponent(`[${f.severity}] ${f.title}`)}&description=${encodeURIComponent(issueBody)}`,
                 value: `jira_${f.id}`,
               };
-          const rawBlockId = `a11y_f_${f.id}|${pathname}|${f.selector ?? ""}`;
-          const blockId = rawBlockId.length <= 255 ? rawBlockId : `a11y_f_${f.id}|${pathname}|${(f.selector ?? "").slice(0, 255 - 10 - f.id.length - pathname.length)}`;
+          const blockBase = `a11y_f_${f.id}|${pathname}|${f.selector ?? ""}|${f.wcag ?? ""}|`;
+          const rfBudget = 255 - blockBase.length;
+          const blockId = (blockBase + (rfBudget > 0 ? (f.recommendedFix ?? "").slice(0, rfBudget) : "")).slice(0, 255);
           blocks.push({
             type: "section",
             block_id: blockId,
@@ -307,8 +308,10 @@ function appendPatternFindings(blocks: Record<string, unknown>[], patternFinding
             url: `https://jira.atlassian.net/secure/CreateIssueDetails!init.jspa?summary=${encodeURIComponent(`[${f.severity}] ${f.title}`)}&description=${encodeURIComponent(patIssueBody)}`,
             value: `jira_${f.id}`,
           };
+      const patBlockId = `a11y_p_${f.id}|${f.file}|${f.line ?? ""}`.slice(0, 255);
       blocks.push({
         type: "section",
+        block_id: patBlockId,
         text: { type: "mrkdwn", text: parts.join("\n") },
         accessory: {
           type: "overflow",

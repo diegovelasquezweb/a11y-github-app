@@ -3,8 +3,11 @@ import type { AdfSection, BulkFinding, JiraAdfDoc, JiraBulkPayload, JiraSinglePa
 
 export function buildSingleFindingBody(p: JiraSinglePayload): JiraAdfDoc {
   const sections: AdfSection[] = [
+    ...(p.rf ? [{ kind: "paragraph" as const, label: "How to fix", value: p.rf }] : []),
+    ...(p.wcag ? [{ kind: "paragraph" as const, label: "WCAG", value: p.wcag }] : []),
     ...(p.pg ? [{ kind: "paragraph" as const, label: "Page", value: `/${p.pg}` }] : []),
     ...(p.sel ? [{ kind: "paragraph" as const, label: "Selector", value: p.sel }] : []),
+    ...(p.file ? [{ kind: "paragraph" as const, label: "File", value: p.ln ? `${p.file}:${p.ln}` : p.file }] : []),
     { kind: "link", label: "Repo", text: `${p.o}/${p.r}`, href: `https://github.com/${p.o}/${p.r}` },
   ];
   return buildAdf(sections);

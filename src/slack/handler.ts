@@ -435,14 +435,25 @@ async function handleFixSubmit(interaction: SlackInteractionPayload): Promise<Sl
 }
 
 function enrichJiraPayload(value: string, blockId: string): string {
-  if (!blockId.startsWith("a11y_f_")) return value;
   try {
-    const parts = blockId.split("|");
-    const pg = parts[1] ?? "";
-    const sel = parts.slice(2).join("|");
     const parsed = JSON.parse(value) as Record<string, unknown>;
-    if (pg) parsed.pg = pg;
-    if (sel) parsed.sel = sel;
+    if (blockId.startsWith("a11y_f_")) {
+      const parts = blockId.split("|");
+      const pg = parts[1] ?? "";
+      const sel = parts[2] ?? "";
+      const wcag = parts[3] ?? "";
+      const rf = parts[4] ?? "";
+      if (pg) parsed.pg = pg;
+      if (sel) parsed.sel = sel;
+      if (wcag) parsed.wcag = wcag;
+      if (rf) parsed.rf = rf;
+    } else if (blockId.startsWith("a11y_p_")) {
+      const parts = blockId.split("|");
+      const file = parts[1] ?? "";
+      const ln = parts[2] ? Number(parts[2]) : undefined;
+      if (file) parsed.file = file;
+      if (ln) parsed.ln = ln;
+    }
     return JSON.stringify(parsed);
   } catch {
     return value;

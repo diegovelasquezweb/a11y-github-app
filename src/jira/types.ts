@@ -72,8 +72,14 @@ export interface JiraSinglePayload {
   o: string;
   r: string;
   h?: string;
+  /** DOM findings */
   pg?: string;
   sel?: string;
+  wcag?: string;
+  rf?: string;
+  /** PAT findings */
+  file?: string;
+  ln?: number;
 }
 
 export interface BulkFinding {
