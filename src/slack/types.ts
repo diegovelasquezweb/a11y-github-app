@@ -69,6 +69,7 @@ export interface JiraModalMetadata {
   projectKey?: string;
   channelId: string;
   userId: string;
+  messageTs?: string;
 }
 
 export interface SlackHandlerResult {

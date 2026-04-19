@@ -229,12 +229,16 @@ async function executeJiraCreateV2(metadata: JiraModalMetadata, projectKey: stri
   const slackClient = getSlackClient();
   if (!slackClient) return;
   const text = result.ok
-    ? `Jira ticket created: <${result.issueUrl}|${result.issueKey}>`
-    : `Failed to create Jira ticket: ${errorCodeToMessage(result.errorCode)}`;
+    ? `🎟️ Jira ticket created: <${result.issueUrl}|${result.issueKey}>`
+    : `❌ Failed to create Jira ticket: ${errorCodeToMessage(result.errorCode)}`;
   try {
-    await slackClient.chat.postEphemeral({ channel: metadata.channelId, user: metadata.userId, text });
+    await slackClient.chat.postMessage({
+      channel: metadata.channelId,
+      text,
+      ...(metadata.messageTs ? { thread_ts: metadata.messageTs } : {}),
+    });
   } catch (err) {
-    console.warn("[slack] jira postEphemeral failed:", err);
+    console.warn("[slack] jira postMessage failed:", err);
   }
 }
 
@@ -497,6 +501,7 @@ async function handleBlockAction(interaction: SlackInteractionPayload): Promise<
       payload: enrichedPayload,
       channelId: interaction.channel?.id ?? "",
       userId: interaction.user?.id ?? "",
+      messageTs: interaction.message?.ts,
     };
     try {
       await client.views.open({
