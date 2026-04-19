@@ -17,7 +17,6 @@ export interface ResultContext {
   owner: string;
   repo: string;
   branch?: string;
-  githubCommentUrl?: string;
   headSha?: string;
   headRef?: string;
   baseRef?: string;
@@ -140,9 +139,6 @@ export function formatAuditResultBlocks(
     const jiraBulkUrl = `https://jira.atlassian.net/secure/CreateIssueDetails!init.jspa?summary=${encodeURIComponent(`A11y Audit: ${total} findings in ${context.owner}/${context.repo}`)}&description=${encodeURIComponent(`Branch: ${context.branch ?? "default"}\nTotal: ${total} findings\n\n${allFindingsSummary}`)}`;
     actions.push({ type: "button", text: { type: "plain_text", text: "Fix All" }, action_id: "a11y_fix_all", value: fixContext, style: "primary" });
     actions.push({ type: "button", text: { type: "plain_text", text: "Create Ticket" }, action_id: "a11y_create_bulk_ticket", url: jiraBulkUrl });
-  }
-  if (context.githubCommentUrl) {
-    actions.push({ type: "button", text: { type: "plain_text", text: "View on GitHub" }, action_id: "a11y_view_github", url: context.githubCommentUrl });
   }
   if (actions.length > 0) {
     blocks.push({ type: "divider" });
