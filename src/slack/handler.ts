@@ -11,6 +11,18 @@ import { postScanningMessage, postFixProgress } from "./notifier.js";
 import type { SlackHandlerResult, SlackInteractionPayload, SlackSlashCommandPayload } from "./types.js";
 import type { AuditMode } from "../types.js";
 
+function parseRepoInput(input: string): [string, string] | null {
+  const githubUrl = input.match(/github\.com\/([^/]+)\/([^/\s?#]+)/);
+  if (githubUrl) {
+    return [githubUrl[1], githubUrl[2].replace(/\.git$/, "")];
+  }
+  const parts = input.split("/");
+  if (parts.length === 2 && parts[0] && parts[1]) {
+    return [parts[0], parts[1]];
+  }
+  return null;
+}
+
 export interface SlackRequestInput {
   rawBody: string;
   timestamp?: string;
@@ -89,11 +101,11 @@ async function handleAuditSubmit(interaction: SlackInteractionPayload): Promise<
   const branchRaw = values.branch_block?.branch?.value?.trim() ?? "";
   const modeRaw = values.audit_mode_block?.audit_mode?.selected_option?.value ?? "unified";
 
-  const repoParts = repoRaw.split("/");
-  if (repoParts.length !== 2 || !repoParts[0] || !repoParts[1]) {
-    return { status: 200, body: { response_action: "errors", errors: { repo_block: "Enter as owner/repo" } } };
+  const parsed = parseRepoInput(repoRaw);
+  if (!parsed) {
+    return { status: 200, body: { response_action: "errors", errors: { repo_block: "Enter as owner/repo or paste a GitHub URL" } } };
   }
-  const [owner, repo] = repoParts;
+  const [owner, repo] = parsed;
 
   const installationId = await findInstallationForRepo(owner, repo);
   if (!installationId) {

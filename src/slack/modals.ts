@@ -37,11 +37,27 @@ export function buildAuditModal(metadata: AuditModalMetadata) {
         element: {
           type: "static_select",
           action_id: "audit_mode",
-          initial_option: { text: { type: "plain_text" as const, text: "Full Audit" }, value: "unified" },
+          initial_option: {
+            text: { type: "plain_text" as const, text: "Full Audit" },
+            description: { type: "plain_text" as const, text: "DOM scan + source pattern analysis" },
+            value: "unified",
+          },
           options: [
-            { text: { type: "plain_text" as const, text: "Full Audit" }, value: "unified" },
-            { text: { type: "plain_text" as const, text: "DOM Only" }, value: "dom" },
-            { text: { type: "plain_text" as const, text: "Source Only" }, value: "source" },
+            {
+              text: { type: "plain_text" as const, text: "Full Audit" },
+              description: { type: "plain_text" as const, text: "DOM scan + source pattern analysis" },
+              value: "unified",
+            },
+            {
+              text: { type: "plain_text" as const, text: "DOM Only" },
+              description: { type: "plain_text" as const, text: "Live browser scan — best for deployed sites" },
+              value: "dom",
+            },
+            {
+              text: { type: "plain_text" as const, text: "Source Only" },
+              description: { type: "plain_text" as const, text: "Static code analysis — fast, no browser needed" },
+              value: "source",
+            },
           ],
         },
       },
