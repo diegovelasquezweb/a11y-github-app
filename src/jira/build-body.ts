@@ -14,8 +14,7 @@ export function buildSingleFindingBody(p: JiraSinglePayload): JiraAdfDoc {
 }
 
 export function buildSingleFindingSummary(p: JiraSinglePayload): string {
-  const raw = `[${p.v}] ${p.t}`;
-  return raw.length > 255 ? `${raw.slice(0, 252)}...` : raw;
+  return p.t.length > 255 ? `${p.t.slice(0, 252)}...` : p.t;
 }
 
 function formatBulkFindingLine(f: BulkFinding): string {
