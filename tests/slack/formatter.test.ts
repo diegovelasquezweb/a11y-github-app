@@ -16,7 +16,7 @@ describe("formatAuditResultBlocks", () => {
   it("shows success message for 0 findings", () => {
     const blocks = formatAuditResultBlocks(baseSummary, ctx);
     const header = blocks[0] as { text: { text: string } };
-    expect(header.text.text).toContain("✅");
+    expect(header.text.text).toContain("Audit Complete");
     expect(blocks.some((b: Record<string, unknown>) => b.type === "actions" && JSON.stringify(b).includes("Fix All"))).toBe(false);
   });
 
@@ -80,7 +80,7 @@ describe("formatAuditResultBlocks", () => {
     };
     const blocks = formatAuditResultBlocks(summary, ctx);
     const header = blocks[0] as { text: { text: string } };
-    expect(header.text.text).toContain("❌");
+    expect(header.text.text).toContain("Audit Failed");
     const content = JSON.stringify(blocks);
     expect(content).toContain("Timeout waiting for server");
     expect(content).toContain("Retry Audit");
@@ -117,7 +117,7 @@ describe("formatScanningBlocks", () => {
   it("shows scanning state", () => {
     const blocks = formatScanningBlocks("acme", "site", "Full Audit", "main");
     const header = blocks[0] as { text: { text: string } };
-    expect(header.text.text).toContain("⏳");
+    expect(header.text.text).toContain("Auditing");
     expect(header.text.text).toContain("acme/site");
   });
 });
@@ -126,7 +126,7 @@ describe("formatFixProgressBlocks", () => {
   it("shows fix progress state", () => {
     const blocks = formatFixProgressBlocks("acme", "site", "A11Y-001 A11Y-002");
     const header = blocks[0] as { text: { text: string } };
-    expect(header.text.text).toContain("🔧");
+    expect(header.text.text).toContain("Applying Fix");
     const content = JSON.stringify(blocks);
     expect(content).toContain("A11Y-001 A11Y-002");
   });
