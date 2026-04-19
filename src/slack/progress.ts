@@ -21,8 +21,8 @@ export interface ProgressResult {
 }
 
 function buildProgressBar(current: number, total: number): string {
-  const filled = "▓".repeat(current);
-  const empty = "░".repeat(total - current);
+  const filled = "▓".repeat(current - 1);
+  const empty = "░".repeat(total - (current - 1));
   return `\`${filled}${empty}\` Step ${current}/${total}`;
 }
 

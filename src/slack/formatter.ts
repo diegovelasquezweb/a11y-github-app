@@ -165,8 +165,18 @@ export function formatAuditResultBlocks(
 
   const actions: Record<string, unknown>[] = [];
   if (total > 0) {
-    const bulkBodyStr = buildIssueBody(summary, context);
-    const ghBulkUrl = `https://github.com/${context.owner}/${context.repo}/issues/new?title=${encodeURIComponent(`[A11y] Audit: ${total} findings`)}&body=${encodeURIComponent(bulkBodyStr)}&labels=${encodeURIComponent("accessibility")}`;
+    const t2 = summary.totals;
+    const pt2 = summary.patternFindings?.totals;
+    const compactBody = [
+      `**Repo:** ${context.owner}/${context.repo}`,
+      `**Branch:** \`${context.branch ?? "default"}\``,
+      `**Total findings:** ${total}`,
+      `- Critical: ${t2.Critical + (pt2?.Critical ?? 0)}`,
+      `- Serious: ${t2.Serious + (pt2?.Serious ?? 0)}`,
+      `- Moderate: ${t2.Moderate + (pt2?.Moderate ?? 0)}`,
+      `- Minor: ${t2.Minor + (pt2?.Minor ?? 0)}`,
+    ].join("\n");
+    const ghBulkUrl = `https://github.com/${context.owner}/${context.repo}/issues/new?title=${encodeURIComponent(`[A11y] Audit: ${total} findings`)}&body=${encodeURIComponent(compactBody)}&labels=${encodeURIComponent("accessibility")}`;
     const t = summary.totals;
     const pt = summary.patternFindings?.totals;
     const jiraButton: Record<string, unknown> = context.jiraApiMode
@@ -193,7 +203,7 @@ export function formatAuditResultBlocks(
           type: "button",
           text: { type: "plain_text", text: "Create Jira Ticket" },
           action_id: "a11y_create_jira_ticket",
-          url: `https://jira.atlassian.net/secure/CreateIssueDetails!init.jspa?summary=${encodeURIComponent(`A11y Audit: ${total} findings in ${context.owner}/${context.repo}`)}&description=${encodeURIComponent(bulkBodyStr)}`,
+          url: `https://jira.atlassian.net/secure/CreateIssueDetails!init.jspa?summary=${encodeURIComponent(`A11y Audit: ${total} findings in ${context.owner}/${context.repo}`)}&description=${encodeURIComponent(compactBody)}`,
         };
     actions.push({ type: "button", text: { type: "plain_text", text: "Fix All with AI" }, action_id: "a11y_fix_all", value: fixContext, style: "primary" });
     actions.push({ type: "button", text: { type: "plain_text", text: "Create GitHub Issue" }, action_id: "a11y_create_gh_issue", url: ghBulkUrl });
@@ -275,54 +285,6 @@ function appendPatternFindings(blocks: Record<string, unknown>[], patternFinding
   }
 }
 
-function buildIssueBody(summary: DomAuditSummary, context: ResultContext): string {
-  const lines: string[] = [];
-  const branch = context.branch ?? "default";
-
-  if (summary.patternFindings && summary.patternFindings.findings.length > 0) {
-    const pt = summary.patternFindings.totals;
-    lines.push(
-      "### Source Pattern Analysis",
-      "",
-      `🔴 Critical: ${pt.Critical} | 🟠 Serious: ${pt.Serious} | 🟡 Moderate: ${pt.Moderate} | 🔵 Minor: ${pt.Minor}`,
-      "",
-    );
-    summary.patternFindings.findings.forEach((f, i) => {
-      const loc = f.line ? `${f.file}:${f.line}` : f.file;
-      lines.push(
-        `${i + 1}. 🔴 **[${f.severity}]** ${f.title}`,
-        `   **File:** \`${loc}\``,
-        `   **Rule:** \`${f.patternId}\``,
-        "",
-      );
-    });
-  }
-
-  if (summary.findings && summary.findings.length > 0) {
-    if (lines.length > 0) lines.push("---", "");
-    const dt = summary.totals;
-    lines.push(
-      "### DOM Audit",
-      "",
-      `**Total findings:** ${summary.totalFindings}`,
-      `🔴 Critical: ${dt.Critical} | 🟠 Serious: ${dt.Serious} | 🟡 Moderate: ${dt.Moderate} | 🔵 Minor: ${dt.Minor}`,
-      "",
-    );
-    summary.findings.forEach((f, i) => {
-      const findingLines = [`${i + 1}. **[${f.severity}]** ${f.title}`];
-      if (f.url) {
-        try {
-          const pathname = new URL(f.url).pathname.replace(/\/index\.html$/, "/").replace(/\.html$/, "").replace(/^\//, "") || "home";
-          findingLines.push(`   **Page:** \`${pathname}\``);
-        } catch { /* ignore */ }
-      }
-      if (f.selector) findingLines.push(`   **Selector:** \`${f.selector}\``);
-      lines.push(...findingLines, "");
-    });
-  }
-
-  return lines.join("\n");
-}
 
 export function formatScanningBlocks(owner: string, repo: string, mode: string, branch?: string): Record<string, unknown>[] {
   return [
