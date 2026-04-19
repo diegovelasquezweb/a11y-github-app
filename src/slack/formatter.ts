@@ -2,11 +2,11 @@ import type { DomAuditSummary, PatternAuditSummary } from "../types.js";
 
 function severityTag(severity: string): string {
   const s = severity.trim().toLowerCase();
-  if (s === "critical") return "`[Critical]`";
-  if (s === "serious") return "`[Serious]`";
-  if (s === "moderate") return "`[Moderate]`";
-  if (s === "minor") return "`[Minor]`";
-  return "`[Unknown]`";
+  if (s === "critical") return ":red_circle: `Critical`";
+  if (s === "serious") return ":large_orange_circle: `Serious`";
+  if (s === "moderate") return ":large_yellow_circle: `Moderate`";
+  if (s === "minor") return ":large_blue_circle: `Minor`";
+  return ":white_circle: `Unknown`";
 }
 
 function escapeHtmlTags(text: string): string {
@@ -71,7 +71,7 @@ export function formatAuditResultBlocks(
       Minor: t.Minor + (pt?.Minor ?? 0),
     };
     blocks.push({ type: "section", text: { type: "mrkdwn", text:
-      `\`[Critical]\` ${combinedTotals.Critical}  \`[Serious]\` ${combinedTotals.Serious}  \`[Moderate]\` ${combinedTotals.Moderate}  \`[Minor]\` ${combinedTotals.Minor}`,
+      `:red_circle: Critical: ${combinedTotals.Critical}  :large_orange_circle: Serious: ${combinedTotals.Serious}  :large_yellow_circle: Moderate: ${combinedTotals.Moderate}  :large_blue_circle: Minor: ${combinedTotals.Minor}`,
     }});
 
     if (summary.patternFindings && summary.patternFindings.findings.length > 0) {

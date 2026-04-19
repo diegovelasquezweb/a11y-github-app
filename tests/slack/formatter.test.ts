@@ -32,8 +32,8 @@ describe("formatAuditResultBlocks", () => {
     };
     const blocks = formatAuditResultBlocks(summary, ctx);
     const content = JSON.stringify(blocks);
-    expect(content).toContain("[Critical]");
-    expect(content).toContain("[Serious]");
+    expect(content).toContain(":red_circle:");
+    expect(content).toContain(":large_orange_circle:");
     expect(content).toContain("Fix A11Y-001");
     expect(content).toContain("Fix A11Y-002");
   });
