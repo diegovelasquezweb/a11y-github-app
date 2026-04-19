@@ -16,7 +16,7 @@ export function buildAuditModal(metadata: AuditModalMetadata) {
         element: {
           type: "plain_text_input",
           action_id: "repo",
-          placeholder: { type: "plain_text" as const, text: "owner/repo" },
+          placeholder: { type: "plain_text" as const, text: "Paste GitHub URL or owner/repo" },
         },
       },
       {
