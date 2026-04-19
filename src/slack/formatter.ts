@@ -21,6 +21,8 @@ export interface ResultContext {
   headRef?: string;
   baseRef?: string;
   installationId?: number;
+  /** When true, Jira buttons use API mode (value JSON payload). When false/absent, use URL mode. */
+  jiraApiMode?: boolean;
 }
 
 export function formatAuditResultBlocks(
@@ -110,8 +112,26 @@ export function formatAuditResultBlocks(
             ...(f.selector ? [`**Selector:** \`${f.selector}\``] : []),
             ...(f.wcag ? [`**WCAG:** ${f.wcag}`] : []),
           ].join("\n");
-          const jiraUrl = `https://jira.atlassian.net/secure/CreateIssueDetails!init.jspa?summary=${encodeURIComponent(`[${f.severity}] ${f.title}`)}&description=${encodeURIComponent(issueBody)}`;
           const ghIssueUrl = `https://github.com/${context.owner}/${context.repo}/issues/new?title=${encodeURIComponent(`[A11y] [${f.severity}] ${f.title}`)}&body=${encodeURIComponent(issueBody)}&labels=${encodeURIComponent("accessibility")}`;
+          const jiraOption: Record<string, unknown> = context.jiraApiMode
+            ? {
+                text: { type: "plain_text", text: "Create Jira Ticket" },
+                value: JSON.stringify({
+                  kind: "single",
+                  id: f.id,
+                  title: f.title,
+                  severity: f.severity,
+                  o: context.owner,
+                  r: context.repo,
+                  h: context.headRef ?? context.branch ?? "",
+                  b: context.baseRef ?? "",
+                }),
+              }
+            : {
+                text: { type: "plain_text", text: "Create Jira Ticket" },
+                url: `https://jira.atlassian.net/secure/CreateIssueDetails!init.jspa?summary=${encodeURIComponent(`[${f.severity}] ${f.title}`)}&description=${encodeURIComponent(issueBody)}`,
+                value: `jira_${f.id}`,
+              };
           blocks.push({
             type: "section",
             text: { type: "mrkdwn", text: parts.join("\n") },
@@ -121,7 +141,7 @@ export function formatAuditResultBlocks(
               options: [
                 { text: { type: "plain_text", text: "Fix with AI" }, value: findingFixValue },
                 { text: { type: "plain_text", text: "Create GitHub Issue" }, url: ghIssueUrl, value: `gh_issue_${f.id}` },
-                { text: { type: "plain_text", text: "Create Jira Ticket" }, url: jiraUrl, value: `jira_${f.id}` },
+                jiraOption,
               ],
             },
           });
@@ -146,11 +166,38 @@ export function formatAuditResultBlocks(
   const actions: Record<string, unknown>[] = [];
   if (total > 0) {
     const bulkBodyStr = buildIssueBody(summary, context);
-    const jiraBulkUrl = `https://jira.atlassian.net/secure/CreateIssueDetails!init.jspa?summary=${encodeURIComponent(`A11y Audit: ${total} findings in ${context.owner}/${context.repo}`)}&description=${encodeURIComponent(bulkBodyStr)}`;
     const ghBulkUrl = `https://github.com/${context.owner}/${context.repo}/issues/new?title=${encodeURIComponent(`[A11y] Audit: ${total} findings`)}&body=${encodeURIComponent(bulkBodyStr)}&labels=${encodeURIComponent("accessibility")}`;
+    const t = summary.totals;
+    const pt = summary.patternFindings?.totals;
+    const jiraButton: Record<string, unknown> = context.jiraApiMode
+      ? {
+          type: "button",
+          text: { type: "plain_text", text: "Create Jira Ticket" },
+          action_id: "a11y_create_jira_ticket",
+          value: JSON.stringify({
+            kind: "bulk",
+            o: context.owner,
+            r: context.repo,
+            h: context.headRef ?? context.branch ?? "",
+            b: context.baseRef ?? "",
+            totals: {
+              c: t.Critical + (pt?.Critical ?? 0),
+              s: t.Serious + (pt?.Serious ?? 0),
+              m: t.Moderate + (pt?.Moderate ?? 0),
+              mi: t.Minor + (pt?.Minor ?? 0),
+            },
+            count: total,
+          }),
+        }
+      : {
+          type: "button",
+          text: { type: "plain_text", text: "Create Jira Ticket" },
+          action_id: "a11y_create_jira_ticket",
+          url: `https://jira.atlassian.net/secure/CreateIssueDetails!init.jspa?summary=${encodeURIComponent(`A11y Audit: ${total} findings in ${context.owner}/${context.repo}`)}&description=${encodeURIComponent(bulkBodyStr)}`,
+        };
     actions.push({ type: "button", text: { type: "plain_text", text: "Fix All with AI" }, action_id: "a11y_fix_all", value: fixContext, style: "primary" });
     actions.push({ type: "button", text: { type: "plain_text", text: "Create GitHub Issue" }, action_id: "a11y_create_gh_issue", url: ghBulkUrl });
-    actions.push({ type: "button", text: { type: "plain_text", text: "Create Jira Ticket" }, action_id: "a11y_create_jira_ticket", url: jiraBulkUrl });
+    actions.push(jiraButton);
   }
   if (actions.length > 0) {
     blocks.push({ type: "divider" });
@@ -183,8 +230,26 @@ function appendPatternFindings(blocks: Record<string, unknown>[], patternFinding
         `**File:** \`${location}\``,
         `**Rule:** \`${f.patternId}\``,
       ].join("\n");
-      const jiraUrl = `https://jira.atlassian.net/secure/CreateIssueDetails!init.jspa?summary=${encodeURIComponent(`[${f.severity}] ${f.title}`)}&description=${encodeURIComponent(patIssueBody)}`;
       const ghIssueUrl = `https://github.com/${context.owner}/${context.repo}/issues/new?title=${encodeURIComponent(`[A11y] [${f.severity}] ${f.title}`)}&body=${encodeURIComponent(patIssueBody)}&labels=${encodeURIComponent("accessibility")}`;
+      const patJiraOption: Record<string, unknown> = context.jiraApiMode
+        ? {
+            text: { type: "plain_text", text: "Create Jira Ticket" },
+            value: JSON.stringify({
+              kind: "single",
+              id: f.id,
+              title: f.title,
+              severity: f.severity,
+              o: context.owner,
+              r: context.repo,
+              h: context.headRef ?? context.branch ?? "",
+              b: context.baseRef ?? "",
+            }),
+          }
+        : {
+            text: { type: "plain_text", text: "Create Jira Ticket" },
+            url: `https://jira.atlassian.net/secure/CreateIssueDetails!init.jspa?summary=${encodeURIComponent(`[${f.severity}] ${f.title}`)}&description=${encodeURIComponent(patIssueBody)}`,
+            value: `jira_${f.id}`,
+          };
       blocks.push({
         type: "section",
         text: { type: "mrkdwn", text: parts.join("\n") },
@@ -194,7 +259,7 @@ function appendPatternFindings(blocks: Record<string, unknown>[], patternFinding
           options: [
             { text: { type: "plain_text", text: "Fix with AI" }, value: findingFixValue },
             { text: { type: "plain_text", text: "Create GitHub Issue" }, url: ghIssueUrl, value: `gh_issue_${f.id}` },
-            { text: { type: "plain_text", text: "Create Jira Ticket" }, url: jiraUrl, value: `jira_${f.id}` },
+            patJiraOption,
           ],
         },
       });

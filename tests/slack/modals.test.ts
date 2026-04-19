@@ -1,6 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { buildAuditModal, buildFixModal } from "../../src/slack/modals.js";
-import type { AuditModalMetadata, FixModalMetadata } from "../../src/slack/types.js";
+import { buildAuditModal, buildFixModal, buildJiraProjectKeyModal, buildJiraLoadingModal, buildJiraIssueTypeModal, buildJiraErrorModal } from "../../src/slack/modals.js";
+import type { AuditModalMetadata, FixModalMetadata, JiraModalMetadata } from "../../src/slack/types.js";
+import type { IssueType } from "../../src/jira/types.js";
+
+const jiraMeta: JiraModalMetadata = {
+  payload: JSON.stringify({ kind: "single", id: "A11Y-001" }),
+  channelId: "C123",
+  userId: "U123",
+};
+
+const jiraIssueTypes: IssueType[] = [
+  { id: "1", name: "Bug" },
+  { id: "2", name: "Story" },
+];
 
 const auditMeta: AuditModalMetadata = {
   channelId: "C12345678",
@@ -115,5 +127,144 @@ describe("buildFixModal", () => {
     const modal = buildFixModal(fixMeta, "all");
     const model = modal.blocks.find((b: { block_id?: string }) => b.block_id === "ai_model_block")!;
     expect(model.element!.options).toHaveLength(3);
+  });
+});
+
+describe("buildJiraProjectKeyModal", () => {
+  it("has correct callback_id and title", () => {
+    const modal = buildJiraProjectKeyModal(jiraMeta);
+    expect(modal.callback_id).toBe("a11y_jira_project_modal");
+    expect(modal.title.text).toBe("Create Jira Ticket");
+  });
+
+  it("has submit Next and close Cancel", () => {
+    const modal = buildJiraProjectKeyModal(jiraMeta);
+    expect(modal.submit?.text).toBe("Next");
+    expect(modal.close?.text).toBe("Cancel");
+  });
+
+  it("has project_key_block input", () => {
+    const modal = buildJiraProjectKeyModal(jiraMeta);
+    const block = modal.blocks.find((b: { block_id?: string }) => b.block_id === "project_key_block");
+    expect(block).toBeDefined();
+  });
+
+  it("sets initial_value when initialKey is provided", () => {
+    const modal = buildJiraProjectKeyModal(jiraMeta, "PROJ");
+    const block = modal.blocks.find((b: { block_id?: string }) => b.block_id === "project_key_block") as {
+      element?: { initial_value?: string };
+    };
+    expect(block?.element?.initial_value).toBe("PROJ");
+  });
+
+  it("omits initial_value when initialKey is not provided", () => {
+    const modal = buildJiraProjectKeyModal(jiraMeta);
+    const block = modal.blocks.find((b: { block_id?: string }) => b.block_id === "project_key_block") as {
+      element?: { initial_value?: string };
+    };
+    expect(block?.element?.initial_value).toBeUndefined();
+  });
+
+  it("serializes metadata in private_metadata", () => {
+    const modal = buildJiraProjectKeyModal(jiraMeta);
+    const parsed = JSON.parse(modal.private_metadata) as JiraModalMetadata;
+    expect(parsed.channelId).toBe("C123");
+    expect(parsed.userId).toBe("U123");
+  });
+});
+
+describe("buildJiraLoadingModal", () => {
+  it("has correct callback_id and title", () => {
+    const modal = buildJiraLoadingModal("PROJ");
+    expect(modal.callback_id).toBe("a11y_jira_loading_modal");
+    expect(modal.title.text).toBe("Create Jira Ticket");
+  });
+
+  it("has no submit button", () => {
+    const modal = buildJiraLoadingModal("PROJ") as { submit?: unknown };
+    expect(modal.submit).toBeUndefined();
+  });
+
+  it("includes project key in loading text", () => {
+    const modal = buildJiraLoadingModal("MYPROJ");
+    const section = modal.blocks[0] as { text?: { text: string } };
+    expect(section.text?.text).toContain("MYPROJ");
+  });
+});
+
+describe("buildJiraIssueTypeModal", () => {
+  it("has correct callback_id and title", () => {
+    const modal = buildJiraIssueTypeModal(jiraMeta, jiraIssueTypes, "PROJ");
+    expect(modal.callback_id).toBe("a11y_jira_issuetype_modal");
+    expect(modal.title.text).toBe("Create Jira Ticket");
+  });
+
+  it("has submit Create Ticket", () => {
+    const modal = buildJiraIssueTypeModal(jiraMeta, jiraIssueTypes, "PROJ");
+    expect(modal.submit?.text).toBe("Create Ticket");
+  });
+
+  it("includes project key in section text", () => {
+    const modal = buildJiraIssueTypeModal(jiraMeta, jiraIssueTypes, "PROJ");
+    const section = modal.blocks[0] as { text?: { text: string } };
+    expect(section.text?.text).toContain("PROJ");
+  });
+
+  it("has back button with action_id a11y_jira_back_to_project", () => {
+    const modal = buildJiraIssueTypeModal(jiraMeta, jiraIssueTypes, "PROJ");
+    const actions = modal.blocks[1] as { elements?: Array<{ action_id: string }> };
+    expect(actions.elements?.[0].action_id).toBe("a11y_jira_back_to_project");
+  });
+
+  it("has issuetype_block with correct options mapped from issue types", () => {
+    const modal = buildJiraIssueTypeModal(jiraMeta, jiraIssueTypes, "PROJ");
+    const input = modal.blocks[2] as {
+      block_id?: string;
+      element?: { type: string; action_id: string; options: Array<{ value: string }> };
+    };
+    expect(input.block_id).toBe("issuetype_block");
+    expect(input.element?.type).toBe("static_select");
+    expect(input.element?.action_id).toBe("issuetype");
+    expect(input.element?.options).toHaveLength(2);
+    expect(input.element?.options[0].value).toBe("Bug");
+  });
+
+  it("includes projectKey in private_metadata", () => {
+    const modal = buildJiraIssueTypeModal(jiraMeta, jiraIssueTypes, "PROJ");
+    const parsed = JSON.parse(modal.private_metadata) as { projectKey: string };
+    expect(parsed.projectKey).toBe("PROJ");
+  });
+});
+
+describe("buildJiraErrorModal", () => {
+  it("has correct callback_id and title", () => {
+    const modal = buildJiraErrorModal(jiraMeta, "Something failed", "PROJ");
+    expect(modal.callback_id).toBe("a11y_jira_error_modal");
+    expect(modal.title.text).toBe("Create Jira Ticket");
+  });
+
+  it("has close button and no submit", () => {
+    const modal = buildJiraErrorModal(jiraMeta, "err", "PROJ") as { close?: { text: string }; submit?: unknown };
+    expect(modal.close?.text).toBe("Close");
+    expect(modal.submit).toBeUndefined();
+  });
+
+  it("includes error message in section text", () => {
+    const modal = buildJiraErrorModal(jiraMeta, "Project not found", "PROJ");
+    const section = modal.blocks[0] as { text?: { text: string } };
+    expect(section.text?.text).toContain("Project not found");
+  });
+
+  it("has try again button with correct action_id", () => {
+    const modal = buildJiraErrorModal(jiraMeta, "err", "PROJ");
+    const actions = modal.blocks[1] as { elements?: Array<{ action_id: string; text: { text: string } }> };
+    expect(actions.elements?.[0].action_id).toBe("a11y_jira_back_to_project");
+    expect(actions.elements?.[0].text.text).toContain("Try Again");
+  });
+
+  it("includes projectKey in private_metadata", () => {
+    const modal = buildJiraErrorModal(jiraMeta, "err", "MYPROJ");
+    const parsed = JSON.parse(modal.private_metadata) as { projectKey: string };
+    expect(parsed.projectKey).toBe("MYPROJ");
   });
 });

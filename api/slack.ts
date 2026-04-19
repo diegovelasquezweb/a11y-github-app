@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { verifyAndRoute } from "../src/slack/handler.js";
+import { verifyAndRoute, executeDeferredWork } from "../src/slack/handler.js";
+import { waitUntil } from "@vercel/functions";
 
 async function readRawBody(req: IncomingMessage): Promise<string> {
   const chunks: Buffer[] = [];
@@ -45,4 +46,6 @@ export default async function slack(
     res.setHeader("content-type", "application/json; charset=utf-8");
     res.end(JSON.stringify(result.body));
   }
+
+  if (result.work) waitUntil(executeDeferredWork(result.work));
 }

@@ -14,6 +14,7 @@ When installed on a repository, the app posts a welcome comment on every opened 
 | [Runner Setup](docs/runner-setup.md) | GitHub Actions runner repo setup and required workflow files |
 | [Fix Engine](docs/fix-engine.md) | How AI-powered fixes work, git checkpoint pattern, result statuses |
 | [Slack Setup](docs/slack-setup.md) | Slack App configuration, slash command setup, interactive modals |
+| [Jira Setup](docs/jira-setup.md) | Jira Cloud integration, API token setup, ticket types |
 
 ## Quick Start
 

@@ -35,4 +35,9 @@ export const CONFIG = {
   fixAiModel: process.env.FIX_AI_MODEL?.trim() || "claude-haiku-4-5-20251001",
   slackBotToken: process.env.SLACK_BOT_TOKEN?.trim() || "",
   slackSigningSecret: process.env.SLACK_SIGNING_SECRET?.trim() || "",
+  jiraBaseUrl: process.env.JIRA_BASE_URL?.trim() ?? "",
+  jiraEmail: process.env.JIRA_EMAIL?.trim() ?? "",
+  jiraApiToken: process.env.JIRA_API_TOKEN?.trim() ?? "",
+  jiraProjectKey: process.env.JIRA_PROJECT_KEY?.trim() ?? "",
+  jiraIssueType: process.env.JIRA_ISSUE_TYPE?.trim() ?? "Bug",
 };

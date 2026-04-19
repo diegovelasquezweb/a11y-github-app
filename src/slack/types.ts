@@ -20,6 +20,7 @@ export interface SlackInteractionPayload {
   actions?: SlackBlockAction[];
   channel?: { id: string };
   message?: { ts: string; thread_ts?: string };
+  response_url?: string;
 }
 
 export interface SlackViewPayload {
@@ -61,6 +62,13 @@ export interface FixModalMetadata {
   baseRef: string;
   pullNumber: number;
   installationId: number;
+}
+
+export interface JiraModalMetadata {
+  payload: string;
+  projectKey?: string;
+  channelId: string;
+  userId: string;
 }
 
 export interface SlackHandlerResult {

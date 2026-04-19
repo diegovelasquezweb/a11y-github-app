@@ -1,4 +1,5 @@
-import type { AuditModalMetadata, FixModalMetadata } from "./types.js";
+import type { AuditModalMetadata, FixModalMetadata, JiraModalMetadata } from "./types.js";
+import type { IssueType } from "../jira/types.js";
 
 export function buildAuditModal(metadata: AuditModalMetadata) {
   return {
@@ -136,6 +137,108 @@ export function buildFixModal(metadata: FixModalMetadata, findingLabel: string) 
           multiline: true,
           placeholder: { type: "plain_text" as const, text: "e.g. use sr-only labels, prefer Tailwind classes" },
         },
+      },
+    ],
+  };
+}
+
+export function buildJiraProjectKeyModal(metadata: JiraModalMetadata, initialKey?: string) {
+  return {
+    type: "modal" as const,
+    callback_id: "a11y_jira_project_modal",
+    title: { type: "plain_text" as const, text: "Create Jira Ticket" },
+    submit: { type: "plain_text" as const, text: "Next" },
+    close: { type: "plain_text" as const, text: "Cancel" },
+    private_metadata: JSON.stringify(metadata),
+    blocks: [
+      {
+        type: "input",
+        block_id: "project_key_block",
+        label: { type: "plain_text" as const, text: "Project Key" },
+        element: {
+          type: "plain_text_input",
+          action_id: "project_key",
+          ...(initialKey ? { initial_value: initialKey } : {}),
+        },
+      },
+    ],
+  };
+}
+
+export function buildJiraLoadingModal(projectKey: string) {
+  return {
+    type: "modal" as const,
+    callback_id: "a11y_jira_loading_modal",
+    title: { type: "plain_text" as const, text: "Create Jira Ticket" },
+    blocks: [
+      {
+        type: "section",
+        text: { type: "mrkdwn", text: `Loading issue types for *${projectKey}*...` },
+      },
+    ],
+  };
+}
+
+export function buildJiraIssueTypeModal(metadata: JiraModalMetadata, issueTypes: IssueType[], projectKey: string) {
+  return {
+    type: "modal" as const,
+    callback_id: "a11y_jira_issuetype_modal",
+    title: { type: "plain_text" as const, text: "Create Jira Ticket" },
+    submit: { type: "plain_text" as const, text: "Create Ticket" },
+    private_metadata: JSON.stringify({ ...metadata, projectKey }),
+    blocks: [
+      {
+        type: "section",
+        text: { type: "mrkdwn", text: `Project: *${projectKey}*` },
+      },
+      {
+        type: "actions",
+        elements: [
+          {
+            type: "button",
+            action_id: "a11y_jira_back_to_project",
+            text: { type: "plain_text" as const, text: "← Back" },
+          },
+        ],
+      },
+      {
+        type: "input",
+        block_id: "issuetype_block",
+        label: { type: "plain_text" as const, text: "Issue Type" },
+        element: {
+          type: "static_select",
+          action_id: "issuetype",
+          options: issueTypes.map((t) => ({
+            text: { type: "plain_text" as const, text: t.name },
+            value: t.name,
+          })),
+        },
+      },
+    ],
+  };
+}
+
+export function buildJiraErrorModal(metadata: JiraModalMetadata, message: string, projectKey: string) {
+  return {
+    type: "modal" as const,
+    callback_id: "a11y_jira_error_modal",
+    title: { type: "plain_text" as const, text: "Create Jira Ticket" },
+    close: { type: "plain_text" as const, text: "Close" },
+    private_metadata: JSON.stringify({ ...metadata, projectKey }),
+    blocks: [
+      {
+        type: "section",
+        text: { type: "mrkdwn", text: `*Error:* ${message}` },
+      },
+      {
+        type: "actions",
+        elements: [
+          {
+            type: "button",
+            action_id: "a11y_jira_back_to_project",
+            text: { type: "plain_text" as const, text: "← Try Again" },
+          },
+        ],
       },
     ],
   };

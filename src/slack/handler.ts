@@ -1,3 +1,4 @@
+import { waitUntil } from "@vercel/functions";
 import { CONFIG } from "../config.js";
 import { findInstallationForRepo, getInstallationOctokit, createInstallationToken } from "../github/auth.js";
 import { createDomAuditPendingCheck, createFixPendingCheck } from "../review/dom-reporter.js";
@@ -5,11 +6,22 @@ import { createScanToken, dispatchDomAuditWorkflow, dispatchSourceAuditWorkflow 
 import { dispatchFixWorkflow } from "../review/fix-workflow.js";
 import { resolveBranchRef } from "../webhook/process.js";
 import { verifySlackSignature } from "./verify.js";
-import { buildAuditModal, buildFixModal } from "./modals.js";
+import {
+  buildAuditModal,
+  buildFixModal,
+  buildJiraProjectKeyModal,
+  buildJiraLoadingModal,
+  buildJiraIssueTypeModal,
+  buildJiraErrorModal,
+} from "./modals.js";
 import { getSlackClient } from "./client.js";
 import { postScanningMessage, postFixProgress } from "./notifier.js";
-import type { SlackHandlerResult, SlackInteractionPayload, SlackSlashCommandPayload } from "./types.js";
+import type { SlackHandlerResult, SlackInteractionPayload, SlackSlashCommandPayload, JiraModalMetadata } from "./types.js";
 import type { AuditMode } from "../types.js";
+import { buildSingleFindingBody, buildSingleFindingSummary, buildBulkBody, buildBulkSummary } from "../jira/build-body.js";
+import { createJiraIssue } from "../jira/create-issue.js";
+import { fetchJiraIssueTypes } from "../jira/fetch-issue-types.js";
+import type { JiraSlackPayload, JiraSinglePayload, JiraBulkPayload, CreateIssueErrorCode } from "../jira/types.js";
 
 function parseRepoInput(input: string): [string, string] | null {
   const githubUrl = input.match(/github\.com\/([^/]+)\/([^/\s?#]+)/);
@@ -30,7 +42,7 @@ export interface SlackRequestInput {
 }
 
 export type DeferredWork =
-  { type: "block_actions"; interaction: SlackInteractionPayload };
+  | { type: "block_actions"; interaction: SlackInteractionPayload };
 
 export interface VerifyResult extends SlackHandlerResult {
   work?: DeferredWork;
@@ -136,6 +148,18 @@ async function handleEvent(event: Record<string, unknown>): Promise<void> {
   }
 }
 
+export function errorCodeToMessage(code: CreateIssueErrorCode): string {
+  switch (code) {
+    case "missing_config": return "Jira is not configured. Ask your admin to set JIRA_* environment variables.";
+    case "unauthorized": return "Jira credentials are invalid. Check JIRA_EMAIL and JIRA_API_TOKEN.";
+    case "forbidden": return "Not authorized to create issues in this Jira project. Check JIRA_PROJECT_KEY permissions.";
+    case "bad_request": return "Jira rejected the request. Check JIRA_ISSUE_TYPE and project configuration.";
+    case "not_found": return "Jira project or resource not found. Check JIRA_BASE_URL and JIRA_PROJECT_KEY.";
+    case "server_error": return "Jira returned a server error. Please try again later.";
+    case "network_error": return "Could not reach Jira. Check JIRA_BASE_URL and network connectivity.";
+  }
+}
+
 /** Async — runs AFTER the HTTP response is sent to Slack. */
 export async function executeDeferredWork(work: DeferredWork): Promise<void> {
   try {
@@ -144,6 +168,73 @@ export async function executeDeferredWork(work: DeferredWork): Promise<void> {
     }
   } catch (err) {
     console.error("[slack] deferred work failed:", err);
+  }
+}
+
+async function handleJiraProjectSubmit(interaction: SlackInteractionPayload): Promise<SlackHandlerResult> {
+  const values = (interaction.view as any)?.state?.values ?? {};
+  const projectKey = (values.project_key_block?.project_key?.value ?? "").trim();
+  if (!projectKey) {
+    return { status: 200, body: { response_action: "errors", errors: { project_key_block: "Project key is required" } } };
+  }
+  const metadata = JSON.parse((interaction.view as any)?.private_metadata ?? "{}") as JiraModalMetadata;
+  const viewId = (interaction.view as any)?.id as string;
+  waitUntil(hydrateJiraIssueTypes(viewId, projectKey, metadata));
+  return { status: 200, body: { response_action: "update", view: buildJiraLoadingModal(projectKey) } };
+}
+
+async function hydrateJiraIssueTypes(viewId: string, projectKey: string, metadata: JiraModalMetadata): Promise<void> {
+  const result = await fetchJiraIssueTypes(projectKey);
+  const slackClient = getSlackClient();
+  if (!slackClient) return;
+  let nextView: object;
+  if (result.ok && result.issueTypes.length > 0) {
+    nextView = buildJiraIssueTypeModal(metadata, result.issueTypes, projectKey);
+  } else if (result.ok && result.issueTypes.length === 0) {
+    nextView = buildJiraErrorModal(metadata, "No issue types found for this project.", projectKey);
+  } else {
+    const msg = errorCodeToMessage((result as { errorCode: string }).errorCode as any);
+    nextView = buildJiraErrorModal(metadata, msg, projectKey);
+  }
+  try {
+    await slackClient.views.update({ view_id: viewId, view: nextView as any });
+  } catch (err) {
+    console.warn("[slack] jira hydrate views.update failed:", err);
+  }
+}
+
+async function handleJiraIssueTypeSubmit(interaction: SlackInteractionPayload): Promise<SlackHandlerResult> {
+  const values = (interaction.view as any)?.state?.values ?? {};
+  const issueType = values.issuetype_block?.issuetype?.selected_option?.value ?? "";
+  const metadata = JSON.parse((interaction.view as any)?.private_metadata ?? "{}") as JiraModalMetadata & { projectKey?: string };
+  if (!issueType || !metadata.projectKey) {
+    return { status: 200, body: { response_action: "errors", errors: { issuetype_block: "Select an issue type" } } };
+  }
+  waitUntil(executeJiraCreateV2(metadata, metadata.projectKey, issueType));
+  return { status: 200, body: { response_action: "clear" } };
+}
+
+async function executeJiraCreateV2(metadata: JiraModalMetadata, projectKey: string, issueType: string): Promise<void> {
+  let payload: JiraSlackPayload;
+  try {
+    payload = JSON.parse(metadata.payload) as JiraSlackPayload;
+  } catch {
+    console.warn("[slack] jira modal: failed to parse payload");
+    return;
+  }
+  const isSingle = payload.kind === "single";
+  const summary = isSingle ? buildSingleFindingSummary(payload as JiraSinglePayload) : buildBulkSummary(payload as JiraBulkPayload);
+  const body = isSingle ? buildSingleFindingBody(payload as JiraSinglePayload) : buildBulkBody(payload as JiraBulkPayload);
+  const result = await createJiraIssue({ summary, body, projectKey, issueType });
+  const slackClient = getSlackClient();
+  if (!slackClient) return;
+  const text = result.ok
+    ? `Jira ticket created: <${result.issueUrl}|${result.issueKey}>`
+    : `Failed to create Jira ticket: ${errorCodeToMessage(result.errorCode)}`;
+  try {
+    await slackClient.chat.postEphemeral({ channel: metadata.channelId, user: metadata.userId, text });
+  } catch (err) {
+    console.warn("[slack] jira postEphemeral failed:", err);
   }
 }
 
@@ -169,6 +260,9 @@ async function handleSlashCommand(params: URLSearchParams): Promise<SlackHandler
 
 async function handleViewSubmission(interaction: SlackInteractionPayload): Promise<SlackHandlerResult> {
   const callbackId = interaction.view?.callback_id;
+
+  if (callbackId === "a11y_jira_project_modal") return handleJiraProjectSubmit(interaction);
+  if (callbackId === "a11y_jira_issuetype_modal") return handleJiraIssueTypeSubmit(interaction);
 
   if (callbackId === "a11y_audit_modal") {
     return handleAuditSubmit(interaction);
@@ -380,6 +474,37 @@ async function handleBlockAction(interaction: SlackInteractionPayload): Promise<
   const client = getSlackClient();
   if (!client) return { status: 200, body: "" };
 
+  const value = (action as { value?: string; selected_option?: { value?: string } }).selected_option?.value ?? (action as { value?: string }).value ?? "";
+  if (value.startsWith('{"kind":"single"') || value.startsWith('{"kind":"bulk"')) {
+    const meta: JiraModalMetadata = {
+      payload: value,
+      channelId: interaction.channel?.id ?? "",
+      userId: interaction.user?.id ?? "",
+    };
+    try {
+      await client.views.open({
+        trigger_id: interaction.trigger_id!,
+        view: buildJiraProjectKeyModal(meta, CONFIG.jiraProjectKey || undefined) as any,
+      });
+    } catch (err) {
+      console.warn("[slack] jira modal open failed:", err);
+    }
+    return { status: 200, body: "" };
+  }
+
+  if (action.action_id === "a11y_jira_back_to_project") {
+    const meta = JSON.parse(interaction.view?.private_metadata ?? "{}") as JiraModalMetadata & { projectKey?: string };
+    try {
+      await client.views.update({
+        view_id: interaction.view!.id,
+        view: buildJiraProjectKeyModal(meta, meta.projectKey) as any,
+      });
+    } catch (err) {
+      console.warn("[slack] jira back modal update failed:", err);
+    }
+    return { status: 200, body: "" };
+  }
+
   if (action.action_id === "a11y_open_audit") {
     const channelId = interaction.channel?.id ?? "";
     const userId = interaction.user?.id ?? "";
@@ -397,7 +522,6 @@ async function handleBlockAction(interaction: SlackInteractionPayload): Promise<
   // Overflow menu selection — "Fix with AI" option
   if (action.action_id.startsWith("a11y_actions_")) {
     const selected = (action as unknown as { selected_option?: { value?: string } }).selected_option;
-    if (selected?.value?.startsWith("ticket_")) return { status: 200, body: "" }; // Create Ticket opens URL directly
     if (selected?.value) {
       // Treat as fix action — rewrite action for the fix handler below
       action.value = selected.value;

@@ -78,6 +78,20 @@ Set these in **Vercel → Project Settings → Environment Variables**.
 | `FIX_AI_MODEL` | No | `"claude-haiku-4-5-20251001"` | Claude model forwarded to the fix workflow at dispatch time. Changing this takes effect immediately — no redeploy needed. |
 | `PORT` | No | `8787` | Local dev server port. Not needed on Vercel. |
 
+#### Jira Integration (optional)
+
+All five vars must be set together to enable API mode. When `JIRA_BASE_URL` is empty, the "Create Jira Ticket" buttons fall back to pre-filled browser URLs — no behavior change.
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `JIRA_BASE_URL` | No | `""` | Your Atlassian Cloud base URL, e.g. `https://acme.atlassian.net`. **Setting this enables API mode.** |
+| `JIRA_EMAIL` | If `JIRA_BASE_URL` set | `""` | Atlassian account email used for Basic auth. |
+| `JIRA_API_TOKEN` | If `JIRA_BASE_URL` set | `""` | API token from `id.atlassian.com/manage-profile/security/api-tokens`. |
+| `JIRA_PROJECT_KEY` | If `JIRA_BASE_URL` set | `""` | Target project key, e.g. `A11Y`. |
+| `JIRA_ISSUE_TYPE` | No | `"Bug"` | Issue type name. Must exist in the target project. |
+
+See [Jira Setup](jira-setup.md) for step-by-step configuration.
+
 > \* Technically optional in the config schema, but required in practice for the app to work end-to-end.
 
 ### GitHub Actions (runner repo)

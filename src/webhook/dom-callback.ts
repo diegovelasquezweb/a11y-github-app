@@ -383,7 +383,7 @@ export async function processDomAuditCallback(
             client,
             { channelId: slackChannelId, messageTs: slackMessageTs, threadTs: slackThreadTs || undefined },
             summary,
-            { owner, repo, branch, headSha: String(input.payload.head_sha ?? ""), headRef: branch },
+            { owner, repo, branch, headSha: String(input.payload.head_sha ?? ""), headRef: branch, jiraApiMode: Boolean(CONFIG.jiraBaseUrl) },
           );
           console.log("[slack] audit results posted to Slack");
         }
