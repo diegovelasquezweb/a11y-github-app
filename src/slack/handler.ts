@@ -394,7 +394,7 @@ async function handleBlockAction(interaction: SlackInteractionPayload): Promise<
     return { status: 200, body: "" };
   }
 
-  if (action.action_id === "a11y_fix_finding" || action.action_id === "a11y_fix_all") {
+  if (action.action_id.startsWith("a11y_fix_") || action.action_id === "a11y_fix_all") {
     const channelId = interaction.channel?.id ?? "";
     const messageTs = interaction.message?.ts ?? "";
 

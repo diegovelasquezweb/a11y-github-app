@@ -105,7 +105,7 @@ export function formatAuditResultBlocks(
             h: context.headRef ?? context.branch ?? "", b: context.baseRef ?? "",
             i: context.installationId ?? 0,
           });
-          domFixButtons.push({ type: "button", text: { type: "plain_text", text: `Fix ${f.id}` }, action_id: "a11y_fix_finding", value: findingFixValue });
+          domFixButtons.push({ type: "button", text: { type: "plain_text", text: `Fix ${f.id}` }, action_id: `a11y_fix_${f.id}`, value: findingFixValue });
         }
       });
       if (domFixButtons.length > 0) {
@@ -165,7 +165,7 @@ function appendPatternFindings(blocks: Record<string, unknown>[], patternFinding
         h: context.headRef ?? context.branch ?? "", b: context.baseRef ?? "",
         i: context.installationId ?? 0,
       });
-      patFixButtons.push({ type: "button", text: { type: "plain_text", text: `Fix ${f.id}` }, action_id: "a11y_fix_finding", value: findingFixValue });
+      patFixButtons.push({ type: "button", text: { type: "plain_text", text: `Fix ${f.id}` }, action_id: `a11y_fix_${f.id}`, value: findingFixValue });
     }
   });
   if (patFixButtons.length > 0) {
