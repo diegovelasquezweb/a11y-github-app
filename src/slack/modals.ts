@@ -212,6 +212,12 @@ export function buildJiraIssueTypeModal(metadata: JiraModalMetadata, issueTypes:
             text: { type: "plain_text" as const, text: t.name },
             value: t.name,
           })),
+          ...(issueTypes.some((t) => t.name.toLowerCase() === "task") ? {
+            initial_option: {
+              text: { type: "plain_text" as const, text: issueTypes.find((t) => t.name.toLowerCase() === "task")!.name },
+              value: issueTypes.find((t) => t.name.toLowerCase() === "task")!.name,
+            },
+          } : {}),
         },
       },
     ],
