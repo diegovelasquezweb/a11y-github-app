@@ -1,12 +1,12 @@
 import type { DomAuditSummary, PatternAuditSummary } from "../types.js";
 
-function severityTag(severity: string): string {
+function severityIcon(severity: string): string {
   const s = severity.trim().toLowerCase();
-  if (s === "critical") return ":red_circle: `Critical`";
-  if (s === "serious") return ":large_orange_circle: `Serious`";
-  if (s === "moderate") return ":large_yellow_circle: `Moderate`";
-  if (s === "minor") return ":large_blue_circle: `Minor`";
-  return ":white_circle: `Unknown`";
+  if (s === "critical") return ":red_circle:";
+  if (s === "serious") return ":large_orange_circle:";
+  if (s === "moderate") return ":large_yellow_circle:";
+  if (s === "minor") return ":large_blue_circle:";
+  return ":white_circle:";
 }
 
 function escapeHtmlTags(text: string): string {
@@ -86,16 +86,12 @@ export function formatAuditResultBlocks(
       const maxDom = 20 - Math.min(summary.patternFindings?.findings.length ?? 0, 10);
       const domShown = summary.findings.slice(0, maxDom);
       domShown.forEach((f, i) => {
-        const parts = [`${severityTag(f.severity)} ${escapeHtmlTags(f.title)}${f.id ? ` · \`${f.id}\`` : ""}`];
+        const parts = [`${severityIcon(f.severity)} \`${f.id}\` ${escapeHtmlTags(f.title)}`];
         if (f.url) {
           try {
             const pathname = new URL(f.url).pathname.replace(/\/index\.html$/, "/").replace(/\.html$/, "").replace(/^\//, "") || "home";
-            parts.push(`Page: \`${pathname}\` · Selector: \`${f.selector}\``);
-          } catch {
-            if (f.selector) parts.push(`Selector: \`${f.selector}\``);
-          }
-        } else if (f.selector) {
-          parts.push(`Selector: \`${f.selector}\``);
+            parts.push(`Page: \`${pathname}\``);
+          } catch { /* ignore */ }
         }
         if (f.id) {
           const findingFixValue = JSON.stringify({
@@ -152,8 +148,8 @@ function appendPatternFindings(blocks: Record<string, unknown>[], patternFinding
   shown.forEach((f, i) => {
     const location = f.line ? `${f.file}:${f.line}` : f.file;
     const parts = [
-      `${severityTag(f.severity)} ${escapeHtmlTags(f.title)}${f.id ? ` · \`${f.id}\`` : ""}`,
-      `File: \`${location}\` · Rule: \`${f.patternId}\``,
+      `${severityIcon(f.severity)} \`${f.id}\` ${escapeHtmlTags(f.title)}`,
+      `File: \`${location}\``,
     ];
     if (f.id) {
       const findingFixValue = JSON.stringify({
