@@ -97,19 +97,19 @@ export function formatAuditResultBlocks(
         } else if (f.selector) {
           text.push(`Selector: \`${f.selector}\``);
         }
-        blocks.push({ type: "section", text: { type: "mrkdwn", text: text.join("\n") } });
         if (f.id) {
           const findingFixValue = JSON.stringify({
             id: f.id, o: context.owner, r: context.repo, s: context.headSha ?? "",
             h: context.headRef ?? context.branch ?? "", b: context.baseRef ?? "",
             i: context.installationId ?? 0,
           });
-          blocks.push({ type: "context", elements: [
-            { type: "mrkdwn", text: ":wrench: Auto-fix this issue and create a PR" },
-          ]});
-          blocks.push({ type: "actions", elements: [
-            { type: "button", text: { type: "plain_text", text: `Fix ${f.id}` }, action_id: "a11y_fix_finding", value: findingFixValue },
-          ]});
+          blocks.push({
+            type: "section",
+            text: { type: "mrkdwn", text: text.join("\n") },
+            accessory: { type: "button", text: { type: "plain_text", text: "Fix" }, action_id: `a11y_fix_finding`, value: findingFixValue },
+          });
+        } else {
+          blocks.push({ type: "section", text: { type: "mrkdwn", text: text.join("\n") } });
         }
       });
 
@@ -155,19 +155,19 @@ function appendPatternFindings(blocks: Record<string, unknown>[], patternFinding
       `*${i + 1}. ${severityTag(f.severity)} ${escapeHtmlTags(f.title)}*`,
       `File: \`${location}\` · Rule: \`${f.patternId}\``,
     ];
-    blocks.push({ type: "section", text: { type: "mrkdwn", text: text.join("\n") } });
     if (f.id) {
       const findingFixValue = JSON.stringify({
         id: f.id, o: context.owner, r: context.repo, s: context.headSha ?? "",
         h: context.headRef ?? context.branch ?? "", b: context.baseRef ?? "",
         i: context.installationId ?? 0,
       });
-      blocks.push({ type: "context", elements: [
-        { type: "mrkdwn", text: ":wrench: Auto-fix this issue and create a PR" },
-      ]});
-      blocks.push({ type: "actions", elements: [
-        { type: "button", text: { type: "plain_text", text: `Fix ${f.id}` }, action_id: "a11y_fix_finding", value: findingFixValue },
-      ]});
+      blocks.push({
+        type: "section",
+        text: { type: "mrkdwn", text: text.join("\n") },
+        accessory: { type: "button", text: { type: "plain_text", text: "Fix" }, action_id: "a11y_fix_finding", value: findingFixValue },
+      });
+    } else {
+      blocks.push({ type: "section", text: { type: "mrkdwn", text: text.join("\n") } });
     }
   });
 

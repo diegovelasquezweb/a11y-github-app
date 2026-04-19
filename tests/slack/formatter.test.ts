@@ -34,8 +34,9 @@ describe("formatAuditResultBlocks", () => {
     const content = JSON.stringify(blocks);
     expect(content).toContain(":red_circle:");
     expect(content).toContain(":large_orange_circle:");
-    expect(content).toContain("Fix A11Y-001");
-    expect(content).toContain("Fix A11Y-002");
+    expect(content).toContain("a11y_fix_finding");
+    expect(content).toContain("A11Y-001");
+    expect(content).toContain("A11Y-002");
   });
 
   it("caps DOM findings at 20", () => {
