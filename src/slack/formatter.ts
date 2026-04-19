@@ -114,19 +114,13 @@ export function formatAuditResultBlocks(
           ].join("\n");
           const ghIssueUrl = `https://github.com/${context.owner}/${context.repo}/issues/new?title=${encodeURIComponent(`[A11y] [${f.severity}] ${f.title}`)}&body=${encodeURIComponent(issueBody)}&labels=${encodeURIComponent("accessibility")}`;
           const jiraOption: Record<string, unknown> = context.jiraApiMode
-            ? {
-                text: { type: "plain_text", text: "Create Jira Ticket" },
-                value: JSON.stringify({
-                  kind: "single",
-                  id: f.id,
-                  title: f.title,
-                  severity: f.severity,
-                  o: context.owner,
-                  r: context.repo,
-                  h: context.headRef ?? context.branch ?? "",
-                  b: context.baseRef ?? "",
-                }),
-              }
+            ? (() => {
+                const base = { k: "s", i: f.id, v: f.severity, o: context.owner, r: context.repo };
+                const baseJson = JSON.stringify(base);
+                const titleBudget = 151 - baseJson.length - 6;
+                const t = titleBudget > 3 ? (f.title.length <= titleBudget ? f.title : `${f.title.slice(0, titleBudget - 1)}…`) : "";
+                return { text: { type: "plain_text", text: "Create Jira Ticket" }, value: JSON.stringify({ ...base, t }) };
+              })()
             : {
                 text: { type: "plain_text", text: "Create Jira Ticket" },
                 url: `https://jira.atlassian.net/secure/CreateIssueDetails!init.jspa?summary=${encodeURIComponent(`[${f.severity}] ${f.title}`)}&description=${encodeURIComponent(issueBody)}`,
@@ -242,19 +236,13 @@ function appendPatternFindings(blocks: Record<string, unknown>[], patternFinding
       ].join("\n");
       const ghIssueUrl = `https://github.com/${context.owner}/${context.repo}/issues/new?title=${encodeURIComponent(`[A11y] [${f.severity}] ${f.title}`)}&body=${encodeURIComponent(patIssueBody)}&labels=${encodeURIComponent("accessibility")}`;
       const patJiraOption: Record<string, unknown> = context.jiraApiMode
-        ? {
-            text: { type: "plain_text", text: "Create Jira Ticket" },
-            value: JSON.stringify({
-              kind: "single",
-              id: f.id,
-              title: f.title,
-              severity: f.severity,
-              o: context.owner,
-              r: context.repo,
-              h: context.headRef ?? context.branch ?? "",
-              b: context.baseRef ?? "",
-            }),
-          }
+        ? (() => {
+            const base = { k: "s", i: f.id, v: f.severity, o: context.owner, r: context.repo };
+            const baseJson = JSON.stringify(base);
+            const titleBudget = 151 - baseJson.length - 6;
+            const t = titleBudget > 3 ? (f.title.length <= titleBudget ? f.title : `${f.title.slice(0, titleBudget - 1)}…`) : "";
+            return { text: { type: "plain_text", text: "Create Jira Ticket" }, value: JSON.stringify({ ...base, t }) };
+          })()
         : {
             text: { type: "plain_text", text: "Create Jira Ticket" },
             url: `https://jira.atlassian.net/secure/CreateIssueDetails!init.jspa?summary=${encodeURIComponent(`[${f.severity}] ${f.title}`)}&description=${encodeURIComponent(patIssueBody)}`,

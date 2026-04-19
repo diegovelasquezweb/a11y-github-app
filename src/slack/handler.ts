@@ -222,7 +222,7 @@ async function executeJiraCreateV2(metadata: JiraModalMetadata, projectKey: stri
     console.warn("[slack] jira modal: failed to parse payload");
     return;
   }
-  const isSingle = payload.kind === "single";
+  const isSingle = (payload as JiraSinglePayload).k === "s";
   const summary = isSingle ? buildSingleFindingSummary(payload as JiraSinglePayload) : buildBulkSummary(payload as JiraBulkPayload);
   const body = isSingle ? buildSingleFindingBody(payload as JiraSinglePayload) : buildBulkBody(payload as JiraBulkPayload);
   const result = await createJiraIssue({ summary, body, projectKey, issueType });
@@ -475,7 +475,7 @@ async function handleBlockAction(interaction: SlackInteractionPayload): Promise<
   if (!client) return { status: 200, body: "" };
 
   const value = (action as { value?: string; selected_option?: { value?: string } }).selected_option?.value ?? (action as { value?: string }).value ?? "";
-  if (value.startsWith('{"kind":"single"') || value.startsWith('{"kind":"bulk"')) {
+  if (value.startsWith('{"k":"s"') || value.startsWith('{"kind":"bulk"')) {
     const meta: JiraModalMetadata = {
       payload: value,
       channelId: interaction.channel?.id ?? "",

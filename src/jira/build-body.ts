@@ -4,17 +4,17 @@ import type { AdfSection, JiraAdfDoc, JiraBulkPayload, JiraSinglePayload } from 
 export function buildSingleFindingBody(p: JiraSinglePayload): JiraAdfDoc {
   const sections: AdfSection[] = [
     { kind: "heading", level: 2, text: "Finding" },
-    { kind: "paragraph", label: "ID", value: p.id },
-    { kind: "paragraph", label: "Severity", value: p.severity },
-    { kind: "paragraph", label: "Title", value: p.title },
+    { kind: "paragraph", label: "ID", value: p.i },
+    { kind: "paragraph", label: "Severity", value: p.v },
+    { kind: "paragraph", label: "Title", value: p.t },
     { kind: "paragraph", label: "Repo", value: `${p.o}/${p.r}` },
-    { kind: "paragraph", label: "Branch", value: p.h },
+    ...(p.h ? [{ kind: "paragraph" as const, label: "Branch", value: p.h }] : []),
   ];
   return buildAdf(sections);
 }
 
 export function buildSingleFindingSummary(p: JiraSinglePayload): string {
-  const raw = `[${p.severity}] ${p.title}`;
+  const raw = `[${p.v}] ${p.t}`;
   return raw.length > 255 ? `${raw.slice(0, 252)}...` : raw;
 }
 

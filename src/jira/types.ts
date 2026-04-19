@@ -63,14 +63,13 @@ export type FetchIssueTypesResult =
   | { ok: false; errorCode: FetchIssueTypesErrorCode };
 
 export interface JiraSinglePayload {
-  kind: "single";
-  id: string;
-  title: string;
-  severity: string;
+  k: "s";
+  i: string;
+  t: string;
+  v: string;
   o: string;
   r: string;
-  h: string;
-  b: string;
+  h?: string;
 }
 
 export interface JiraBulkPayload {
@@ -84,3 +83,7 @@ export interface JiraBulkPayload {
 }
 
 export type JiraSlackPayload = JiraSinglePayload | JiraBulkPayload;
+
+export function isJiraSinglePayload(p: JiraSlackPayload): p is JiraSinglePayload {
+  return (p as JiraSinglePayload).k === "s";
+}

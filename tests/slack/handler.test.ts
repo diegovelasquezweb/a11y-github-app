@@ -48,14 +48,12 @@ const mockChatPostEphemeral = vi.fn().mockResolvedValue({ ok: true });
 
 function makeSingleValue(overrides?: Partial<{ id: string; title: string; severity: string }>) {
   return JSON.stringify({
-    kind: "single",
-    id: overrides?.id ?? "A11Y-001",
-    title: overrides?.title ?? "Missing alt text",
-    severity: overrides?.severity ?? "Critical",
+    k: "s",
+    i: overrides?.id ?? "A11Y-001",
+    t: overrides?.title ?? "Missing alt text",
+    v: overrides?.severity ?? "Critical",
     o: "acme",
     r: "site",
-    h: "feat/fix",
-    b: "main",
   });
 }
 
