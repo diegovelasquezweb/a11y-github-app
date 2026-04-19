@@ -99,10 +99,18 @@ export function formatAuditResultBlocks(
             h: context.headRef ?? context.branch ?? "", b: context.baseRef ?? "",
             i: context.installationId ?? 0,
           });
+          const jiraUrl = `https://jira.atlassian.net/secure/CreateIssueDetails!init.jspa?summary=${encodeURIComponent(`[${f.severity}] ${f.title}`)}&description=${encodeURIComponent(`Finding: ${f.id}\nSeverity: ${f.severity}\nRepo: ${context.owner}/${context.repo}`)}`;
           blocks.push({
             type: "section",
             text: { type: "mrkdwn", text: parts.join("\n") },
-            accessory: { type: "button", text: { type: "plain_text", text: "Fix" }, action_id: `a11y_fix_${f.id}`, value: findingFixValue },
+            accessory: {
+              type: "overflow",
+              action_id: `a11y_actions_${f.id}`,
+              options: [
+                { text: { type: "plain_text", text: "Fix with AI" }, value: findingFixValue },
+                { text: { type: "plain_text", text: "Create Ticket" }, url: jiraUrl, value: `ticket_${f.id}` },
+              ],
+            },
           });
         } else {
           blocks.push({ type: "section", text: { type: "mrkdwn", text: parts.join("\n") } });
@@ -157,10 +165,18 @@ function appendPatternFindings(blocks: Record<string, unknown>[], patternFinding
         h: context.headRef ?? context.branch ?? "", b: context.baseRef ?? "",
         i: context.installationId ?? 0,
       });
+      const jiraUrl = `https://jira.atlassian.net/secure/CreateIssueDetails!init.jspa?summary=${encodeURIComponent(`[${f.severity}] ${f.title}`)}&description=${encodeURIComponent(`Finding: ${f.id}\nSeverity: ${f.severity}\nFile: ${location}\nRepo: ${context.owner}/${context.repo}`)}`;
       blocks.push({
         type: "section",
         text: { type: "mrkdwn", text: parts.join("\n") },
-        accessory: { type: "button", text: { type: "plain_text", text: "Fix" }, action_id: `a11y_fix_${f.id}`, value: findingFixValue },
+        accessory: {
+          type: "overflow",
+          action_id: `a11y_actions_${f.id}`,
+          options: [
+            { text: { type: "plain_text", text: "Fix with AI" }, value: findingFixValue },
+            { text: { type: "plain_text", text: "Create Ticket" }, url: jiraUrl, value: `ticket_${f.id}` },
+          ],
+        },
       });
     } else {
       blocks.push({ type: "section", text: { type: "mrkdwn", text: parts.join("\n") } });

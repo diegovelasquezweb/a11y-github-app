@@ -394,7 +394,18 @@ async function handleBlockAction(interaction: SlackInteractionPayload): Promise<
     return { status: 200, body: "" };
   }
 
-  if (action.action_id.startsWith("a11y_fix_") || action.action_id === "a11y_fix_all") {
+  // Overflow menu selection — "Fix with AI" option
+  if (action.action_id.startsWith("a11y_actions_")) {
+    const selected = (action as unknown as { selected_option?: { value?: string } }).selected_option;
+    if (selected?.value?.startsWith("ticket_")) return { status: 200, body: "" }; // Create Ticket opens URL directly
+    if (selected?.value) {
+      // Treat as fix action — rewrite action for the fix handler below
+      action.value = selected.value;
+      action.action_id = "a11y_fix_trigger";
+    }
+  }
+
+  if (action.action_id.startsWith("a11y_fix_") || action.action_id === "a11y_fix_all" || action.action_id === "a11y_fix_trigger") {
     const channelId = interaction.channel?.id ?? "";
     const messageTs = interaction.message?.ts ?? "";
 

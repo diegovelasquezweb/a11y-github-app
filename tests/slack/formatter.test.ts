@@ -34,7 +34,7 @@ describe("formatAuditResultBlocks", () => {
     const content = JSON.stringify(blocks);
     expect(content).toContain(":red_circle:");
     expect(content).toContain(":large_orange_circle:");
-    expect(content).toContain("a11y_fix_A11Y-001");
+    expect(content).toContain("a11y_actions_A11Y-001");
     expect(content).toContain("A11Y-001");
     expect(content).toContain("A11Y-002");
   });
