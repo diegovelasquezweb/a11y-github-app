@@ -913,7 +913,7 @@ jobs:
           ]
           if (prUrl) {
             blocks.push({ type: 'actions', elements: [
-              { type: 'button', text: { type: 'plain_text', text: 'View Pull Request' }, url: prUrl, action_id: 'view_fix_pr' },
+              { type: 'button', text: { type: 'plain_text', text: 'View Fix' }, url: prUrl, action_id: 'view_fix_pr' },
             ]})
           }
 
