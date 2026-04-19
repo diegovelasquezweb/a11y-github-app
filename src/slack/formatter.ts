@@ -86,7 +86,7 @@ export function formatAuditResultBlocks(
       const maxDom = 20 - Math.min(summary.patternFindings?.findings.length ?? 0, 10);
       const domShown = summary.findings.slice(0, maxDom);
       domShown.forEach((f, i) => {
-        const parts = [`${severityTag(f.severity)} ${escapeHtmlTags(f.title)}`];
+        const parts = [`${severityTag(f.severity)} ${escapeHtmlTags(f.title)}${f.id ? ` · \`${f.id}\`` : ""}`];
         if (f.url) {
           try {
             const pathname = new URL(f.url).pathname.replace(/\/index\.html$/, "/").replace(/\.html$/, "").replace(/^\//, "") || "home";
@@ -152,7 +152,7 @@ function appendPatternFindings(blocks: Record<string, unknown>[], patternFinding
   shown.forEach((f, i) => {
     const location = f.line ? `${f.file}:${f.line}` : f.file;
     const parts = [
-      `${severityTag(f.severity)} ${escapeHtmlTags(f.title)}`,
+      `${severityTag(f.severity)} ${escapeHtmlTags(f.title)}${f.id ? ` · \`${f.id}\`` : ""}`,
       `File: \`${location}\` · Rule: \`${f.patternId}\``,
     ];
     if (f.id) {
