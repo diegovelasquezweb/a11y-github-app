@@ -46,6 +46,23 @@ export async function verifyAndRoute(input: SlackRequestInput): Promise<VerifyRe
     return { status: 401, body: { ok: false, error: "Invalid signature" } };
   }
 
+  // Check if body is JSON (Events API) or form-encoded (slash commands / interactions)
+  const trimmed = input.rawBody.trimStart();
+  if (trimmed.startsWith("{")) {
+    try {
+      const event = JSON.parse(trimmed) as Record<string, unknown>;
+      if (event.type === "url_verification") {
+        return { status: 200, body: { challenge: event.challenge } };
+      }
+      if (event.type === "event_callback") {
+        await handleEvent(event);
+        return { status: 200, body: "" };
+      }
+    } catch {
+      return { status: 200, body: "" };
+    }
+  }
+
   const params = new URLSearchParams(input.rawBody);
   const payloadField = params.get("payload");
 
@@ -70,6 +87,53 @@ export async function verifyAndRoute(input: SlackRequestInput): Promise<VerifyRe
   }
 
   return { status: 200, body: "" };
+}
+
+async function handleEvent(event: Record<string, unknown>): Promise<void> {
+  const inner = event.event as Record<string, unknown> | undefined;
+  if (!inner) return;
+
+  if (inner.type === "member_joined_channel") {
+    const client = getSlackClient();
+    if (!client) return;
+
+    // Only post welcome when the bot itself joins (not other users)
+    const botUserId = String(inner.user ?? "");
+    const channelId = String(inner.channel ?? "");
+    if (!channelId) return;
+
+    try {
+      // Check if bot is the one who joined by comparing with auth.test
+      const auth = await client.auth.test();
+      if (botUserId !== auth.user_id) return;
+
+      const result = await client.chat.postMessage({
+        channel: channelId,
+        text: "A11y Audit is ready. Click the button below to scan a repository.",
+        blocks: [
+          { type: "header", text: { type: "plain_text", text: "A11y Audit" } },
+          {
+            type: "section",
+            text: { type: "mrkdwn", text: "Scan any GitHub repository for *WCAG 2.2 AA* accessibility issues and auto-fix them with AI.\n\nClick the button or type `/a11y` to get started." },
+          },
+          { type: "divider" },
+          {
+            type: "actions",
+            elements: [
+              { type: "button", text: { type: "plain_text", text: "Run Audit" }, action_id: "a11y_open_audit", style: "primary" },
+            ],
+          },
+        ] as unknown as import("@slack/web-api").KnownBlock[],
+      });
+
+      if (result.ts) {
+        await client.pins.add({ channel: channelId, timestamp: result.ts });
+      }
+      console.log("[slack] welcome message posted and pinned", { channelId });
+    } catch (err) {
+      console.warn("[slack] welcome message failed:", err);
+    }
+  }
 }
 
 /** Async — runs AFTER the HTTP response is sent to Slack. */
@@ -315,6 +379,20 @@ async function handleBlockAction(interaction: SlackInteractionPayload): Promise<
 
   const client = getSlackClient();
   if (!client) return { status: 200, body: "" };
+
+  if (action.action_id === "a11y_open_audit") {
+    const channelId = interaction.channel?.id ?? "";
+    const userId = interaction.user?.id ?? "";
+    try {
+      await client.views.open({
+        trigger_id: interaction.trigger_id,
+        view: buildAuditModal({ channelId, userId }) as Parameters<typeof client.views.open>[0]["view"],
+      });
+    } catch (err) {
+      console.warn("[slack] audit modal open from button failed:", err);
+    }
+    return { status: 200, body: "" };
+  }
 
   if (action.action_id === "a11y_fix_finding" || action.action_id === "a11y_fix_all") {
     const channelId = interaction.channel?.id ?? "";
