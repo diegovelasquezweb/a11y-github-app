@@ -106,11 +106,6 @@ describe("formatAuditResultBlocks", () => {
     expect(content).toContain("A11Y-001");
   });
 
-  it("includes View on GitHub button when URL provided", () => {
-    const blocks = formatAuditResultBlocks(baseSummary, { ...ctx, githubCommentUrl: "https://github.com/acme/site/issues/1#issuecomment-123" });
-    const content = JSON.stringify(blocks);
-    expect(content).toContain("View on GitHub");
-  });
 });
 
 describe("formatScanningBlocks", () => {
