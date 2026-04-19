@@ -131,8 +131,11 @@ export function formatAuditResultBlocks(
                 url: `https://jira.atlassian.net/secure/CreateIssueDetails!init.jspa?summary=${encodeURIComponent(`[${f.severity}] ${f.title}`)}&description=${encodeURIComponent(issueBody)}`,
                 value: `jira_${f.id}`,
               };
+          const rawBlockId = `a11y_f_${f.id}|${pathname}|${f.selector ?? ""}`;
+          const blockId = rawBlockId.length <= 255 ? rawBlockId : `a11y_f_${f.id}|${pathname}|${(f.selector ?? "").slice(0, 255 - 10 - f.id.length - pathname.length)}`;
           blocks.push({
             type: "section",
+            block_id: blockId,
             text: { type: "mrkdwn", text: parts.join("\n") },
             accessory: {
               type: "overflow",

@@ -9,6 +9,15 @@ export function buildAdf(sections: AdfSection[]): JiraAdfDoc {
         content: [{ type: "text", text: section.text }],
       };
     }
+    if (section.kind === "link") {
+      return {
+        type: "paragraph",
+        content: [
+          { type: "text", text: `${section.label}: `, marks: [{ type: "strong" }] },
+          { type: "text", text: section.text, marks: [{ type: "link", attrs: { href: section.href } }] },
+        ],
+      };
+    }
     const children: JiraAdfNode[] = [];
     if (section.label) {
       children.push({ type: "text", text: `${section.label}: `, marks: [{ type: "strong" }] });

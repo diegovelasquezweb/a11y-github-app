@@ -14,7 +14,8 @@ export interface JiraAdfDoc {
 
 export type AdfSection =
   | { kind: "heading"; level: 1 | 2 | 3 | 4 | 5 | 6; text: string }
-  | { kind: "paragraph"; label?: string; value: string };
+  | { kind: "paragraph"; label?: string; value: string }
+  | { kind: "link"; label: string; text: string; href: string };
 
 export interface CreateIssueInput {
   summary: string;
@@ -70,6 +71,8 @@ export interface JiraSinglePayload {
   o: string;
   r: string;
   h?: string;
+  pg?: string;
+  sel?: string;
 }
 
 export interface JiraBulkPayload {

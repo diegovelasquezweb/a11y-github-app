@@ -467,6 +467,21 @@ async function handleFixSubmit(interaction: SlackInteractionPayload): Promise<Sl
   return { status: 200, body: { response_action: "clear" } };
 }
 
+function enrichJiraPayload(value: string, blockId: string): string {
+  if (!blockId.startsWith("a11y_f_")) return value;
+  try {
+    const parts = blockId.split("|");
+    const pg = parts[1] ?? "";
+    const sel = parts.slice(2).join("|");
+    const parsed = JSON.parse(value) as Record<string, unknown>;
+    if (pg) parsed.pg = pg;
+    if (sel) parsed.sel = sel;
+    return JSON.stringify(parsed);
+  } catch {
+    return value;
+  }
+}
+
 async function handleBlockAction(interaction: SlackInteractionPayload): Promise<SlackHandlerResult> {
   const action = interaction.actions?.[0];
   if (!action) return { status: 200, body: "" };
@@ -476,8 +491,10 @@ async function handleBlockAction(interaction: SlackInteractionPayload): Promise<
 
   const value = (action as { value?: string; selected_option?: { value?: string } }).selected_option?.value ?? (action as { value?: string }).value ?? "";
   if (value.startsWith('{"k":"s"') || value.startsWith('{"kind":"bulk"')) {
+    const blockId = (action as { block_id?: string }).block_id ?? "";
+    const enrichedPayload = enrichJiraPayload(value, blockId);
     const meta: JiraModalMetadata = {
-      payload: value,
+      payload: enrichedPayload,
       channelId: interaction.channel?.id ?? "",
       userId: interaction.user?.id ?? "",
     };
