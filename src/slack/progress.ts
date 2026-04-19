@@ -20,6 +20,12 @@ export interface ProgressResult {
   body: Record<string, unknown>;
 }
 
+function buildProgressBar(current: number, total: number): string {
+  const filled = "▓".repeat(current);
+  const empty = "░".repeat(total - current);
+  return `\`${filled}${empty}\` Step ${current}/${total}`;
+}
+
 function buildStepList(steps: string[], current: number): string {
   return steps.map((name, i) => {
     const num = i + 1;
@@ -36,8 +42,10 @@ function buildProgressBlocks(input: ProgressInput): KnownBlock[] {
   return [
     { type: "header", text: { type: "plain_text", text: `Auditing ${label}` } },
     { type: "context", elements: [
-      { type: "mrkdwn", text: `Branch: \`${input.branch || "default"}\` · Mode: ${input.mode} · Step ${input.current_step}/${total}` },
+      { type: "mrkdwn", text: `Branch: \`${input.branch || "default"}\` · Mode: ${input.mode}` },
     ]},
+    { type: "section", text: { type: "mrkdwn", text: buildProgressBar(input.current_step, total) } },
+    { type: "divider" },
     { type: "section", text: { type: "mrkdwn", text: buildStepList(input.steps, input.current_step) } },
   ] as KnownBlock[];
 }
