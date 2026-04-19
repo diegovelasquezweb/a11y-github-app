@@ -29,8 +29,16 @@ export interface SlackRequestInput {
   signature?: string;
 }
 
+export type DeferredWork =
+  | { type: "slash_command"; params: URLSearchParams }
+  | { type: "block_actions"; interaction: SlackInteractionPayload };
 
-export async function processSlackRequest(input: SlackRequestInput): Promise<SlackHandlerResult> {
+export interface VerifyResult extends SlackHandlerResult {
+  work?: DeferredWork;
+}
+
+/** Verify signature and determine what to do. Runs inline for view_submissions (need response_action). */
+export async function verifyAndRoute(input: SlackRequestInput): Promise<VerifyResult> {
   if (!CONFIG.slackSigningSecret || !CONFIG.slackBotToken) {
     return { status: 503, body: { ok: false, error: "Slack integration not configured" } };
   }
@@ -46,10 +54,11 @@ export async function processSlackRequest(input: SlackRequestInput): Promise<Sla
     try {
       const interaction = JSON.parse(payloadField) as SlackInteractionPayload;
       if (interaction.type === "view_submission") {
+        // view_submissions must return inline — Slack needs response_action for validation errors
         return handleViewSubmission(interaction);
       }
       if (interaction.type === "block_actions") {
-        return handleBlockAction(interaction);
+        return { status: 200, body: "", work: { type: "block_actions", interaction } };
       }
       return { status: 200, body: "" };
     } catch {
@@ -58,10 +67,23 @@ export async function processSlackRequest(input: SlackRequestInput): Promise<Sla
   }
 
   if (params.get("command") === "/a11y") {
-    return handleSlashCommand(params);
+    return { status: 200, body: "", contentType: "text/plain", work: { type: "slash_command", params } };
   }
 
   return { status: 200, body: "" };
+}
+
+/** Async — runs AFTER the HTTP response is sent to Slack. */
+export async function executeDeferredWork(work: DeferredWork): Promise<void> {
+  try {
+    if (work.type === "slash_command") {
+      await handleSlashCommand(work.params);
+    } else if (work.type === "block_actions") {
+      await handleBlockAction(work.interaction);
+    }
+  } catch (err) {
+    console.error("[slack] deferred work failed:", err);
+  }
 }
 
 async function handleSlashCommand(params: URLSearchParams): Promise<SlackHandlerResult> {
