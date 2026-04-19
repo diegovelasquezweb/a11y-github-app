@@ -866,12 +866,15 @@ jobs:
               ].join("\n")
             }
 
-            await github.rest.issues.createComment({
-              owner: "${{ inputs.target_owner }}",
-              repo: "${{ inputs.target_repo }}",
-              issue_number: Number("${{ inputs.pull_number }}"),
-              body,
-            })
+            const pullNumber = Number("${{ inputs.pull_number }}")
+            if (pullNumber > 0) {
+              await github.rest.issues.createComment({
+                owner: "${{ inputs.target_owner }}",
+                repo: "${{ inputs.target_repo }}",
+                issue_number: pullNumber,
+                body,
+              })
+            }
 
       - name: Send Slack fix result callback
         if: ${{ inputs.slack_channel_id != '' && inputs.callback_url != '' }}
