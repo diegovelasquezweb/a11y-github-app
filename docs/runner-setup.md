@@ -112,6 +112,9 @@ Dispatched by `dispatchDomAuditWorkflow()` in `src/review/dom-workflow.ts`.
 | `comment_id` | No | ID of the initial comment to update with results. `"0"` = create a new comment. |
 | `source_scan_enabled` | No | Whether to run the source pattern scanner (`"true"` / `"false"`). Set to `"false"` for `/a11y-audit dom`. |
 | `branch` | No | Branch name being audited. Used in issue-based scans to include `branch:X` in fix commands. |
+| `slack_channel_id` | No | Slack channel ID for progress updates and dual posting. |
+| `slack_message_ts` | No | Slack message timestamp to update with progress. |
+| `slack_thread_ts` | No | Slack thread timestamp. |
 
 ### source-audit.yml inputs
 
@@ -130,6 +133,9 @@ Dispatched by `dispatchSourceAuditWorkflow()` in `src/review/dom-workflow.ts`. A
 | `target_token` | Yes | GitHub installation token with access to the target repository. |
 | `comment_id` | No | ID of the initial comment to update with results. |
 | `branch` | No | Branch name being audited. Used in issue-based scans. |
+| `slack_channel_id` | No | Slack channel ID for progress updates and dual posting. |
+| `slack_message_ts` | No | Slack message timestamp to update with progress. |
+| `slack_thread_ts` | No | Slack thread timestamp. |
 
 ### a11y-fix.yml inputs
 
@@ -148,6 +154,11 @@ Dispatched by `dispatchFixWorkflow()` in `src/review/fix-workflow.ts`.
 | `target_token` | Yes | GitHub installation token for the target repository. |
 | `check_run_id` | Yes | ID of the `A11y Fix` Check Run to update. |
 | `ai_model` | No | Claude model for patch generation. Defaults to `"claude-haiku-4-5-20251001"`. Controlled by `FIX_AI_MODEL` on Vercel. |
+| `callback_url` | No | Base URL for Slack progress updates. Only sent for Slack-triggered fixes. |
+| `callback_token` | No | Auth token for progress updates. Only sent for Slack-triggered fixes. |
+| `slack_channel_id` | No | Slack channel ID for progress updates. |
+| `slack_message_ts` | No | Slack message timestamp to update with progress. |
+| `slack_thread_ts` | No | Slack thread timestamp. |
 
 ---
 

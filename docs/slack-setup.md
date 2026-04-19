@@ -127,7 +127,7 @@ Or mention the bot: `@A11y Audit` — Slack will prompt you to invite it.
 
 1. In a Slack channel, type `/a11y`
 2. A modal should appear with fields for Repository, Branch, and Audit Mode
-3. Enter a repository (e.g., `your-org/your-repo`), leave Branch empty, select "Full Audit"
+3. Paste a GitHub repository URL (e.g., `https://github.com/your-org/your-repo`), leave Branch empty, select "Full Audit"
 4. Click **Run Audit**
 5. A "⏳ Scanning..." message should appear in the channel
 6. When the audit completes, the message updates with findings and Fix buttons
@@ -143,16 +143,31 @@ If the modal does not appear:
 
 ```
 User types /a11y in Slack
-  → Modal opens (repo, branch, mode)
+  → Modal opens (repo URL, branch, mode)
   → Submit: app dispatches GitHub Actions workflow
   → "⏳ Scanning..." message posted to channel
-  → Workflow runs audit (same as PR-based audit)
+  → Workflow reports progress → message updates in real time:
+      ▓░░░░░  Checking out repository…
+      ▓▓░░░░  Installing dependencies…
+      ▓▓▓░░░  Building project…
+      ▓▓▓▓░░  Starting local server…
+      ▓▓▓▓▓░  Running DOM scan…
+      ▓▓▓▓▓▓  Running source pattern analysis…
   → Callback arrives at /api/scan-callback
   → Results posted to GitHub (PR/Issue comment) AND Slack (message updated)
-  → "Fix All" button in Slack → opens fix modal → dispatches fix workflow
+  → Findings displayed with severity indicators (🟥 Critical, 🟧 Serious, 🟨 Moderate, 🟦 Minor)
+  → "Fix All" button → opens fix modal (model + hint) → dispatches fix workflow
+  → Individual "Fix" buttons per finding → same flow
 ```
 
 Slack is only the messaging layer. All audit/fix logic, workflow dispatch, and GitHub integration remain unchanged.
+
+### Endpoints
+
+| Endpoint | Purpose |
+|----------|---------|
+| `api/slack` | Receives slash commands, modal submissions, and button actions |
+| `api/slack-progress` | Receives progress updates from workflows to update the Slack message in real time |
 
 ---
 

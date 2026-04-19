@@ -12,6 +12,13 @@ All notable changes to this project are documented here.
 - **Unified welcome comment** — PR and Issue welcome comments share a single `buildWelcomeComment()` function.
 - **`issues: write` token permission** — installation tokens now include `issues: write` for posting comments on plain issues.
 - **`issues` webhook event** — app subscribes to `issues` events to detect issue creation and post welcome comments.
+- **Slack integration** — trigger audits and fixes from Slack via `/a11y` slash command. Interactive modals for audit (repo URL, branch, mode) and fix (model, hint). Results posted to both Slack and GitHub.
+- **Slack real-time progress** — workflow steps update the Slack message in real time with a progress bar (`▓▓░░░░ Installing dependencies…`).
+- **Slack severity indicators** — findings use colored squares (🟥 Critical, 🟧 Serious, 🟨 Moderate, 🟦 Minor) in Slack messages.
+- **Fix modal UX** — finding IDs pre-filled from button context (no manual ID entry). Modal shows description explaining what will happen.
+- **GitHub URL input** — Slack audit modal accepts full GitHub URLs (e.g., `https://github.com/owner/repo`), not just `owner/repo`.
+- **`api/slack` endpoint** — receives Slack slash commands, modal submissions, and button actions.
+- **`api/slack-progress` endpoint** — receives progress updates from workflows to update Slack messages.
 
 ### Fixed
 
