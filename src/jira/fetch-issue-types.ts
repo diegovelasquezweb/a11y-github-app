@@ -26,7 +26,14 @@ export async function fetchJiraIssueTypes(projectKey: string): Promise<FetchIssu
   if (response.status === 404) return { ok: false, errorCode: "not_found" };
   if (response.status >= 500) return { ok: false, errorCode: "server_error" };
 
-  const data = (await response.json()) as Array<{ id?: string; name?: string }>;
-  const issueTypes: IssueType[] = data.map((t) => ({ id: String(t.id ?? ""), name: String(t.name ?? "") }));
+  const data = await response.json() as unknown;
+  const items: Array<{ id?: string; name?: string }> = Array.isArray(data)
+    ? data
+    : Array.isArray((data as Record<string, unknown>)?.values)
+      ? (data as Record<string, unknown>).values as Array<{ id?: string; name?: string }>
+      : [];
+  const issueTypes: IssueType[] = items
+    .map((t) => ({ id: String(t.id ?? ""), name: String(t.name ?? "") }))
+    .filter((t) => t.id && t.name);
   return { ok: true, issueTypes };
 }
