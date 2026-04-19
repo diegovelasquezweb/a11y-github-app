@@ -98,8 +98,23 @@ export function formatAuditResultBlocks(
             h: context.headRef ?? context.branch ?? "", b: context.baseRef ?? "",
             i: context.installationId ?? 0,
           });
-          const jiraUrl = `https://jira.atlassian.net/secure/CreateIssueDetails!init.jspa?summary=${encodeURIComponent(`[${f.severity}] ${f.title}`)}&description=${encodeURIComponent(`Finding: ${f.id}\nSeverity: ${f.severity}\nRepo: ${context.owner}/${context.repo}`)}`;
-          const ghIssueUrl = `https://github.com/${context.owner}/${context.repo}/issues/new?title=${encodeURIComponent(`[${f.severity}] ${f.title}`)}&body=${encodeURIComponent(`**Finding:** \`${f.id}\`\n**Severity:** ${f.severity}\n**Branch:** ${context.branch ?? "default"}`)}`;
+          let pathname = "";
+          if (f.url) { try { pathname = new URL(f.url).pathname.replace(/\/index\.html$/, "/").replace(/\.html$/, "").replace(/^\//, "") || "home"; } catch { /* ignore */ } }
+          const issueBody = [
+            `**Finding:** \`${f.id}\``,
+            `**Severity:** ${f.severity}`,
+            `**Title:** ${f.title}`,
+            `**Repo:** ${context.owner}/${context.repo}`,
+            `**Branch:** ${context.branch ?? "default"}`,
+            ...(pathname ? [`**Page:** \`/${pathname}\``] : []),
+            ...(f.selector ? [`**Selector:** \`${f.selector}\``] : []),
+            ...(f.wcag ? [`**WCAG:** ${f.wcag}`] : []),
+            "",
+            "---",
+            `Found by [A11y Audit](https://github.com/${context.owner}/${context.repo})`,
+          ].join("\n");
+          const jiraUrl = `https://jira.atlassian.net/secure/CreateIssueDetails!init.jspa?summary=${encodeURIComponent(`[${f.severity}] ${f.title}`)}&description=${encodeURIComponent(issueBody)}`;
+          const ghIssueUrl = `https://github.com/${context.owner}/${context.repo}/issues/new?title=${encodeURIComponent(`[A11y] [${f.severity}] ${f.title}`)}&body=${encodeURIComponent(issueBody)}&labels=${encodeURIComponent("accessibility")}`;
           blocks.push({
             type: "section",
             text: { type: "mrkdwn", text: parts.join("\n") },
@@ -166,8 +181,20 @@ function appendPatternFindings(blocks: Record<string, unknown>[], patternFinding
         h: context.headRef ?? context.branch ?? "", b: context.baseRef ?? "",
         i: context.installationId ?? 0,
       });
-      const jiraUrl = `https://jira.atlassian.net/secure/CreateIssueDetails!init.jspa?summary=${encodeURIComponent(`[${f.severity}] ${f.title}`)}&description=${encodeURIComponent(`Finding: ${f.id}\nSeverity: ${f.severity}\nFile: ${location}\nRepo: ${context.owner}/${context.repo}`)}`;
-      const ghIssueUrl = `https://github.com/${context.owner}/${context.repo}/issues/new?title=${encodeURIComponent(`[${f.severity}] ${f.title}`)}&body=${encodeURIComponent(`**Finding:** \`${f.id}\`\n**Severity:** ${f.severity}\n**File:** \`${location}\`\n**Branch:** ${context.branch ?? "default"}`)}`;
+      const patIssueBody = [
+        `**Finding:** \`${f.id}\``,
+        `**Severity:** ${f.severity}`,
+        `**Title:** ${f.title}`,
+        `**Repo:** ${context.owner}/${context.repo}`,
+        `**Branch:** ${context.branch ?? "default"}`,
+        `**File:** \`${location}\``,
+        `**Rule:** \`${f.patternId}\``,
+        "",
+        "---",
+        `Found by [A11y Audit](https://github.com/${context.owner}/${context.repo})`,
+      ].join("\n");
+      const jiraUrl = `https://jira.atlassian.net/secure/CreateIssueDetails!init.jspa?summary=${encodeURIComponent(`[${f.severity}] ${f.title}`)}&description=${encodeURIComponent(patIssueBody)}`;
+      const ghIssueUrl = `https://github.com/${context.owner}/${context.repo}/issues/new?title=${encodeURIComponent(`[A11y] [${f.severity}] ${f.title}`)}&body=${encodeURIComponent(patIssueBody)}&labels=${encodeURIComponent("accessibility")}`;
       blocks.push({
         type: "section",
         text: { type: "mrkdwn", text: parts.join("\n") },
