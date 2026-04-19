@@ -246,12 +246,16 @@ async function handleFixSubmit(interaction: SlackInteractionPayload): Promise<Sl
   const headSha = String(metadata.headSha ?? "");
   const headRef = String(metadata.headRef ?? "");
   const baseRef = String(metadata.baseRef ?? "");
-  const installationId = Number(metadata.installationId ?? 0);
   const channelId = String(metadata.channelId ?? "");
   const messageTs = String(metadata.messageTs ?? "");
 
-  if (!owner || !repo || !headSha || !installationId) {
-    return { status: 200, body: { response_action: "errors", errors: { finding_ids_block: "Session data lost. Please re-run the audit." } } };
+  if (!owner || !repo || !headSha) {
+    return { status: 200, body: { response_action: "errors", errors: { ai_model_block: "Session data lost. Please re-run the audit." } } };
+  }
+
+  const installationId = Number(metadata.installationId) || await findInstallationForRepo(owner, repo);
+  if (!installationId) {
+    return { status: 200, body: { response_action: "errors", errors: { ai_model_block: "Repository not accessible" } } };
   }
 
   const client = getSlackClient();
@@ -317,73 +321,33 @@ async function handleBlockAction(interaction: SlackInteractionPayload): Promise<
     const messageTs = interaction.message?.ts ?? "";
 
     let fixCtx: Record<string, unknown> = {};
-    let findingIds = "all";
+    let findingLabel = "all";
     try {
       fixCtx = JSON.parse(action.value ?? "{}");
-      findingIds = action.action_id === "a11y_fix_all" ? "all" : String(fixCtx.id ?? "");
+      findingLabel = action.action_id === "a11y_fix_all" ? "all" : String(fixCtx.id ?? "");
     } catch {
-      findingIds = action.value ?? "all";
+      findingLabel = action.value ?? "all";
     }
 
-    const owner = String(fixCtx.o ?? "");
-    const repo = String(fixCtx.r ?? "");
-    const headSha = String(fixCtx.s ?? "");
-    const headRef = String(fixCtx.h ?? "");
-    const baseRef = String(fixCtx.b ?? "");
-
-    if (!owner || !repo || !headSha) {
-      console.warn("[slack] fix button missing context", fixCtx);
-      return { status: 200, body: "" };
-    }
-
-    const installationId = Number(fixCtx.i) || await findInstallationForRepo(owner, repo);
-    if (!installationId) {
-      console.warn("[slack] could not resolve installation for", owner, repo);
-      return { status: 200, body: "" };
-    }
-
+    // Open modal immediately — no GitHub API calls before this
     try {
-      const slackCtx = { channelId, messageTs, threadTs: messageTs };
-      const fixCtxResult = await postFixProgress(client, slackCtx, owner, repo, findingIds);
-      const slackChannelId = fixCtxResult?.channelId ?? "";
-      const slackMessageTs = fixCtxResult?.messageTs ?? "";
-      const slackThreadTs = fixCtxResult?.threadTs ?? "";
-
-      const targetToken = await createInstallationToken(installationId);
-      const runnerOctokit = getInstallationOctokit(installationId);
-      const octokit = getInstallationOctokit(installationId);
-      const runnerOwner = CONFIG.scanRunnerOwner || owner;
-      const runnerRepo = CONFIG.scanRunnerRepo || repo;
-      const requestedBy = interaction.user?.username ?? "slack-user";
-
-      const checkRunId = await createFixPendingCheck({ octokit, owner, repo, headSha, findingIds });
-
-      await dispatchFixWorkflow({
-        runnerOctokit,
-        runnerOwner,
-        runnerRepo,
-        workflow: CONFIG.scanFixWorkflow,
-        ref: CONFIG.scanRunnerRef,
-        targetOwner: owner,
-        targetRepo: repo,
-        pullNumber: 0,
-        headSha,
-        headRef: headRef || "main",
-        baseRef: baseRef || "main",
-        findingIds,
-        requestedBy,
-        targetToken,
-        checkRunId,
-        aiModel: CONFIG.fixAiModel,
-        callbackUrl: `${CONFIG.appBaseUrl}/api/scan-callback`,
-        callbackToken: CONFIG.domAuditCallbackToken,
-        slackChannelId,
-        slackMessageTs,
-        slackThreadTs,
+      await client.views.open({
+        trigger_id: interaction.trigger_id,
+        view: buildFixModal({
+          channelId,
+          messageTs,
+          userId: interaction.user?.id ?? "",
+          owner: String(fixCtx.o ?? ""),
+          repo: String(fixCtx.r ?? ""),
+          headSha: String(fixCtx.s ?? ""),
+          headRef: String(fixCtx.h ?? ""),
+          baseRef: String(fixCtx.b ?? ""),
+          pullNumber: 0,
+          installationId: 0,
+        }, findingLabel) as Parameters<typeof client.views.open>[0]["view"],
       });
-      console.log("[slack] fix dispatched", { findingIds, owner, repo });
     } catch (err) {
-      console.error("[slack] fix dispatch failed:", err);
+      console.error("[slack] fix modal open failed:", err);
     }
     return { status: 200, body: "" };
   }
