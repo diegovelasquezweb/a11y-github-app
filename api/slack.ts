@@ -36,13 +36,18 @@ export default async function slack(
     signature: header(req, "x-slack-signature"),
   });
 
+  // Send response immediately so Slack gets its 200 within 3 seconds
   res.statusCode = result.status;
-
   if (typeof result.body === "string") {
     res.setHeader("content-type", result.contentType ?? "text/plain; charset=utf-8");
     res.end(result.body);
   } else {
     res.setHeader("content-type", "application/json; charset=utf-8");
     res.end(JSON.stringify(result.body));
+  }
+
+  // Execute deferred work (e.g. views.open for block_actions) AFTER response is sent
+  if (result.deferred) {
+    await result.deferred();
   }
 }

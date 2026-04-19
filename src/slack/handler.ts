@@ -29,7 +29,11 @@ export interface SlackRequestInput {
   signature?: string;
 }
 
-export async function processSlackRequest(input: SlackRequestInput): Promise<SlackHandlerResult> {
+export interface SlackRequestResult extends SlackHandlerResult {
+  deferred?: () => Promise<void>;
+}
+
+export async function processSlackRequest(input: SlackRequestInput): Promise<SlackRequestResult> {
   if (!CONFIG.slackSigningSecret || !CONFIG.slackBotToken) {
     return { status: 503, body: { ok: false, error: "Slack integration not configured" } };
   }
@@ -48,7 +52,11 @@ export async function processSlackRequest(input: SlackRequestInput): Promise<Sla
         return handleViewSubmission(interaction);
       }
       if (interaction.type === "block_actions") {
-        return handleBlockAction(interaction);
+        return {
+          status: 200,
+          body: "",
+          deferred: () => handleBlockAction(interaction).then(() => {}),
+        };
       }
       return { status: 200, body: "" };
     } catch {
