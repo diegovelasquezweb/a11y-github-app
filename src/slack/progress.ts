@@ -5,15 +5,14 @@ import { getSlackClient } from "./client.js";
 
 export interface ProgressInput {
   token?: string;
-  step: string;
   owner: string;
   repo: string;
   branch: string;
   mode: string;
   slack_channel_id: string;
   slack_message_ts: string;
-  total_steps: number;
   current_step: number;
+  steps: string[];
 }
 
 export interface ProgressResult {
@@ -24,19 +23,30 @@ export interface ProgressResult {
 function buildProgressBar(current: number, total: number): string {
   const filled = "▓".repeat(current);
   const empty = "░".repeat(total - current);
-  return `${filled}${empty}`;
+  return `\`${filled}${empty}\` Step ${current}/${total}`;
+}
+
+function buildStepList(steps: string[], current: number): string {
+  return steps.map((name, i) => {
+    const num = i + 1;
+    if (num < current) return `✅  ~${name}~`;
+    if (num === current) return `🔄  *${name}…*`;
+    return `◻️  ${name}`;
+  }).join("\n");
 }
 
 function buildProgressBlocks(input: ProgressInput): KnownBlock[] {
-  const bar = buildProgressBar(input.current_step, input.total_steps);
   const label = `${input.owner}/${input.repo}`;
+  const total = input.steps.length;
 
   return [
     { type: "header", text: { type: "plain_text", text: `⏳ Auditing ${label}` } },
     { type: "context", elements: [
       { type: "mrkdwn", text: `Branch: \`${input.branch || "default"}\` · Mode: ${input.mode}` },
     ]},
-    { type: "section", text: { type: "mrkdwn", text: `${bar}  ${input.step}` } },
+    { type: "section", text: { type: "mrkdwn", text: buildProgressBar(input.current_step, total) } },
+    { type: "divider" },
+    { type: "section", text: { type: "mrkdwn", text: buildStepList(input.steps, input.current_step) } },
   ] as KnownBlock[];
 }
 
@@ -60,11 +70,12 @@ export async function processProgressUpdate(input: ProgressInput): Promise<Progr
 
   try {
     const blocks = buildProgressBlocks(input);
+    const currentName = input.steps[input.current_step - 1] ?? "Processing";
     await client.chat.update({
       channel: input.slack_channel_id,
       ts: input.slack_message_ts,
       blocks,
-      text: `⏳ ${input.step}`,
+      text: `⏳ ${currentName}…`,
     });
     return { status: 200, body: { ok: true } };
   } catch (err) {

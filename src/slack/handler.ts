@@ -293,9 +293,18 @@ async function handleBlockAction(interaction: SlackInteractionPayload): Promise<
   if (!client) return { status: 200, body: "" };
 
   if (action.action_id === "a11y_fix_finding" || action.action_id === "a11y_fix_all") {
-    const findingLabel = action.action_id === "a11y_fix_all" ? "all" : (action.value ?? "");
     const channelId = interaction.channel?.id ?? "";
     const messageTs = interaction.message?.ts ?? "";
+
+    let fixCtx: Record<string, unknown> = {};
+    let findingLabel = "all";
+    try {
+      fixCtx = JSON.parse(action.value ?? "{}");
+      findingLabel = action.action_id === "a11y_fix_all" ? "all" : String(fixCtx.id ?? "");
+    } catch {
+      // value not JSON — use as raw finding ID
+      findingLabel = action.value ?? "all";
+    }
 
     try {
       await client.views.open({
@@ -304,13 +313,13 @@ async function handleBlockAction(interaction: SlackInteractionPayload): Promise<
           channelId,
           messageTs,
           userId: interaction.user?.id ?? "",
-          owner: "",
-          repo: "",
-          headSha: "",
-          headRef: "",
-          baseRef: "",
+          owner: String(fixCtx.o ?? ""),
+          repo: String(fixCtx.r ?? ""),
+          headSha: String(fixCtx.s ?? ""),
+          headRef: String(fixCtx.h ?? ""),
+          baseRef: String(fixCtx.b ?? ""),
           pullNumber: 0,
-          installationId: 0,
+          installationId: Number(fixCtx.i ?? 0),
         }, findingLabel) as Parameters<typeof client.views.open>[0]["view"],
       });
     } catch (err) {

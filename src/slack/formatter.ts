@@ -1,23 +1,27 @@
 import type { DomAuditSummary, PatternAuditSummary } from "../types.js";
 
-function severityIcon(severity: string): string {
+function severityTag(severity: string): string {
   const s = severity.trim().toLowerCase();
-  if (s === "critical") return "🟥";
-  if (s === "serious") return "🟧";
-  if (s === "moderate") return "🟨";
-  if (s === "minor") return "🟦";
-  return "⬜";
+  if (s === "critical") return "`[Critical]`";
+  if (s === "serious") return "`[Serious]`";
+  if (s === "moderate") return "`[Moderate]`";
+  if (s === "minor") return "`[Minor]`";
+  return "`[Unknown]`";
 }
 
 function escapeHtmlTags(text: string): string {
   return text.replace(/<\/?([a-zA-Z][a-zA-Z0-9]*)[^>]*>/g, (_, tag) => `\`<${tag}>\``);
 }
 
-interface ResultContext {
+export interface ResultContext {
   owner: string;
   repo: string;
   branch?: string;
   githubCommentUrl?: string;
+  headSha?: string;
+  headRef?: string;
+  baseRef?: string;
+  installationId?: number;
 }
 
 export function formatAuditResultBlocks(
@@ -67,13 +71,13 @@ export function formatAuditResultBlocks(
       Minor: t.Minor + (pt?.Minor ?? 0),
     };
     blocks.push({ type: "section", text: { type: "mrkdwn", text:
-      `🟥 Critical: ${combinedTotals.Critical}  🟧 Serious: ${combinedTotals.Serious}  🟨 Moderate: ${combinedTotals.Moderate}  🟦 Minor: ${combinedTotals.Minor}`,
+      `\`[Critical]\` ${combinedTotals.Critical}  \`[Serious]\` ${combinedTotals.Serious}  \`[Moderate]\` ${combinedTotals.Moderate}  \`[Minor]\` ${combinedTotals.Minor}`,
     }});
 
     if (summary.patternFindings && summary.patternFindings.findings.length > 0) {
       blocks.push({ type: "divider" });
       blocks.push({ type: "section", text: { type: "mrkdwn", text: "*Source Pattern Analysis*" } });
-      appendPatternFindings(blocks, summary.patternFindings, 10);
+      appendPatternFindings(blocks, summary.patternFindings, 10, context);
     }
 
     if (summary.findings && summary.findings.length > 0) {
@@ -82,7 +86,7 @@ export function formatAuditResultBlocks(
       const maxDom = 20 - Math.min(summary.patternFindings?.findings.length ?? 0, 10);
       const domShown = summary.findings.slice(0, maxDom);
       domShown.forEach((f, i) => {
-        const text = [`*${i + 1}. ${severityIcon(f.severity)} [${f.severity}] ${escapeHtmlTags(f.title)}*`];
+        const text = [`*${i + 1}. ${severityTag(f.severity)} ${escapeHtmlTags(f.title)}*`];
         if (f.url) {
           try {
             const pathname = new URL(f.url).pathname.replace(/\/index\.html$/, "/").replace(/\.html$/, "").replace(/^\//, "") || "home";
@@ -95,8 +99,13 @@ export function formatAuditResultBlocks(
         }
         blocks.push({ type: "section", text: { type: "mrkdwn", text: text.join("\n") } });
         if (f.id) {
+          const findingFixValue = JSON.stringify({
+            id: f.id, o: context.owner, r: context.repo, s: context.headSha ?? "",
+            h: context.headRef ?? context.branch ?? "", b: context.baseRef ?? "",
+            i: context.installationId ?? 0,
+          });
           blocks.push({ type: "actions", elements: [
-            { type: "button", text: { type: "plain_text", text: `Fix ${f.id}` }, action_id: "a11y_fix_finding", value: f.id },
+            { type: "button", text: { type: "plain_text", text: `Fix ${f.id}` }, action_id: "a11y_fix_finding", value: findingFixValue },
           ]});
         }
       });
@@ -109,9 +118,15 @@ export function formatAuditResultBlocks(
     }
   }
 
+  const fixContext = JSON.stringify({
+    o: context.owner, r: context.repo, s: context.headSha ?? "",
+    h: context.headRef ?? context.branch ?? "", b: context.baseRef ?? "",
+    i: context.installationId ?? 0,
+  });
+
   const actions: Record<string, unknown>[] = [];
   if (total > 0) {
-    actions.push({ type: "button", text: { type: "plain_text", text: "Fix All" }, action_id: "a11y_fix_all", style: "primary" });
+    actions.push({ type: "button", text: { type: "plain_text", text: "Fix All" }, action_id: "a11y_fix_all", value: fixContext, style: "primary" });
   }
   if (context.githubCommentUrl) {
     actions.push({ type: "button", text: { type: "plain_text", text: "View on GitHub" }, action_id: "a11y_view_github", url: context.githubCommentUrl });
@@ -124,18 +139,23 @@ export function formatAuditResultBlocks(
   return blocks;
 }
 
-function appendPatternFindings(blocks: Record<string, unknown>[], patternFindings: PatternAuditSummary, max: number): void {
+function appendPatternFindings(blocks: Record<string, unknown>[], patternFindings: PatternAuditSummary, max: number, context: ResultContext): void {
   const shown = patternFindings.findings.slice(0, max);
   shown.forEach((f, i) => {
     const location = f.line ? `${f.file}:${f.line}` : f.file;
     const text = [
-      `*${i + 1}. ${severityIcon(f.severity)} [${f.severity}] ${escapeHtmlTags(f.title)}*`,
+      `*${i + 1}. ${severityTag(f.severity)} ${escapeHtmlTags(f.title)}*`,
       `File: \`${location}\` · Rule: \`${f.patternId}\``,
     ];
     blocks.push({ type: "section", text: { type: "mrkdwn", text: text.join("\n") } });
     if (f.id) {
+      const findingFixValue = JSON.stringify({
+        id: f.id, o: context.owner, r: context.repo, s: context.headSha ?? "",
+        h: context.headRef ?? context.branch ?? "", b: context.baseRef ?? "",
+        i: context.installationId ?? 0,
+      });
       blocks.push({ type: "actions", elements: [
-        { type: "button", text: { type: "plain_text", text: `Fix ${f.id}` }, action_id: "a11y_fix_finding", value: f.id },
+        { type: "button", text: { type: "plain_text", text: `Fix ${f.id}` }, action_id: "a11y_fix_finding", value: findingFixValue },
       ]});
     }
   });

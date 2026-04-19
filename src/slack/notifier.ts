@@ -1,6 +1,6 @@
 import type { KnownBlock, WebClient } from "@slack/web-api";
 import type { DomAuditSummary, SlackContext } from "../types.js";
-import { formatAuditResultBlocks, formatScanningBlocks, formatFixProgressBlocks } from "./formatter.js";
+import { formatAuditResultBlocks, formatScanningBlocks, formatFixProgressBlocks, type ResultContext } from "./formatter.js";
 
 export async function postScanningMessage(
   client: WebClient,
@@ -31,7 +31,7 @@ export async function updateWithAuditResults(
   client: WebClient,
   slackContext: SlackContext,
   summary: DomAuditSummary,
-  context: { owner: string; repo: string; branch?: string; githubCommentUrl?: string },
+  context: ResultContext,
 ): Promise<void> {
   try {
     const blocks = formatAuditResultBlocks(summary, context) as unknown as KnownBlock[];

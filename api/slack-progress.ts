@@ -35,17 +35,20 @@ export default async function slackProgress(
     return;
   }
 
+  const steps = Array.isArray(payload.steps)
+    ? (payload.steps as unknown[]).map((s) => String(s))
+    : [];
+
   const result = await processProgressUpdate({
     token: header(req, "x-callback-token"),
-    step: String(payload.step ?? ""),
     owner: String(payload.owner ?? ""),
     repo: String(payload.repo ?? ""),
     branch: String(payload.branch ?? ""),
     mode: String(payload.mode ?? ""),
     slack_channel_id: String(payload.slack_channel_id ?? ""),
     slack_message_ts: String(payload.slack_message_ts ?? ""),
-    total_steps: Number(payload.total_steps ?? 0),
     current_step: Number(payload.current_step ?? 0),
+    steps,
   });
 
   res.statusCode = result.status;
