@@ -55,6 +55,16 @@ on:
         required: false
         default: ""
         type: string
+      callback_url:
+        description: "Base URL for Slack progress updates (optional)"
+        required: false
+        default: ""
+        type: string
+      callback_token:
+        description: "Callback auth token for progress updates (optional)"
+        required: false
+        default: ""
+        type: string
       slack_channel_id:
         description: "Slack channel ID for dual posting (optional)"
         required: false
@@ -84,6 +94,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
+      - name: Slack progress — Checking out repository
+        if: ${{ inputs.slack_channel_id != '' }}
+        run: |
+          PROGRESS_URL="${{ inputs.callback_url || '' }}"
+          if [ -n "$PROGRESS_URL" ]; then
+            curl -sS -X POST "${PROGRESS_URL%/scan-callback}/slack-progress" \
+              -H "Content-Type: application/json" \
+              -H "x-callback-token: ${{ inputs.callback_token || '' }}" \
+              -d '{"step":"Checking out repository…","owner":"${{ inputs.target_owner }}","repo":"${{ inputs.target_repo }}","branch":"${{ inputs.head_ref }}","mode":"Fix","current_step":1,"total_steps":5,"slack_channel_id":"${{ inputs.slack_channel_id }}","slack_message_ts":"${{ inputs.slack_message_ts }}"}' || true
+          fi
+
       - name: Checkout runner repository
         uses: actions/checkout@v4
         with:
@@ -99,6 +120,17 @@ jobs:
       - name: Install runner dependencies
         run: npm install
         working-directory: runner
+
+      - name: Slack progress — Restoring findings
+        if: ${{ inputs.slack_channel_id != '' }}
+        run: |
+          PROGRESS_URL="${{ inputs.callback_url || '' }}"
+          if [ -n "$PROGRESS_URL" ]; then
+            curl -sS -X POST "${PROGRESS_URL%/scan-callback}/slack-progress" \
+              -H "Content-Type: application/json" \
+              -H "x-callback-token: ${{ inputs.callback_token || '' }}" \
+              -d '{"step":"Restoring cached findings…","owner":"${{ inputs.target_owner }}","repo":"${{ inputs.target_repo }}","branch":"${{ inputs.head_ref }}","mode":"Fix","current_step":2,"total_steps":5,"slack_channel_id":"${{ inputs.slack_channel_id }}","slack_message_ts":"${{ inputs.slack_message_ts }}"}' || true
+          fi
 
       - name: Restore findings from cache
         id: findings_cache
@@ -250,6 +282,17 @@ jobs:
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `start_command=${startCmd}\nhealth_url=http://127.0.0.1:4173\n`)
           console.log('Detected server command:', startCmd)
           NODE
+
+      - name: Slack progress — Generating patches
+        if: ${{ inputs.slack_channel_id != '' }}
+        run: |
+          PROGRESS_URL="${{ inputs.callback_url || '' }}"
+          if [ -n "$PROGRESS_URL" ]; then
+            curl -sS -X POST "${PROGRESS_URL%/scan-callback}/slack-progress" \
+              -H "Content-Type: application/json" \
+              -H "x-callback-token: ${{ inputs.callback_token || '' }}" \
+              -d '{"step":"Generating patches with Claude…","owner":"${{ inputs.target_owner }}","repo":"${{ inputs.target_repo }}","branch":"${{ inputs.head_ref }}","mode":"Fix","current_step":3,"total_steps":5,"slack_channel_id":"${{ inputs.slack_channel_id }}","slack_message_ts":"${{ inputs.slack_message_ts }}"}' || true
+          fi
 
       - name: Apply finding fixes
         id: apply_fixes
@@ -508,6 +551,17 @@ jobs:
         if: ${{ steps.apply_fixes.outputs.all_failed != 'true' }}
         run: find runner/node_modules/@diegovelasquezweb/a11y-engine/.audit -name "a11y-findings.json" -delete 2>/dev/null || true
 
+      - name: Slack progress — Verifying patches
+        if: ${{ inputs.slack_channel_id != '' }}
+        run: |
+          PROGRESS_URL="${{ inputs.callback_url || '' }}"
+          if [ -n "$PROGRESS_URL" ]; then
+            curl -sS -X POST "${PROGRESS_URL%/scan-callback}/slack-progress" \
+              -H "Content-Type: application/json" \
+              -H "x-callback-token: ${{ inputs.callback_token || '' }}" \
+              -d '{"step":"Verifying patches…","owner":"${{ inputs.target_owner }}","repo":"${{ inputs.target_repo }}","branch":"${{ inputs.head_ref }}","mode":"Fix","current_step":4,"total_steps":5,"slack_channel_id":"${{ inputs.slack_channel_id }}","slack_message_ts":"${{ inputs.slack_message_ts }}"}' || true
+          fi
+
       - name: Verify patched finding
         id: verify_fix
         if: ${{ steps.apply_fixes.outputs.all_failed != 'true' }}
@@ -635,6 +689,17 @@ jobs:
           git -C target push origin "$BRANCH_NAME"
           echo "branch_name=$BRANCH_NAME" >> "$GITHUB_OUTPUT"
           echo "verified_ids=${{ steps.verify_result.outputs.verified_ids }}" >> "$GITHUB_OUTPUT"
+
+      - name: Slack progress — Creating fix PR
+        if: ${{ inputs.slack_channel_id != '' && steps.commit_fix.outputs.branch_name != '' }}
+        run: |
+          PROGRESS_URL="${{ inputs.callback_url || '' }}"
+          if [ -n "$PROGRESS_URL" ]; then
+            curl -sS -X POST "${PROGRESS_URL%/scan-callback}/slack-progress" \
+              -H "Content-Type: application/json" \
+              -H "x-callback-token: ${{ inputs.callback_token || '' }}" \
+              -d '{"step":"Creating fix PR…","owner":"${{ inputs.target_owner }}","repo":"${{ inputs.target_repo }}","branch":"${{ inputs.head_ref }}","mode":"Fix","current_step":5,"total_steps":5,"slack_channel_id":"${{ inputs.slack_channel_id }}","slack_message_ts":"${{ inputs.slack_message_ts }}"}' || true
+          fi
 
       - name: Open pull request
         id: open_pr

@@ -18,6 +18,8 @@ interface DispatchFixWorkflowInput {
   checkRunId: number;
   aiModel: string;
   projectHints?: string;
+  callbackUrl?: string;
+  callbackToken?: string;
   slackChannelId?: string;
   slackMessageTs?: string;
   slackThreadTs?: string;
@@ -42,7 +44,13 @@ export async function dispatchFixWorkflow(input: DispatchFixWorkflowInput): Prom
       check_run_id: String(input.checkRunId),
       ai_model: input.aiModel,
       project_hints: input.projectHints ?? "",
-      ...(input.slackChannelId ? { slack_channel_id: input.slackChannelId, slack_message_ts: input.slackMessageTs ?? "", slack_thread_ts: input.slackThreadTs ?? "" } : {}),
+      ...(input.slackChannelId ? {
+        callback_url: input.callbackUrl ?? "",
+        callback_token: input.callbackToken ?? "",
+        slack_channel_id: input.slackChannelId,
+        slack_message_ts: input.slackMessageTs ?? "",
+        slack_thread_ts: input.slackThreadTs ?? "",
+      } : {}),
     },
   });
 }

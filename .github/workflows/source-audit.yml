@@ -75,6 +75,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Slack progress — Checking out repository
+        if: ${{ inputs.slack_channel_id != '' }}
+        run: |
+          PROGRESS_URL="${{ inputs.callback_url }}"
+          curl -sS -X POST "${PROGRESS_URL%/scan-callback}/slack-progress" \
+            -H "Content-Type: application/json" \
+            -H "x-callback-token: ${{ inputs.callback_token }}" \
+            -d '{"step":"Checking out repository…","owner":"${{ inputs.target_owner }}","repo":"${{ inputs.target_repo }}","branch":"${{ inputs.branch }}","mode":"Source Only","current_step":1,"total_steps":2,"slack_channel_id":"${{ inputs.slack_channel_id }}","slack_message_ts":"${{ inputs.slack_message_ts }}"}' || true
+
       - name: Checkout runner repository
         uses: actions/checkout@v4
         with:
@@ -98,6 +107,15 @@ jobs:
           ref: ${{ inputs.head_sha }}
           token: ${{ inputs.target_token }}
           path: target
+
+      - name: Slack progress — Running source analysis
+        if: ${{ inputs.slack_channel_id != '' }}
+        run: |
+          PROGRESS_URL="${{ inputs.callback_url }}"
+          curl -sS -X POST "${PROGRESS_URL%/scan-callback}/slack-progress" \
+            -H "Content-Type: application/json" \
+            -H "x-callback-token: ${{ inputs.callback_token }}" \
+            -d '{"step":"Running source pattern analysis…","owner":"${{ inputs.target_owner }}","repo":"${{ inputs.target_repo }}","branch":"${{ inputs.branch }}","mode":"Source Only","current_step":2,"total_steps":2,"slack_channel_id":"${{ inputs.slack_channel_id }}","slack_message_ts":"${{ inputs.slack_message_ts }}"}' || true
 
       - name: Run source pattern scanner
         id: source_scan

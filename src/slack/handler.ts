@@ -275,6 +275,8 @@ async function handleFixSubmit(interaction: SlackInteractionPayload): Promise<Sl
     targetToken,
     checkRunId,
     aiModel,
+    callbackUrl: `${CONFIG.appBaseUrl}/api/scan-callback`,
+    callbackToken: CONFIG.domAuditCallbackToken,
     slackChannelId,
     slackMessageTs,
     slackThreadTs,

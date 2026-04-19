@@ -79,7 +79,17 @@ jobs:
   dom-audit:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      SLACK_PROGRESS_URL: ${{ inputs.callback_url && inputs.slack_channel_id != '' && format('{0}', inputs.callback_url) || '' }}
     steps:
+      - name: Slack progress — Checking out repository
+        if: ${{ inputs.slack_channel_id != '' }}
+        run: |
+          curl -sS -X POST "${SLACK_PROGRESS_URL%/scan-callback}/slack-progress" \
+            -H "Content-Type: application/json" \
+            -H "x-callback-token: ${{ inputs.callback_token }}" \
+            -d '{"step":"Checking out repository…","owner":"${{ inputs.target_owner }}","repo":"${{ inputs.target_repo }}","branch":"${{ inputs.branch }}","mode":"Full Audit","current_step":1,"total_steps":6,"slack_channel_id":"${{ inputs.slack_channel_id }}","slack_message_ts":"${{ inputs.slack_message_ts }}"}' || true
+
       - name: Checkout runner repository
         uses: actions/checkout@v4
         with:
@@ -162,10 +172,26 @@ jobs:
           fs.appendFileSync(out, `${lines.join('\n')}\n`)
           NODE
 
+      - name: Slack progress — Installing dependencies
+        if: ${{ inputs.slack_channel_id != '' && steps.runtime.outputs.install_command != '' }}
+        run: |
+          curl -sS -X POST "${SLACK_PROGRESS_URL%/scan-callback}/slack-progress" \
+            -H "Content-Type: application/json" \
+            -H "x-callback-token: ${{ inputs.callback_token }}" \
+            -d '{"step":"Installing dependencies…","owner":"${{ inputs.target_owner }}","repo":"${{ inputs.target_repo }}","branch":"${{ inputs.branch }}","mode":"Full Audit","current_step":2,"total_steps":6,"slack_channel_id":"${{ inputs.slack_channel_id }}","slack_message_ts":"${{ inputs.slack_message_ts }}"}' || true
+
       - name: Install target dependencies
         if: ${{ steps.runtime.outputs.install_command != '' }}
         run: bash -lc "${{ steps.runtime.outputs.install_command }}"
         working-directory: ${{ steps.runtime.outputs.workdir }}
+
+      - name: Slack progress — Building project
+        if: ${{ inputs.slack_channel_id != '' && steps.runtime.outputs.build_command != '' }}
+        run: |
+          curl -sS -X POST "${SLACK_PROGRESS_URL%/scan-callback}/slack-progress" \
+            -H "Content-Type: application/json" \
+            -H "x-callback-token: ${{ inputs.callback_token }}" \
+            -d '{"step":"Building project…","owner":"${{ inputs.target_owner }}","repo":"${{ inputs.target_repo }}","branch":"${{ inputs.branch }}","mode":"Full Audit","current_step":3,"total_steps":6,"slack_channel_id":"${{ inputs.slack_channel_id }}","slack_message_ts":"${{ inputs.slack_message_ts }}"}' || true
 
       - name: Build target project
         if: ${{ steps.runtime.outputs.build_command != '' }}
@@ -193,6 +219,14 @@ jobs:
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `start_command=${startCmd}\nhealth_url=http://127.0.0.1:4173\n`)
           console.log('Detected server command:', startCmd)
           NODE
+
+      - name: Slack progress — Starting server
+        if: ${{ inputs.slack_channel_id != '' }}
+        run: |
+          curl -sS -X POST "${SLACK_PROGRESS_URL%/scan-callback}/slack-progress" \
+            -H "Content-Type: application/json" \
+            -H "x-callback-token: ${{ inputs.callback_token }}" \
+            -d '{"step":"Starting local server…","owner":"${{ inputs.target_owner }}","repo":"${{ inputs.target_repo }}","branch":"${{ inputs.branch }}","mode":"Full Audit","current_step":4,"total_steps":6,"slack_channel_id":"${{ inputs.slack_channel_id }}","slack_message_ts":"${{ inputs.slack_message_ts }}"}' || true
 
       - name: Start local server
         run: |
@@ -223,6 +257,14 @@ jobs:
             sleep 2
           done
 
+      - name: Slack progress — Running DOM scan
+        if: ${{ inputs.slack_channel_id != '' }}
+        run: |
+          curl -sS -X POST "${SLACK_PROGRESS_URL%/scan-callback}/slack-progress" \
+            -H "Content-Type: application/json" \
+            -H "x-callback-token: ${{ inputs.callback_token }}" \
+            -d '{"step":"Running DOM scan…","owner":"${{ inputs.target_owner }}","repo":"${{ inputs.target_repo }}","branch":"${{ inputs.branch }}","mode":"Full Audit","current_step":5,"total_steps":6,"slack_channel_id":"${{ inputs.slack_channel_id }}","slack_message_ts":"${{ inputs.slack_message_ts }}"}' || true
+
       - name: Run source pattern scanner
         id: source_scan
         if: ${{ inputs.source_scan_enabled != 'false' }}
@@ -234,6 +276,14 @@ jobs:
             --output findings/a11y-pattern-findings.json
           echo "exit_code=$?" >> "$GITHUB_OUTPUT"
           exit 0
+
+      - name: Slack progress — Running source analysis
+        if: ${{ inputs.slack_channel_id != '' && inputs.source_scan_enabled != 'false' }}
+        run: |
+          curl -sS -X POST "${SLACK_PROGRESS_URL%/scan-callback}/slack-progress" \
+            -H "Content-Type: application/json" \
+            -H "x-callback-token: ${{ inputs.callback_token }}" \
+            -d '{"step":"Running source pattern analysis…","owner":"${{ inputs.target_owner }}","repo":"${{ inputs.target_repo }}","branch":"${{ inputs.branch }}","mode":"Full Audit","current_step":6,"total_steps":6,"slack_channel_id":"${{ inputs.slack_channel_id }}","slack_message_ts":"${{ inputs.slack_message_ts }}"}' || true
 
       - name: Run DOM audit
         id: run_audit
