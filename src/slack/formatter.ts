@@ -142,7 +142,7 @@ export function formatAuditResultBlocks(
     const jiraBulkUrl = `https://jira.atlassian.net/secure/CreateIssueDetails!init.jspa?summary=${encodeURIComponent(`A11y Audit: ${total} findings in ${context.owner}/${context.repo}`)}&description=${encodeURIComponent(`Branch: ${context.branch ?? "default"}\nTotal: ${total} findings\n\n${allFindingsSummary}`)}`;
     const ghBulkUrl = `https://github.com/${context.owner}/${context.repo}/issues/new?title=${encodeURIComponent(`A11y Audit: ${total} findings`)}&body=${encodeURIComponent(`**Repo:** ${context.owner}/${context.repo}\n**Branch:** ${context.branch ?? "default"}\n**Total:** ${total} findings\n\n${allFindingsBody}`)}&labels=${encodeURIComponent("accessibility")}`;
     actions.push({ type: "button", text: { type: "plain_text", text: "Fix All" }, action_id: "a11y_fix_all", value: fixContext, style: "primary" });
-    actions.push({ type: "button", text: { type: "plain_text", text: "Create Issue" }, action_id: "a11y_create_gh_issue", url: ghBulkUrl });
+    actions.push({ type: "button", text: { type: "plain_text", text: "Create GitHub Issue" }, action_id: "a11y_create_gh_issue", url: ghBulkUrl });
     actions.push({ type: "button", text: { type: "plain_text", text: "Create Jira Ticket" }, action_id: "a11y_create_jira_ticket", url: jiraBulkUrl });
   }
   if (actions.length > 0) {
