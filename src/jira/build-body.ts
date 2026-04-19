@@ -3,15 +3,9 @@ import type { AdfSection, BulkFinding, JiraAdfDoc, JiraBulkPayload, JiraSinglePa
 
 export function buildSingleFindingBody(p: JiraSinglePayload): JiraAdfDoc {
   const sections: AdfSection[] = [
-    { kind: "paragraph", label: "Severity", value: p.v },
     ...(p.pg ? [{ kind: "paragraph" as const, label: "Page", value: `/${p.pg}` }] : []),
     ...(p.sel ? [{ kind: "paragraph" as const, label: "Selector", value: p.sel }] : []),
-    {
-      kind: "link",
-      label: "Repo",
-      text: `${p.o}/${p.r}`,
-      href: `https://github.com/${p.o}/${p.r}`,
-    },
+    { kind: "link", label: "Repo", text: `${p.o}/${p.r}`, href: `https://github.com/${p.o}/${p.r}` },
   ];
   return buildAdf(sections);
 }
@@ -22,7 +16,7 @@ export function buildSingleFindingSummary(p: JiraSinglePayload): string {
 }
 
 function formatBulkFindingLine(f: BulkFinding): string {
-  const parts: string[] = [`[${f.v}] ${f.t}`];
+  const parts: string[] = [f.t];
   if (f.pg) parts.push(`Page: /${f.pg}`);
   if (f.sel) parts.push(`Selector: ${f.sel}`);
   return parts.join(" · ");

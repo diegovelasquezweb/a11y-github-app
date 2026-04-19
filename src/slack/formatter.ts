@@ -59,6 +59,42 @@ export interface ResultContext {
   jiraApiMode?: boolean;
 }
 
+function buildGhBulkBody(summary: DomAuditSummary, context: ResultContext, total: number): string {
+  const t = summary.totals;
+  const pt = summary.patternFindings?.totals;
+  const branch = context.branch ?? "default";
+  const header = [
+    `## A11y Audit — ${total} findings`,
+    ``,
+    `| Branch | Critical | Serious | Moderate | Minor |`,
+    `|---|---|---|---|---|`,
+    `| \`${branch}\` | ${t.Critical + (pt?.Critical ?? 0)} | ${t.Serious + (pt?.Serious ?? 0)} | ${t.Moderate + (pt?.Moderate ?? 0)} | ${t.Minor + (pt?.Minor ?? 0)} |`,
+  ].join("\n");
+
+  const findingRows: string[] = [];
+  for (const f of (summary.patternFindings?.findings ?? [])) {
+    findingRows.push(`| ${f.severity} | ${f.title} | \`${f.file}\` |`);
+  }
+  for (const f of (summary.findings ?? [])) {
+    let pg = "";
+    if (f.url) { try { pg = new URL(f.url).pathname.replace(/\/index\.html$/, "/").replace(/\.html$/, "").replace(/^\//, "") || "home"; } catch { /* ignore */ } }
+    findingRows.push(`| ${f.severity} | ${f.title} | \`/${pg}\` |`);
+  }
+  if (findingRows.length === 0) return header;
+
+  const urlPrefix = `https://github.com/${context.owner}/${context.repo}/issues/new?title=${encodeURIComponent(`[A11y] Audit: ${total} findings`)}&body=&labels=${encodeURIComponent("accessibility")}`;
+  const findingsPrefix = `\n\n### Top Findings\n\n| Severity | Title | Location |\n|---|---|---|`;
+  let body = header + findingsPrefix;
+  let added = 0;
+  for (const row of findingRows) {
+    const candidate = body + "\n" + row;
+    if (urlPrefix.length + encodeURIComponent(candidate).length > 2900) break;
+    body = candidate;
+    added++;
+  }
+  return added > 0 ? body : header;
+}
+
 export function formatAuditResultBlocks(
   summary: DomAuditSummary,
   context: ResultContext,
@@ -136,16 +172,12 @@ export function formatAuditResultBlocks(
           });
           let pathname = "";
           if (f.url) { try { pathname = new URL(f.url).pathname.replace(/\/index\.html$/, "/").replace(/\.html$/, "").replace(/^\//, "") || "home"; } catch { /* ignore */ } }
-          const issueBody = [
-            `**Finding:** \`${f.id}\``,
-            `**Severity:** ${f.severity}`,
-            `**Title:** ${f.title}`,
-            `**Repo:** ${context.owner}/${context.repo}`,
-            `**Branch:** ${context.branch ?? "default"}`,
-            ...(pathname ? [`**Page:** \`/${pathname}\``] : []),
-            ...(f.selector ? [`**Selector:** \`${f.selector}\``] : []),
-            ...(f.wcag ? [`**WCAG:** ${f.wcag}`] : []),
-          ].join("\n");
+          const issueTableRows = [
+            ...(pathname ? [`| **Page** | \`/${pathname}\` |`] : []),
+            ...(f.selector ? [`| **Selector** | \`${f.selector}\` |`] : []),
+            `| **Branch** | \`${context.branch ?? "default"}\` |`,
+          ];
+          const issueBody = `${f.title}\n\n| | |\n|---|---|\n${issueTableRows.join("\n")}`;
           const ghIssueUrl = `https://github.com/${context.owner}/${context.repo}/issues/new?title=${encodeURIComponent(`[A11y] [${f.severity}] ${f.title}`)}&body=${encodeURIComponent(issueBody)}&labels=${encodeURIComponent("accessibility")}`;
           const jiraOption: Record<string, unknown> = context.jiraApiMode
             ? { text: { type: "plain_text", text: "Create Jira Ticket" }, value: buildJiraSingleValue(f.id, f.severity, f.title, context.owner, context.repo) }
@@ -192,16 +224,7 @@ export function formatAuditResultBlocks(
   if (total > 0) {
     const t = summary.totals;
     const pt = summary.patternFindings?.totals;
-    const compactBody = [
-      `**Repo:** ${context.owner}/${context.repo}`,
-      `**Branch:** \`${context.branch ?? "default"}\``,
-      `**Total findings:** ${total}`,
-      `- Critical: ${t.Critical + (pt?.Critical ?? 0)}`,
-      `- Serious: ${t.Serious + (pt?.Serious ?? 0)}`,
-      `- Moderate: ${t.Moderate + (pt?.Moderate ?? 0)}`,
-      `- Minor: ${t.Minor + (pt?.Minor ?? 0)}`,
-    ].join("\n");
-    const ghBulkUrl = `https://github.com/${context.owner}/${context.repo}/issues/new?title=${encodeURIComponent(`[A11y] Audit: ${total} findings`)}&body=${encodeURIComponent(compactBody)}&labels=${encodeURIComponent("accessibility")}`;
+    const ghBulkUrl = `https://github.com/${context.owner}/${context.repo}/issues/new?title=${encodeURIComponent(`[A11y] Audit: ${total} findings`)}&body=${encodeURIComponent(buildGhBulkBody(summary, context, total))}&labels=${encodeURIComponent("accessibility")}`;
     const allBulkFindings: BulkFinding[] = [];
     if (summary.patternFindings) {
       for (const f of summary.patternFindings.findings) {
@@ -245,7 +268,7 @@ export function formatAuditResultBlocks(
           type: "button",
           text: { type: "plain_text", text: "Create Jira Ticket" },
           action_id: "a11y_create_jira_ticket",
-          url: `https://jira.atlassian.net/secure/CreateIssueDetails!init.jspa?summary=${encodeURIComponent(`A11y Audit: ${total} findings in ${context.owner}/${context.repo}`)}&description=${encodeURIComponent(compactBody)}`,
+          url: `https://jira.atlassian.net/secure/CreateIssueDetails!init.jspa?summary=${encodeURIComponent(`A11y Audit: ${total} findings in ${context.owner}/${context.repo}`)}`,
         };
     actions.push({ type: "button", text: { type: "plain_text", text: "Fix All with AI" }, action_id: "a11y_fix_all", value: fixContext, style: "primary" });
     actions.push({ type: "button", text: { type: "plain_text", text: "Create GitHub Issue" }, action_id: "a11y_create_gh_issue", url: ghBulkUrl });
@@ -273,15 +296,7 @@ function appendPatternFindings(blocks: Record<string, unknown>[], patternFinding
         h: context.headRef ?? context.branch ?? "", b: context.baseRef ?? "",
         i: context.installationId ?? 0,
       });
-      const patIssueBody = [
-        `**Finding:** \`${f.id}\``,
-        `**Severity:** ${f.severity}`,
-        `**Title:** ${f.title}`,
-        `**Repo:** ${context.owner}/${context.repo}`,
-        `**Branch:** ${context.branch ?? "default"}`,
-        `**File:** \`${location}\``,
-        `**Rule:** \`${f.patternId}\``,
-      ].join("\n");
+      const patIssueBody = `${f.title}\n\n| | |\n|---|---|\n| **File** | \`${location}\` |\n| **Branch** | \`${context.branch ?? "default"}\` |`;
       const ghIssueUrl = `https://github.com/${context.owner}/${context.repo}/issues/new?title=${encodeURIComponent(`[A11y] [${f.severity}] ${f.title}`)}&body=${encodeURIComponent(patIssueBody)}&labels=${encodeURIComponent("accessibility")}`;
       const patJiraOption: Record<string, unknown> = context.jiraApiMode
         ? { text: { type: "plain_text", text: "Create Jira Ticket" }, value: buildJiraSingleValue(f.id, f.severity, f.title, context.owner, context.repo) }
