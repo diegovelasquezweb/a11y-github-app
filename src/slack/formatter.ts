@@ -57,6 +57,8 @@ export interface ResultContext {
   installationId?: number;
   /** When true, Jira buttons use API mode (value JSON payload). When false/absent, use URL mode. */
   jiraApiMode?: boolean;
+  /** When true, "Create GitHub Issue" buttons are shown. Hidden by default. */
+  githubIssuesEnabled?: boolean;
 }
 
 function buildGhBulkBody(summary: DomAuditSummary, context: ResultContext, total: number): string {
@@ -197,7 +199,7 @@ export function formatAuditResultBlocks(
               action_id: `a11y_actions_${f.id}`,
               options: [
                 { text: { type: "plain_text", text: "Fix with AI" }, value: findingFixValue },
-                { text: { type: "plain_text", text: "Create GitHub Issue" }, url: ghIssueUrl, value: `gh_issue_${f.id}` },
+                ...(context.githubIssuesEnabled ? [{ text: { type: "plain_text", text: "Create GitHub Issue" }, url: ghIssueUrl, value: `gh_issue_${f.id}` }] : []),
                 jiraOption,
               ],
             },
@@ -271,7 +273,7 @@ export function formatAuditResultBlocks(
           url: `https://jira.atlassian.net/secure/CreateIssueDetails!init.jspa?summary=${encodeURIComponent(`A11y Audit: ${total} findings in ${context.owner}/${context.repo}`)}`,
         };
     actions.push({ type: "button", text: { type: "plain_text", text: "Fix All with AI" }, action_id: "a11y_fix_all", value: fixContext, style: "primary" });
-    actions.push({ type: "button", text: { type: "plain_text", text: "Create GitHub Issue" }, action_id: "a11y_create_gh_issue", url: ghBulkUrl });
+    if (context.githubIssuesEnabled) actions.push({ type: "button", text: { type: "plain_text", text: "Create GitHub Issue" }, action_id: "a11y_create_gh_issue", url: ghBulkUrl });
     actions.push(jiraButton);
   }
   if (actions.length > 0) {
@@ -313,7 +315,7 @@ function appendPatternFindings(blocks: Record<string, unknown>[], patternFinding
           action_id: `a11y_actions_${f.id}`,
           options: [
             { text: { type: "plain_text", text: "Fix with AI" }, value: findingFixValue },
-            { text: { type: "plain_text", text: "Create GitHub Issue" }, url: ghIssueUrl, value: `gh_issue_${f.id}` },
+            ...(context.githubIssuesEnabled ? [{ text: { type: "plain_text", text: "Create GitHub Issue" }, url: ghIssueUrl, value: `gh_issue_${f.id}` }] : []),
             patJiraOption,
           ],
         },

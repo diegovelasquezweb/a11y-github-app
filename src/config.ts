@@ -40,4 +40,5 @@ export const CONFIG = {
   jiraApiToken: process.env.JIRA_API_TOKEN?.trim() ?? "",
   jiraProjectKey: process.env.JIRA_PROJECT_KEY?.trim() ?? "",
   jiraIssueType: process.env.JIRA_ISSUE_TYPE?.trim() ?? "Bug",
+  githubIssuesEnabled: process.env.GITHUB_ISSUES_ENABLED === "true",
 };
