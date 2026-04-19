@@ -29,9 +29,9 @@ function buildProgressBar(current: number, total: number): string {
 function buildStepList(steps: string[], current: number): string {
   return steps.map((name, i) => {
     const num = i + 1;
-    if (num < current) return `✅  ~${name}~`;
-    if (num === current) return `🔄  *${name}…*`;
-    return `◻️  ${name}`;
+    if (num < current) return `:white_check_mark:  ~${name}~`;
+    if (num === current) return `:arrows_counterclockwise:  *${name}…*`;
+    return `:white_square:  ${name}`;
   }).join("\n");
 }
 
