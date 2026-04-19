@@ -317,36 +317,68 @@ async function handleBlockAction(interaction: SlackInteractionPayload): Promise<
     const messageTs = interaction.message?.ts ?? "";
 
     let fixCtx: Record<string, unknown> = {};
-    let findingLabel = "all";
+    let findingIds = "all";
     try {
       fixCtx = JSON.parse(action.value ?? "{}");
-      findingLabel = action.action_id === "a11y_fix_all" ? "all" : String(fixCtx.id ?? "");
+      findingIds = action.action_id === "a11y_fix_all" ? "all" : String(fixCtx.id ?? "");
     } catch {
-      // value not JSON — use as raw finding ID
-      findingLabel = action.value ?? "all";
+      findingIds = action.value ?? "all";
+    }
+
+    const owner = String(fixCtx.o ?? "");
+    const repo = String(fixCtx.r ?? "");
+    const headSha = String(fixCtx.s ?? "");
+    const headRef = String(fixCtx.h ?? "");
+    const baseRef = String(fixCtx.b ?? "");
+    const installationId = Number(fixCtx.i ?? 0);
+
+    if (!owner || !repo || !headSha || !installationId) {
+      console.warn("[slack] fix button missing context", fixCtx);
+      return { status: 200, body: "" };
     }
 
     try {
-      console.log("[slack] opening fix modal", { findingLabel, triggerId: interaction.trigger_id, fixCtx });
-      const view = buildFixModal({
-        channelId,
-        messageTs,
-        userId: interaction.user?.id ?? "",
-        owner: String(fixCtx.o ?? ""),
-        repo: String(fixCtx.r ?? ""),
-        headSha: String(fixCtx.s ?? ""),
-        headRef: String(fixCtx.h ?? ""),
-        baseRef: String(fixCtx.b ?? ""),
+      const slackCtx = { channelId, messageTs, threadTs: messageTs };
+      const fixCtxResult = await postFixProgress(client, slackCtx, owner, repo, findingIds);
+      const slackChannelId = fixCtxResult?.channelId ?? "";
+      const slackMessageTs = fixCtxResult?.messageTs ?? "";
+      const slackThreadTs = fixCtxResult?.threadTs ?? "";
+
+      const targetToken = await createInstallationToken(installationId);
+      const runnerOctokit = getInstallationOctokit(installationId);
+      const octokit = getInstallationOctokit(installationId);
+      const runnerOwner = CONFIG.scanRunnerOwner || owner;
+      const runnerRepo = CONFIG.scanRunnerRepo || repo;
+      const requestedBy = interaction.user?.username ?? "slack-user";
+
+      const checkRunId = await createFixPendingCheck({ octokit, owner, repo, headSha, findingIds });
+
+      await dispatchFixWorkflow({
+        runnerOctokit,
+        runnerOwner,
+        runnerRepo,
+        workflow: CONFIG.scanFixWorkflow,
+        ref: CONFIG.scanRunnerRef,
+        targetOwner: owner,
+        targetRepo: repo,
         pullNumber: 0,
-        installationId: Number(fixCtx.i ?? 0),
-      }, findingLabel);
-      const result = await client.views.open({
-        trigger_id: interaction.trigger_id,
-        view: view as Parameters<typeof client.views.open>[0]["view"],
+        headSha,
+        headRef: headRef || "main",
+        baseRef: baseRef || "main",
+        findingIds,
+        requestedBy,
+        targetToken,
+        checkRunId,
+        aiModel: CONFIG.fixAiModel,
+        callbackUrl: `${CONFIG.appBaseUrl}/api/scan-callback`,
+        callbackToken: CONFIG.domAuditCallbackToken,
+        slackChannelId,
+        slackMessageTs,
+        slackThreadTs,
       });
-      console.log("[slack] fix modal opened", { ok: result.ok });
+      console.log("[slack] fix dispatched", { findingIds, owner, repo });
     } catch (err) {
-      console.error("[slack] fix modal open failed:", err);
+      console.error("[slack] fix dispatch failed:", err);
     }
     return { status: 200, body: "" };
   }
