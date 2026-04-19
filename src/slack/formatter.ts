@@ -140,7 +140,7 @@ export function formatAuditResultBlocks(
     blocks.push({ type: "divider" });
     if (total > 0) {
       blocks.push({ type: "context", elements: [
-        { type: "mrkdwn", text: ":rocket: Fix all issues at once — a PR will be created with all patches applied and verified" },
+        { type: "mrkdwn", text: ":rocket: Fix all issues at once — a Pull Request will be created with all patches applied and verified" },
       ]});
     }
     blocks.push({ type: "actions", elements: actions });

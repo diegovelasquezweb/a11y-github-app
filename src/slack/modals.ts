@@ -76,8 +76,8 @@ export function buildAuditModal(metadata: AuditModalMetadata) {
 export function buildFixModal(metadata: FixModalMetadata, findingLabel: string) {
   const isAll = findingLabel === "all";
   const description = isAll
-    ? "Apply AI-powered fixes to *all findings* from the last audit. A new PR will be created with the patches."
-    : `Apply an AI-powered fix for *\`${findingLabel}\`*. A new PR will be created with the patch.`;
+    ? "Apply AI-powered fixes to *all findings* from the last audit. A new Pull Request will be created with the patches."
+    : `Apply an AI-powered fix for *\`${findingLabel}\`*. A new Pull Request will be created with the patch.`;
 
   return {
     type: "modal" as const,
