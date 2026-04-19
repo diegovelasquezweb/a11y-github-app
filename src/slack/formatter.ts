@@ -56,7 +56,7 @@ export function formatAuditResultBlocks(
     );
   } else {
     blocks.push(
-      { type: "header", text: { type: "plain_text", text: `🔍 A11y Audit Results — ${label}` } },
+      { type: "header", text: { type: "plain_text", text: `A11y Audit Results — ${label}` } },
       { type: "context", elements: [
         { type: "mrkdwn", text: `Branch: \`${context.branch ?? "default"}\` · ${total} findings` },
       ]},
