@@ -32,7 +32,7 @@ export function formatAuditResultBlocks(
 
   if (summary.status === "failure") {
     return [
-      { type: "header", text: { type: "plain_text", text: `❌ Audit Failed — ${label}` } },
+      { type: "header", text: { type: "plain_text", text: `Audit Failed — ${label}` } },
       { type: "context", elements: [
         { type: "mrkdwn", text: `Branch: \`${context.branch ?? "default"}\`` },
       ]},
@@ -48,7 +48,7 @@ export function formatAuditResultBlocks(
 
   if (total === 0) {
     blocks.push(
-      { type: "header", text: { type: "plain_text", text: `✅ Audit Complete — ${label}` } },
+      { type: "header", text: { type: "plain_text", text: `Audit Complete — ${label}` } },
       { type: "context", elements: [
         { type: "mrkdwn", text: `Branch: \`${context.branch ?? "default"}\` · 0 findings` },
       ]},
@@ -180,7 +180,7 @@ function appendPatternFindings(blocks: Record<string, unknown>[], patternFinding
 
 export function formatScanningBlocks(owner: string, repo: string, mode: string, branch?: string): Record<string, unknown>[] {
   return [
-    { type: "header", text: { type: "plain_text", text: `⏳ Auditing ${owner}/${repo}` } },
+    { type: "header", text: { type: "plain_text", text: `Auditing ${owner}/${repo}` } },
     { type: "context", elements: [
       { type: "mrkdwn", text: `Branch: \`${branch ?? "default"}\` · Mode: ${mode}` },
     ]},
@@ -190,7 +190,7 @@ export function formatScanningBlocks(owner: string, repo: string, mode: string, 
 
 export function formatFixProgressBlocks(owner: string, repo: string, findingIds: string): Record<string, unknown>[] {
   return [
-    { type: "header", text: { type: "plain_text", text: `🔧 Applying Fix — ${owner}/${repo}` } },
+    { type: "header", text: { type: "plain_text", text: `Applying Fix — ${owner}/${repo}` } },
     { type: "context", elements: [
       { type: "mrkdwn", text: `Finding IDs: ${findingIds}` },
     ]},

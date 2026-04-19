@@ -16,7 +16,7 @@ export async function postScanningMessage(
     const result = await client.chat.postMessage({
       channel: channelId,
       blocks,
-      text: `⏳ Auditing ${owner}/${repo}…`,
+      text: `Auditing ${owner}/${repo}…`,
       ...(threadTs ? { thread_ts: threadTs } : {}),
     });
     if (!result.ts) return null;
@@ -37,7 +37,7 @@ export async function updateWithAuditResults(
     const blocks = formatAuditResultBlocks(summary, context) as unknown as KnownBlock[];
     const total = summary.totalFindings + (summary.patternFindings?.totalFindings ?? 0);
     const text = summary.status === "failure"
-      ? `❌ Audit failed — ${context.owner}/${context.repo}`
+      ? `Audit failed — ${context.owner}/${context.repo}`
       : `🔍 ${total} findings — ${context.owner}/${context.repo}`;
 
     await client.chat.update({
@@ -78,7 +78,7 @@ export async function postFixProgress(
     const result = await client.chat.postMessage({
       channel: slackContext.channelId,
       blocks,
-      text: `🔧 Fixing ${findingIds} — ${owner}/${repo}`,
+      text: `Fixing ${findingIds} — ${owner}/${repo}`,
       thread_ts: slackContext.threadTs ?? slackContext.messageTs,
     });
     if (!result.ts) return null;

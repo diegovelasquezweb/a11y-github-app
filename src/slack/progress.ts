@@ -75,7 +75,7 @@ export async function processProgressUpdate(input: ProgressInput): Promise<Progr
       channel: input.slack_channel_id,
       ts: input.slack_message_ts,
       blocks,
-      text: `⏳ ${currentName}…`,
+      text: `${currentName}…`,
     });
     return { status: 200, body: { ok: true } };
   } catch (err) {
