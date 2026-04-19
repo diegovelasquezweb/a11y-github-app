@@ -99,6 +99,7 @@ export function formatAuditResultBlocks(
             i: context.installationId ?? 0,
           });
           const jiraUrl = `https://jira.atlassian.net/secure/CreateIssueDetails!init.jspa?summary=${encodeURIComponent(`[${f.severity}] ${f.title}`)}&description=${encodeURIComponent(`Finding: ${f.id}\nSeverity: ${f.severity}\nRepo: ${context.owner}/${context.repo}`)}`;
+          const ghIssueUrl = `https://github.com/${context.owner}/${context.repo}/issues/new?title=${encodeURIComponent(`[${f.severity}] ${f.title}`)}&body=${encodeURIComponent(`**Finding:** \`${f.id}\`\n**Severity:** ${f.severity}\n**Branch:** ${context.branch ?? "default"}`)}`;
           blocks.push({
             type: "section",
             text: { type: "mrkdwn", text: parts.join("\n") },
@@ -107,7 +108,8 @@ export function formatAuditResultBlocks(
               action_id: `a11y_actions_${f.id}`,
               options: [
                 { text: { type: "plain_text", text: "Fix with AI" }, value: findingFixValue },
-                { text: { type: "plain_text", text: "Create Ticket" }, url: jiraUrl, value: `ticket_${f.id}` },
+                { text: { type: "plain_text", text: "Create GitHub Issue" }, url: ghIssueUrl, value: `gh_issue_${f.id}` },
+                { text: { type: "plain_text", text: "Create Jira Ticket" }, url: jiraUrl, value: `jira_${f.id}` },
               ],
             },
           });
@@ -136,9 +138,12 @@ export function formatAuditResultBlocks(
       ...(summary.findings ?? []).map((f) => `[${f.severity}] ${f.title}`),
       ...(summary.patternFindings?.findings ?? []).map((f) => `[${f.severity}] ${f.title}`),
     ].join("\n");
+    const allFindingsBody = allFindingsSummary.split("\n").map((line) => `- ${line}`).join("\n");
     const jiraBulkUrl = `https://jira.atlassian.net/secure/CreateIssueDetails!init.jspa?summary=${encodeURIComponent(`A11y Audit: ${total} findings in ${context.owner}/${context.repo}`)}&description=${encodeURIComponent(`Branch: ${context.branch ?? "default"}\nTotal: ${total} findings\n\n${allFindingsSummary}`)}`;
+    const ghBulkUrl = `https://github.com/${context.owner}/${context.repo}/issues/new?title=${encodeURIComponent(`A11y Audit: ${total} findings`)}&body=${encodeURIComponent(`**Repo:** ${context.owner}/${context.repo}\n**Branch:** ${context.branch ?? "default"}\n**Total:** ${total} findings\n\n${allFindingsBody}`)}&labels=${encodeURIComponent("accessibility")}`;
     actions.push({ type: "button", text: { type: "plain_text", text: "Fix All" }, action_id: "a11y_fix_all", value: fixContext, style: "primary" });
-    actions.push({ type: "button", text: { type: "plain_text", text: "Create Ticket" }, action_id: "a11y_create_bulk_ticket", url: jiraBulkUrl });
+    actions.push({ type: "button", text: { type: "plain_text", text: "Create Issue" }, action_id: "a11y_create_gh_issue", url: ghBulkUrl });
+    actions.push({ type: "button", text: { type: "plain_text", text: "Create Jira Ticket" }, action_id: "a11y_create_jira_ticket", url: jiraBulkUrl });
   }
   if (actions.length > 0) {
     blocks.push({ type: "divider" });
@@ -163,6 +168,7 @@ function appendPatternFindings(blocks: Record<string, unknown>[], patternFinding
         i: context.installationId ?? 0,
       });
       const jiraUrl = `https://jira.atlassian.net/secure/CreateIssueDetails!init.jspa?summary=${encodeURIComponent(`[${f.severity}] ${f.title}`)}&description=${encodeURIComponent(`Finding: ${f.id}\nSeverity: ${f.severity}\nFile: ${location}\nRepo: ${context.owner}/${context.repo}`)}`;
+      const ghIssueUrl = `https://github.com/${context.owner}/${context.repo}/issues/new?title=${encodeURIComponent(`[${f.severity}] ${f.title}`)}&body=${encodeURIComponent(`**Finding:** \`${f.id}\`\n**Severity:** ${f.severity}\n**File:** \`${location}\`\n**Branch:** ${context.branch ?? "default"}`)}`;
       blocks.push({
         type: "section",
         text: { type: "mrkdwn", text: parts.join("\n") },
@@ -171,7 +177,8 @@ function appendPatternFindings(blocks: Record<string, unknown>[], patternFinding
           action_id: `a11y_actions_${f.id}`,
           options: [
             { text: { type: "plain_text", text: "Fix with AI" }, value: findingFixValue },
-            { text: { type: "plain_text", text: "Create Ticket" }, url: jiraUrl, value: `ticket_${f.id}` },
+            { text: { type: "plain_text", text: "Create GitHub Issue" }, url: ghIssueUrl, value: `gh_issue_${f.id}` },
+            { text: { type: "plain_text", text: "Create Jira Ticket" }, url: jiraUrl, value: `jira_${f.id}` },
           ],
         },
       });
