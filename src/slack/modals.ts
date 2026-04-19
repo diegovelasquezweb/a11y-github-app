@@ -59,12 +59,12 @@ export function buildAuditModal(metadata: AuditModalMetadata) {
             },
             {
               text: { type: "plain_text" as const, text: "DOM Only" },
-              description: { type: "plain_text" as const, text: "Live browser scan — best for deployed sites" },
+              description: { type: "plain_text" as const, text: "Browser scan — React & deployed apps" },
               value: "dom",
             },
             {
               text: { type: "plain_text" as const, text: "Source Only" },
-              description: { type: "plain_text" as const, text: "Static code analysis — fast, no browser needed" },
+              description: { type: "plain_text" as const, text: "Source patterns — WordPress, Shopify, no browser needed" },
               value: "source",
             },
           ],
