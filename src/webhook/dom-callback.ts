@@ -371,11 +371,13 @@ export async function processDomAuditCallback(
     const slackMessageTs = typeof input.payload.slack_message_ts === "string" ? input.payload.slack_message_ts.trim() : "";
     const slackThreadTs = typeof input.payload.slack_thread_ts === "string" ? input.payload.slack_thread_ts.trim() : "";
 
+    console.log("[slack] callback context", { slackChannelId, slackMessageTs, slackThreadTs, hasToken: Boolean(CONFIG.slackBotToken) });
     if (slackChannelId && slackMessageTs) {
       try {
         const { getSlackClient } = await import("../slack/client.js");
         const { updateWithAuditResults } = await import("../slack/notifier.js");
         const client = getSlackClient();
+        console.log("[slack] client resolved", { hasClient: Boolean(client) });
         if (client) {
           await updateWithAuditResults(
             client,
@@ -383,9 +385,10 @@ export async function processDomAuditCallback(
             summary,
             { owner, repo, branch, headSha: String(input.payload.head_sha ?? ""), headRef: branch },
           );
+          console.log("[slack] audit results posted to Slack");
         }
       } catch (slackErr) {
-        console.warn("[slack] dual-post failed:", slackErr);
+        console.error("[slack] dual-post failed:", slackErr);
       }
     }
 
