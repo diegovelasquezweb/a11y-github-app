@@ -64,7 +64,7 @@ export function buildAuditModal(metadata: AuditModalMetadata) {
             },
             {
               text: { type: "plain_text" as const, text: "Source Only" },
-              description: { type: "plain_text" as const, text: "Source patterns — WordPress, Shopify, no browser needed" },
+              description: { type: "plain_text" as const, text: "Source patterns — WordPress, Shopify & template stacks" },
               value: "source",
             },
           ],
