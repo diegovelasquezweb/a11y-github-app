@@ -330,10 +330,15 @@ async function handleBlockAction(interaction: SlackInteractionPayload): Promise<
     const headSha = String(fixCtx.s ?? "");
     const headRef = String(fixCtx.h ?? "");
     const baseRef = String(fixCtx.b ?? "");
-    const installationId = Number(fixCtx.i ?? 0);
 
-    if (!owner || !repo || !headSha || !installationId) {
+    if (!owner || !repo || !headSha) {
       console.warn("[slack] fix button missing context", fixCtx);
+      return { status: 200, body: "" };
+    }
+
+    const installationId = Number(fixCtx.i) || await findInstallationForRepo(owner, repo);
+    if (!installationId) {
+      console.warn("[slack] could not resolve installation for", owner, repo);
       return { status: 200, body: "" };
     }
 
