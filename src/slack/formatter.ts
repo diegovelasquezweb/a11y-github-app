@@ -2,11 +2,11 @@ import type { DomAuditSummary, PatternAuditSummary } from "../types.js";
 
 function severityIcon(severity: string): string {
   const s = severity.trim().toLowerCase();
-  if (s === "critical") return "■■■■";
-  if (s === "serious") return "■■■◻";
-  if (s === "moderate") return "■■◻◻";
-  if (s === "minor") return "■◻◻◻";
-  return "◻◻◻◻";
+  if (s === "critical") return "🟥";
+  if (s === "serious") return "🟧";
+  if (s === "moderate") return "🟨";
+  if (s === "minor") return "🟦";
+  return "⬜";
 }
 
 function escapeHtmlTags(text: string): string {
@@ -67,7 +67,7 @@ export function formatAuditResultBlocks(
       Minor: t.Minor + (pt?.Minor ?? 0),
     };
     blocks.push({ type: "section", text: { type: "mrkdwn", text:
-      `■■■■ Critical: ${combinedTotals.Critical}  ■■■◻ Serious: ${combinedTotals.Serious}  ■■◻◻ Moderate: ${combinedTotals.Moderate}  ■◻◻◻ Minor: ${combinedTotals.Minor}`,
+      `🟥 Critical: ${combinedTotals.Critical}  🟧 Serious: ${combinedTotals.Serious}  🟨 Moderate: ${combinedTotals.Moderate}  🟦 Minor: ${combinedTotals.Minor}`,
     }});
 
     if (summary.patternFindings && summary.patternFindings.findings.length > 0) {
