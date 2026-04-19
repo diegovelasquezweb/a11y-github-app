@@ -14,7 +14,7 @@ export function buildAuditModal(metadata: AuditModalMetadata) {
         type: "section",
         text: {
           type: "mrkdwn",
-          text: "Scan a repository for *WCAG 2.2 AA* accessibility issues. Results will appear in this channel when the scan finishes.",
+          text: "Scan a repository for WCAG 2.2 AA accessibility issues. Results will appear in this channel when the scan finishes.",
         },
       },
       { type: "divider" },
@@ -158,6 +158,7 @@ export function buildJiraProjectKeyModal(metadata: JiraModalMetadata, initialKey
         element: {
           type: "plain_text_input",
           action_id: "project_key",
+          placeholder: { type: "plain_text" as const, text: "e.g. KAN" },
           ...(initialKey ? { initial_value: initialKey } : {}),
         },
       },
