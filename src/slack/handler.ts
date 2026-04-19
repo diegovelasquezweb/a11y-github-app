@@ -57,7 +57,7 @@ export async function verifyAndRoute(input: SlackRequestInput): Promise<VerifyRe
         return handleViewSubmission(interaction);
       }
       if (interaction.type === "block_actions") {
-        return { status: 200, body: "", work: { type: "block_actions", interaction } };
+        return handleBlockAction(interaction);
       }
       return { status: 200, body: "" };
     } catch {

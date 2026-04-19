@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { verifyAndRoute, executeDeferredWork } from "../src/slack/handler.js";
+import { verifyAndRoute } from "../src/slack/handler.js";
 
 async function readRawBody(req: IncomingMessage): Promise<string> {
   const chunks: Buffer[] = [];
@@ -36,19 +36,13 @@ export default async function slack(
     signature: header(req, "x-slack-signature"),
   });
 
-  // Send 200 immediately — Slack requires response within 3 seconds
   res.statusCode = result.status;
+
   if (typeof result.body === "string") {
     res.setHeader("content-type", result.contentType ?? "text/plain; charset=utf-8");
     res.end(result.body);
   } else {
     res.setHeader("content-type", "application/json; charset=utf-8");
     res.end(JSON.stringify(result.body));
-  }
-
-  // Execute async work AFTER response is sent (views.open, workflow dispatch, etc.)
-  // Vercel keeps the function alive until this async handler resolves
-  if (result.work) {
-    await executeDeferredWork(result.work);
   }
 }
