@@ -103,7 +103,7 @@ async function handleAuditSubmit(interaction: SlackInteractionPayload): Promise<
 
   const parsed = parseRepoInput(repoRaw);
   if (!parsed) {
-    return { status: 200, body: { response_action: "errors", errors: { repo_block: "Enter as owner/repo or paste a GitHub URL" } } };
+    return { status: 200, body: { response_action: "errors", errors: { repo_block: "Paste a valid GitHub repository URL" } } };
   }
   const [owner, repo] = parsed;
 
@@ -210,19 +210,16 @@ async function handleAuditSubmit(interaction: SlackInteractionPayload): Promise<
 
 async function handleFixSubmit(interaction: SlackInteractionPayload): Promise<SlackHandlerResult> {
   const values = interaction.view?.state?.values ?? {};
-  const findingIds = values.finding_ids_block?.finding_ids?.value?.trim() ?? "";
   const aiModel = values.ai_model_block?.ai_model?.selected_option?.value ?? CONFIG.fixAiModel;
-
-  if (!findingIds) {
-    return { status: 200, body: { response_action: "errors", errors: { finding_ids_block: "Please enter one or more finding IDs, or 'all'" } } };
-  }
 
   let metadata: Record<string, unknown>;
   try {
     metadata = JSON.parse(interaction.view?.private_metadata ?? "");
   } catch {
-    return { status: 200, body: { response_action: "errors", errors: { finding_ids_block: "Session data lost. Please re-run the audit." } } };
+    return { status: 200, body: { response_action: "errors", errors: { ai_model_block: "Session data lost. Please re-run the audit." } } };
   }
+
+  const findingIds = String(metadata.findingIds ?? "all");
 
   const owner = String(metadata.owner ?? "");
   const repo = String(metadata.repo ?? "");
@@ -294,7 +291,7 @@ async function handleBlockAction(interaction: SlackInteractionPayload): Promise<
   if (!client) return { status: 200, body: "" };
 
   if (action.action_id === "a11y_fix_finding" || action.action_id === "a11y_fix_all") {
-    const findingId = action.action_id === "a11y_fix_all" ? "all" : (action.value ?? "");
+    const findingLabel = action.action_id === "a11y_fix_all" ? "all" : (action.value ?? "");
     const channelId = interaction.channel?.id ?? "";
     const messageTs = interaction.message?.ts ?? "";
 
@@ -312,7 +309,7 @@ async function handleBlockAction(interaction: SlackInteractionPayload): Promise<
           baseRef: "",
           pullNumber: 0,
           installationId: 0,
-        }, findingId) as Parameters<typeof client.views.open>[0]["view"],
+        }, findingLabel) as Parameters<typeof client.views.open>[0]["view"],
       });
     } catch (err) {
       console.warn("[slack] fix modal open failed:", err);

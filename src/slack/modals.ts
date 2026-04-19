@@ -10,13 +10,21 @@ export function buildAuditModal(metadata: AuditModalMetadata) {
     private_metadata: JSON.stringify(metadata),
     blocks: [
       {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: "Scan a repository for *WCAG 2.2 AA* accessibility issues. Results will appear in this channel when the scan finishes.",
+        },
+      },
+      { type: "divider" },
+      {
         type: "input",
         block_id: "repo_block",
         label: { type: "plain_text" as const, text: "Repository" },
         element: {
           type: "plain_text_input",
           action_id: "repo",
-          placeholder: { type: "plain_text" as const, text: "Paste GitHub URL or owner/repo" },
+          placeholder: { type: "plain_text" as const, text: "https://github.com/owner/repo" },
         },
       },
       {
@@ -65,26 +73,25 @@ export function buildAuditModal(metadata: AuditModalMetadata) {
   };
 }
 
-export function buildFixModal(metadata: FixModalMetadata, initialFindingIds = "all") {
+export function buildFixModal(metadata: FixModalMetadata, findingLabel: string) {
+  const isAll = findingLabel === "all";
+  const description = isAll
+    ? "Apply AI-powered fixes to *all findings* from the last audit. A new PR will be created with the patches."
+    : `Apply an AI-powered fix for *\`${findingLabel}\`*. A new PR will be created with the patch.`;
+
   return {
     type: "modal" as const,
     callback_id: "a11y_fix_modal",
-    title: { type: "plain_text" as const, text: "A11y Fix" },
+    title: { type: "plain_text" as const, text: isAll ? "Fix All Findings" : "Fix Finding" },
     submit: { type: "plain_text" as const, text: "Apply Fix" },
     close: { type: "plain_text" as const, text: "Cancel" },
-    private_metadata: JSON.stringify(metadata),
+    private_metadata: JSON.stringify({ ...metadata, findingIds: findingLabel }),
     blocks: [
       {
-        type: "input",
-        block_id: "finding_ids_block",
-        label: { type: "plain_text" as const, text: "Finding IDs" },
-        element: {
-          type: "plain_text_input",
-          action_id: "finding_ids",
-          initial_value: initialFindingIds,
-          placeholder: { type: "plain_text" as const, text: "all, or A11Y-001 PAT-002" },
-        },
+        type: "section",
+        text: { type: "mrkdwn", text: description },
       },
+      { type: "divider" },
       {
         type: "input",
         block_id: "ai_model_block",
@@ -93,11 +100,27 @@ export function buildFixModal(metadata: FixModalMetadata, initialFindingIds = "a
         element: {
           type: "static_select",
           action_id: "ai_model",
-          initial_option: { text: { type: "plain_text" as const, text: "Haiku (fastest)" }, value: "claude-haiku-4-5-20251001" },
+          initial_option: {
+            text: { type: "plain_text" as const, text: "Haiku (fastest)" },
+            description: { type: "plain_text" as const, text: "Low cost, good for most fixes" },
+            value: "claude-haiku-4-5-20251001",
+          },
           options: [
-            { text: { type: "plain_text" as const, text: "Haiku (fastest)" }, value: "claude-haiku-4-5-20251001" },
-            { text: { type: "plain_text" as const, text: "Sonnet (balanced)" }, value: "claude-sonnet-4-5-20241022" },
-            { text: { type: "plain_text" as const, text: "Opus (most capable)" }, value: "claude-opus-4-5-20250415" },
+            {
+              text: { type: "plain_text" as const, text: "Haiku (fastest)" },
+              description: { type: "plain_text" as const, text: "Low cost, good for most fixes" },
+              value: "claude-haiku-4-5-20251001",
+            },
+            {
+              text: { type: "plain_text" as const, text: "Sonnet (balanced)" },
+              description: { type: "plain_text" as const, text: "Better reasoning, moderate cost" },
+              value: "claude-sonnet-4-5-20241022",
+            },
+            {
+              text: { type: "plain_text" as const, text: "Opus (most capable)" },
+              description: { type: "plain_text" as const, text: "Best results, highest cost" },
+              value: "claude-opus-4-5-20250415",
+            },
           ],
         },
       },
@@ -106,6 +129,7 @@ export function buildFixModal(metadata: FixModalMetadata, initialFindingIds = "a
         block_id: "hint_block",
         optional: true,
         label: { type: "plain_text" as const, text: "Hint" },
+        hint: { type: "plain_text" as const, text: "Guide the AI on how to apply the fix" },
         element: {
           type: "plain_text_input",
           action_id: "hint",
