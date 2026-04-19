@@ -70,9 +70,9 @@ export function formatAuditResultBlocks(
       Moderate: t.Moderate + (pt?.Moderate ?? 0),
       Minor: t.Minor + (pt?.Minor ?? 0),
     };
-    blocks.push({ type: "section", text: { type: "mrkdwn", text:
+    blocks.push({ type: "context", elements: [{ type: "mrkdwn", text:
       `:red_circle: Critical: ${combinedTotals.Critical}  :large_orange_circle: Serious: ${combinedTotals.Serious}  :large_yellow_circle: Moderate: ${combinedTotals.Moderate}  :large_blue_circle: Minor: ${combinedTotals.Minor}`,
-    }});
+    }]});
 
     if (summary.patternFindings && summary.patternFindings.findings.length > 0) {
       blocks.push({ type: "divider" });
@@ -85,33 +85,35 @@ export function formatAuditResultBlocks(
       blocks.push({ type: "section", text: { type: "mrkdwn", text: "*DOM Audit*" } });
       const maxDom = 20 - Math.min(summary.patternFindings?.findings.length ?? 0, 10);
       const domShown = summary.findings.slice(0, maxDom);
+      const domFixButtons: Record<string, unknown>[] = [];
       domShown.forEach((f, i) => {
-        const text = [`*${i + 1}. ${severityTag(f.severity)} ${escapeHtmlTags(f.title)}*`];
+        const parts = [`${severityTag(f.severity)} ${escapeHtmlTags(f.title)}`];
         if (f.url) {
           try {
             const pathname = new URL(f.url).pathname.replace(/\/index\.html$/, "/").replace(/\.html$/, "").replace(/^\//, "") || "home";
-            text.push(`Page: \`${pathname}\` · Selector: \`${f.selector}\``);
+            parts.push(`Page: \`${pathname}\` · Selector: \`${f.selector}\``);
           } catch {
-            if (f.selector) text.push(`Selector: \`${f.selector}\``);
+            if (f.selector) parts.push(`Selector: \`${f.selector}\``);
           }
         } else if (f.selector) {
-          text.push(`Selector: \`${f.selector}\``);
+          parts.push(`Selector: \`${f.selector}\``);
         }
+        blocks.push({ type: "context", elements: [{ type: "mrkdwn", text: parts.join("\n") }] });
         if (f.id) {
           const findingFixValue = JSON.stringify({
             id: f.id, o: context.owner, r: context.repo, s: context.headSha ?? "",
             h: context.headRef ?? context.branch ?? "", b: context.baseRef ?? "",
             i: context.installationId ?? 0,
           });
-          blocks.push({
-            type: "section",
-            text: { type: "mrkdwn", text: text.join("\n") },
-            accessory: { type: "button", text: { type: "plain_text", text: "Fix" }, action_id: `a11y_fix_finding`, value: findingFixValue },
-          });
-        } else {
-          blocks.push({ type: "section", text: { type: "mrkdwn", text: text.join("\n") } });
+          domFixButtons.push({ type: "button", text: { type: "plain_text", text: `Fix ${f.id}` }, action_id: "a11y_fix_finding", value: findingFixValue });
         }
       });
+      if (domFixButtons.length > 0) {
+        // Slack allows max 25 elements per actions block, split if needed
+        for (let j = 0; j < domFixButtons.length; j += 25) {
+          blocks.push({ type: "actions", elements: domFixButtons.slice(j, j + 25) });
+        }
+      }
 
       if (summary.totalFindings > domShown.length) {
         const overflow = `Showing ${domShown.length} of ${summary.totalFindings} DOM findings.`;
@@ -149,27 +151,28 @@ export function formatAuditResultBlocks(
 
 function appendPatternFindings(blocks: Record<string, unknown>[], patternFindings: PatternAuditSummary, max: number, context: ResultContext): void {
   const shown = patternFindings.findings.slice(0, max);
+  const patFixButtons: Record<string, unknown>[] = [];
   shown.forEach((f, i) => {
     const location = f.line ? `${f.file}:${f.line}` : f.file;
-    const text = [
-      `*${i + 1}. ${severityTag(f.severity)} ${escapeHtmlTags(f.title)}*`,
+    const parts = [
+      `${severityTag(f.severity)} ${escapeHtmlTags(f.title)}`,
       `File: \`${location}\` · Rule: \`${f.patternId}\``,
     ];
+    blocks.push({ type: "context", elements: [{ type: "mrkdwn", text: parts.join("\n") }] });
     if (f.id) {
       const findingFixValue = JSON.stringify({
         id: f.id, o: context.owner, r: context.repo, s: context.headSha ?? "",
         h: context.headRef ?? context.branch ?? "", b: context.baseRef ?? "",
         i: context.installationId ?? 0,
       });
-      blocks.push({
-        type: "section",
-        text: { type: "mrkdwn", text: text.join("\n") },
-        accessory: { type: "button", text: { type: "plain_text", text: "Fix" }, action_id: "a11y_fix_finding", value: findingFixValue },
-      });
-    } else {
-      blocks.push({ type: "section", text: { type: "mrkdwn", text: text.join("\n") } });
+      patFixButtons.push({ type: "button", text: { type: "plain_text", text: `Fix ${f.id}` }, action_id: "a11y_fix_finding", value: findingFixValue });
     }
   });
+  if (patFixButtons.length > 0) {
+    for (let j = 0; j < patFixButtons.length; j += 25) {
+      blocks.push({ type: "actions", elements: patFixButtons.slice(j, j + 25) });
+    }
+  }
 
   if (patternFindings.totalFindings > shown.length) {
     blocks.push({ type: "context", elements: [
