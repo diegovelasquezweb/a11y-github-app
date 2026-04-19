@@ -47,10 +47,13 @@ describe("fetchJiraIssueTypes", () => {
   });
 
   it("returns ok:true with issueTypes on 200", async () => {
-    mockFetch(200, [
-      { id: "1", name: "Bug" },
-      { id: "2", name: "Story" },
-    ]);
+    mockFetch(200, {
+      id: "10000", key: "PROJ", name: "My Project",
+      issueTypes: [
+        { id: "1", name: "Bug", subtask: false },
+        { id: "2", name: "Story", subtask: false },
+      ],
+    });
     const result = await fetchJiraIssueTypes("PROJ");
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -61,7 +64,7 @@ describe("fetchJiraIssueTypes", () => {
   });
 
   it("returns ok:true with empty array when response is empty", async () => {
-    mockFetch(200, []);
+    mockFetch(200, { id: "10000", key: "PROJ", name: "My Project", issueTypes: [] });
     const result = await fetchJiraIssueTypes("PROJ");
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.issueTypes).toHaveLength(0);
@@ -108,7 +111,7 @@ describe("fetchJiraIssueTypes", () => {
     const fetchMock = vi.mocked(fetch);
     const url = fetchMock.mock.calls[0][0] as string;
     expect(url).toContain("MYPROJECT");
-    expect(url).toContain("/rest/api/3/issuetype/project");
+    expect(url).toContain("/rest/api/3/project/");
   });
 
   it("passes AbortSignal in fetch options", async () => {

@@ -8,7 +8,7 @@ export async function fetchJiraIssueTypes(projectKey: string): Promise<FetchIssu
   let response: Response;
   try {
     response = await fetch(
-      `${config.baseUrl}/rest/api/3/issuetype/project?projectKey=${encodeURIComponent(projectKey)}`,
+      `${config.baseUrl}/rest/api/3/project/${encodeURIComponent(projectKey)}`,
       {
         headers: {
           Authorization: config.authHeader,
@@ -26,14 +26,10 @@ export async function fetchJiraIssueTypes(projectKey: string): Promise<FetchIssu
   if (response.status === 404) return { ok: false, errorCode: "not_found" };
   if (response.status >= 500) return { ok: false, errorCode: "server_error" };
 
-  const data = await response.json() as unknown;
-  const items: Array<{ id?: string; name?: string }> = Array.isArray(data)
-    ? data
-    : Array.isArray((data as Record<string, unknown>)?.values)
-      ? (data as Record<string, unknown>).values as Array<{ id?: string; name?: string }>
-      : [];
-  const issueTypes: IssueType[] = items
+  const data = await response.json() as Record<string, unknown>;
+  const raw = Array.isArray(data?.issueTypes) ? data.issueTypes as Array<{ id?: string; name?: string }> : [];
+  const issueTypes: IssueType[] = raw
     .map((t) => ({ id: String(t.id ?? ""), name: String(t.name ?? "") }))
-    .filter((t) => t.id && t.name);
+    .filter((t) => t.id && t.name && !(t as Record<string, unknown>).subtask);
   return { ok: true, issueTypes };
 }
