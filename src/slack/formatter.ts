@@ -120,8 +120,7 @@ export function formatAuditResultBlocks(
 
       if (summary.totalFindings > domShown.length) {
         const overflow = `Showing ${domShown.length} of ${summary.totalFindings} DOM findings.`;
-        const link = context.githubCommentUrl ? ` <${context.githubCommentUrl}|View full list on GitHub>` : "";
-        blocks.push({ type: "context", elements: [{ type: "mrkdwn", text: overflow + link }] });
+        blocks.push({ type: "context", elements: [{ type: "mrkdwn", text: overflow }] });
       }
     }
   }
