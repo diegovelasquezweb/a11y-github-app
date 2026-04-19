@@ -30,8 +30,7 @@ export interface SlackRequestInput {
 }
 
 export type DeferredWork =
-  | { type: "slash_command"; params: URLSearchParams }
-  | { type: "block_actions"; interaction: SlackInteractionPayload };
+  { type: "block_actions"; interaction: SlackInteractionPayload };
 
 export interface VerifyResult extends SlackHandlerResult {
   work?: DeferredWork;
@@ -67,7 +66,7 @@ export async function verifyAndRoute(input: SlackRequestInput): Promise<VerifyRe
   }
 
   if (params.get("command") === "/a11y") {
-    return { status: 200, body: "", contentType: "text/plain", work: { type: "slash_command", params } };
+    return handleSlashCommand(params);
   }
 
   return { status: 200, body: "" };
@@ -76,9 +75,7 @@ export async function verifyAndRoute(input: SlackRequestInput): Promise<VerifyRe
 /** Async — runs AFTER the HTTP response is sent to Slack. */
 export async function executeDeferredWork(work: DeferredWork): Promise<void> {
   try {
-    if (work.type === "slash_command") {
-      await handleSlashCommand(work.params);
-    } else if (work.type === "block_actions") {
+    if (work.type === "block_actions") {
       await handleBlockAction(work.interaction);
     }
   } catch (err) {
