@@ -104,6 +104,9 @@ export function formatAuditResultBlocks(
             h: context.headRef ?? context.branch ?? "", b: context.baseRef ?? "",
             i: context.installationId ?? 0,
           });
+          blocks.push({ type: "context", elements: [
+            { type: "mrkdwn", text: ":wrench: Auto-fix this issue and create a PR" },
+          ]});
           blocks.push({ type: "actions", elements: [
             { type: "button", text: { type: "plain_text", text: `Fix ${f.id}` }, action_id: "a11y_fix_finding", value: findingFixValue },
           ]});
@@ -133,6 +136,11 @@ export function formatAuditResultBlocks(
   }
   if (actions.length > 0) {
     blocks.push({ type: "divider" });
+    if (total > 0) {
+      blocks.push({ type: "context", elements: [
+        { type: "mrkdwn", text: ":rocket: Fix all issues at once — a PR will be created with all patches applied and verified" },
+      ]});
+    }
     blocks.push({ type: "actions", elements: actions });
   }
 
@@ -154,6 +162,9 @@ function appendPatternFindings(blocks: Record<string, unknown>[], patternFinding
         h: context.headRef ?? context.branch ?? "", b: context.baseRef ?? "",
         i: context.installationId ?? 0,
       });
+      blocks.push({ type: "context", elements: [
+        { type: "mrkdwn", text: ":wrench: Auto-fix this issue and create a PR" },
+      ]});
       blocks.push({ type: "actions", elements: [
         { type: "button", text: { type: "plain_text", text: `Fix ${f.id}` }, action_id: "a11y_fix_finding", value: findingFixValue },
       ]});
