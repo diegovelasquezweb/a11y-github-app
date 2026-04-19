@@ -1,5 +1,5 @@
 import { buildAdf } from "./adf.js";
-import type { AdfSection, JiraAdfDoc, JiraBulkPayload, JiraSinglePayload } from "./types.js";
+import type { AdfSection, BulkFinding, JiraAdfDoc, JiraBulkPayload, JiraSinglePayload } from "./types.js";
 
 export function buildSingleFindingBody(p: JiraSinglePayload): JiraAdfDoc {
   const sections: AdfSection[] = [
@@ -21,6 +21,13 @@ export function buildSingleFindingSummary(p: JiraSinglePayload): string {
   return raw.length > 255 ? `${raw.slice(0, 252)}...` : raw;
 }
 
+function formatBulkFindingLine(f: BulkFinding): string {
+  const parts: string[] = [`[${f.v}] ${f.t}`];
+  if (f.pg) parts.push(`Page: /${f.pg}`);
+  if (f.sel) parts.push(`Selector: ${f.sel}`);
+  return parts.join(" · ");
+}
+
 export function buildBulkBody(p: JiraBulkPayload): JiraAdfDoc {
   const sections: AdfSection[] = [
     { kind: "heading", level: 2, text: "A11y Audit Summary" },
@@ -29,6 +36,10 @@ export function buildBulkBody(p: JiraBulkPayload): JiraAdfDoc {
     { kind: "paragraph", label: "Total findings", value: String(p.count) },
     { kind: "paragraph", label: "Breakdown", value: `Critical: ${p.totals.c}, Serious: ${p.totals.s}, Moderate: ${p.totals.m}, Minor: ${p.totals.mi}` },
   ];
+  if (p.f && p.f.length > 0) {
+    sections.push({ kind: "heading", level: 3, text: `Findings (${p.f.length}${p.f.length < p.count ? ` of ${p.count}` : ""})` });
+    sections.push({ kind: "bulletList", items: p.f.map(formatBulkFindingLine) });
+  }
   return buildAdf(sections);
 }
 

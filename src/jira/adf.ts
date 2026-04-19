@@ -18,6 +18,15 @@ export function buildAdf(sections: AdfSection[]): JiraAdfDoc {
         ],
       };
     }
+    if (section.kind === "bulletList") {
+      return {
+        type: "bulletList",
+        content: section.items.map((item) => ({
+          type: "listItem",
+          content: [{ type: "paragraph", content: [{ type: "text", text: item }] }],
+        })),
+      };
+    }
     const children: JiraAdfNode[] = [];
     if (section.label) {
       children.push({ type: "text", text: `${section.label}: `, marks: [{ type: "strong" }] });

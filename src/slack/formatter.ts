@@ -1,3 +1,4 @@
+import type { BulkFinding, JiraBulkPayload } from "../jira/types.js";
 import type { DomAuditSummary, PatternAuditSummary } from "../types.js";
 
 function severityIcon(severity: string): string {
@@ -22,6 +23,28 @@ function buildJiraSingleValue(id: string, severity: string, title: string, owner
   const t = budget <= 0 ? "" : (title.length <= budget ? title : title.slice(0, budget - 3) + "...");
   const value = JSON.stringify({ ...base, t });
   return value.length <= MAX ? value : baseJson;
+}
+
+function buildBulkJiraValue(base: Omit<JiraBulkPayload, "f">, findings: BulkFinding[]): string {
+  const MAX = 2000;
+  const result: BulkFinding[] = [];
+  for (const f of findings) {
+    const candidate = JSON.stringify({ ...base, f: [...result, f] });
+    if (candidate.length <= MAX) {
+      result.push(f);
+    } else {
+      const withEmpty = JSON.stringify({ ...base, f: [...result, { ...f, t: "" }] });
+      const budget = MAX - withEmpty.length;
+      if (budget > 3) {
+        const truncated = { ...f, t: f.t.slice(0, budget - 3) + "..." };
+        if (JSON.stringify({ ...base, f: [...result, truncated] }).length <= MAX) {
+          result.push(truncated);
+        }
+      }
+      break;
+    }
+  }
+  return JSON.stringify({ ...base, f: result });
 }
 
 export interface ResultContext {
@@ -167,39 +190,56 @@ export function formatAuditResultBlocks(
 
   const actions: Record<string, unknown>[] = [];
   if (total > 0) {
-    const t2 = summary.totals;
-    const pt2 = summary.patternFindings?.totals;
+    const t = summary.totals;
+    const pt = summary.patternFindings?.totals;
     const compactBody = [
       `**Repo:** ${context.owner}/${context.repo}`,
       `**Branch:** \`${context.branch ?? "default"}\``,
       `**Total findings:** ${total}`,
-      `- Critical: ${t2.Critical + (pt2?.Critical ?? 0)}`,
-      `- Serious: ${t2.Serious + (pt2?.Serious ?? 0)}`,
-      `- Moderate: ${t2.Moderate + (pt2?.Moderate ?? 0)}`,
-      `- Minor: ${t2.Minor + (pt2?.Minor ?? 0)}`,
+      `- Critical: ${t.Critical + (pt?.Critical ?? 0)}`,
+      `- Serious: ${t.Serious + (pt?.Serious ?? 0)}`,
+      `- Moderate: ${t.Moderate + (pt?.Moderate ?? 0)}`,
+      `- Minor: ${t.Minor + (pt?.Minor ?? 0)}`,
     ].join("\n");
     const ghBulkUrl = `https://github.com/${context.owner}/${context.repo}/issues/new?title=${encodeURIComponent(`[A11y] Audit: ${total} findings`)}&body=${encodeURIComponent(compactBody)}&labels=${encodeURIComponent("accessibility")}`;
-    const t = summary.totals;
-    const pt = summary.patternFindings?.totals;
+    const allBulkFindings: BulkFinding[] = [];
+    if (summary.patternFindings) {
+      for (const f of summary.patternFindings.findings) {
+        allBulkFindings.push({ v: f.severity, t: f.title });
+      }
+    }
+    if (summary.findings) {
+      for (const f of summary.findings) {
+        let pg = "";
+        if (f.url) { try { pg = new URL(f.url).pathname.replace(/\/index\.html$/, "/").replace(/\.html$/, "").replace(/^\//, "") || "home"; } catch { /* ignore */ } }
+        const finding: BulkFinding = { v: f.severity, t: f.title };
+        if (pg) finding.pg = pg;
+        if (f.selector) finding.sel = f.selector;
+        allBulkFindings.push(finding);
+      }
+    }
+
+    const bulkBase: Omit<JiraBulkPayload, "f"> = {
+      kind: "bulk",
+      o: context.owner,
+      r: context.repo,
+      h: context.headRef ?? context.branch ?? "",
+      b: context.baseRef ?? "",
+      totals: {
+        c: t.Critical + (pt?.Critical ?? 0),
+        s: t.Serious + (pt?.Serious ?? 0),
+        m: t.Moderate + (pt?.Moderate ?? 0),
+        mi: t.Minor + (pt?.Minor ?? 0),
+      },
+      count: total,
+    };
+
     const jiraButton: Record<string, unknown> = context.jiraApiMode
       ? {
           type: "button",
           text: { type: "plain_text", text: "Create Jira Ticket" },
           action_id: "a11y_create_jira_ticket",
-          value: JSON.stringify({
-            kind: "bulk",
-            o: context.owner,
-            r: context.repo,
-            h: context.headRef ?? context.branch ?? "",
-            b: context.baseRef ?? "",
-            totals: {
-              c: t.Critical + (pt?.Critical ?? 0),
-              s: t.Serious + (pt?.Serious ?? 0),
-              m: t.Moderate + (pt?.Moderate ?? 0),
-              mi: t.Minor + (pt?.Minor ?? 0),
-            },
-            count: total,
-          }),
+          value: buildBulkJiraValue(bulkBase, allBulkFindings),
         }
       : {
           type: "button",

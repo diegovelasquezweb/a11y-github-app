@@ -15,7 +15,8 @@ export interface JiraAdfDoc {
 export type AdfSection =
   | { kind: "heading"; level: 1 | 2 | 3 | 4 | 5 | 6; text: string }
   | { kind: "paragraph"; label?: string; value: string }
-  | { kind: "link"; label: string; text: string; href: string };
+  | { kind: "link"; label: string; text: string; href: string }
+  | { kind: "bulletList"; items: string[] };
 
 export interface CreateIssueInput {
   summary: string;
@@ -75,6 +76,13 @@ export interface JiraSinglePayload {
   sel?: string;
 }
 
+export interface BulkFinding {
+  v: string;
+  t: string;
+  pg?: string;
+  sel?: string;
+}
+
 export interface JiraBulkPayload {
   kind: "bulk";
   o: string;
@@ -83,6 +91,7 @@ export interface JiraBulkPayload {
   b: string;
   totals: { c: number; s: number; m: number; mi: number };
   count: number;
+  f?: BulkFinding[];
 }
 
 export type JiraSlackPayload = JiraSinglePayload | JiraBulkPayload;
