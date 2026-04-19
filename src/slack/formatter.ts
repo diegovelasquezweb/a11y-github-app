@@ -109,9 +109,6 @@ export function formatAuditResultBlocks(
             ...(pathname ? [`**Page:** \`/${pathname}\``] : []),
             ...(f.selector ? [`**Selector:** \`${f.selector}\``] : []),
             ...(f.wcag ? [`**WCAG:** ${f.wcag}`] : []),
-            "",
-            "---",
-            `Found by [A11y Audit](https://github.com/${context.owner}/${context.repo})`,
           ].join("\n");
           const jiraUrl = `https://jira.atlassian.net/secure/CreateIssueDetails!init.jspa?summary=${encodeURIComponent(`[${f.severity}] ${f.title}`)}&description=${encodeURIComponent(issueBody)}`;
           const ghIssueUrl = `https://github.com/${context.owner}/${context.repo}/issues/new?title=${encodeURIComponent(`[A11y] [${f.severity}] ${f.title}`)}&body=${encodeURIComponent(issueBody)}&labels=${encodeURIComponent("accessibility")}`;
@@ -148,13 +145,9 @@ export function formatAuditResultBlocks(
 
   const actions: Record<string, unknown>[] = [];
   if (total > 0) {
-    const allFindingsSummary = [
-      ...(summary.findings ?? []).map((f) => `[${f.severity}] ${f.title}`),
-      ...(summary.patternFindings?.findings ?? []).map((f) => `[${f.severity}] ${f.title}`),
-    ].join("\n");
-    const allFindingsBody = allFindingsSummary.split("\n").map((line) => `- ${line}`).join("\n");
-    const jiraBulkUrl = `https://jira.atlassian.net/secure/CreateIssueDetails!init.jspa?summary=${encodeURIComponent(`A11y Audit: ${total} findings in ${context.owner}/${context.repo}`)}&description=${encodeURIComponent(`Branch: ${context.branch ?? "default"}\nTotal: ${total} findings\n\n${allFindingsSummary}`)}`;
-    const ghBulkUrl = `https://github.com/${context.owner}/${context.repo}/issues/new?title=${encodeURIComponent(`A11y Audit: ${total} findings`)}&body=${encodeURIComponent(`**Repo:** ${context.owner}/${context.repo}\n**Branch:** ${context.branch ?? "default"}\n**Total:** ${total} findings\n\n${allFindingsBody}`)}&labels=${encodeURIComponent("accessibility")}`;
+    const bulkBodyStr = buildIssueBody(summary, context);
+    const jiraBulkUrl = `https://jira.atlassian.net/secure/CreateIssueDetails!init.jspa?summary=${encodeURIComponent(`A11y Audit: ${total} findings in ${context.owner}/${context.repo}`)}&description=${encodeURIComponent(bulkBodyStr)}`;
+    const ghBulkUrl = `https://github.com/${context.owner}/${context.repo}/issues/new?title=${encodeURIComponent(`[A11y] Audit: ${total} findings`)}&body=${encodeURIComponent(bulkBodyStr)}&labels=${encodeURIComponent("accessibility")}`;
     actions.push({ type: "button", text: { type: "plain_text", text: "Fix All with AI" }, action_id: "a11y_fix_all", value: fixContext, style: "primary" });
     actions.push({ type: "button", text: { type: "plain_text", text: "Create GitHub Issue" }, action_id: "a11y_create_gh_issue", url: ghBulkUrl });
     actions.push({ type: "button", text: { type: "plain_text", text: "Create Jira Ticket" }, action_id: "a11y_create_jira_ticket", url: jiraBulkUrl });
@@ -189,9 +182,6 @@ function appendPatternFindings(blocks: Record<string, unknown>[], patternFinding
         `**Branch:** ${context.branch ?? "default"}`,
         `**File:** \`${location}\``,
         `**Rule:** \`${f.patternId}\``,
-        "",
-        "---",
-        `Found by [A11y Audit](https://github.com/${context.owner}/${context.repo})`,
       ].join("\n");
       const jiraUrl = `https://jira.atlassian.net/secure/CreateIssueDetails!init.jspa?summary=${encodeURIComponent(`[${f.severity}] ${f.title}`)}&description=${encodeURIComponent(patIssueBody)}`;
       const ghIssueUrl = `https://github.com/${context.owner}/${context.repo}/issues/new?title=${encodeURIComponent(`[A11y] [${f.severity}] ${f.title}`)}&body=${encodeURIComponent(patIssueBody)}&labels=${encodeURIComponent("accessibility")}`;
@@ -218,6 +208,55 @@ function appendPatternFindings(blocks: Record<string, unknown>[], patternFinding
       { type: "mrkdwn", text: `Showing ${shown.length} of ${patternFindings.totalFindings} pattern findings.` },
     ]});
   }
+}
+
+function buildIssueBody(summary: DomAuditSummary, context: ResultContext): string {
+  const lines: string[] = [];
+  const branch = context.branch ?? "default";
+
+  if (summary.patternFindings && summary.patternFindings.findings.length > 0) {
+    const pt = summary.patternFindings.totals;
+    lines.push(
+      "### Source Pattern Analysis",
+      "",
+      `🔴 Critical: ${pt.Critical} | 🟠 Serious: ${pt.Serious} | 🟡 Moderate: ${pt.Moderate} | 🔵 Minor: ${pt.Minor}`,
+      "",
+    );
+    summary.patternFindings.findings.forEach((f, i) => {
+      const loc = f.line ? `${f.file}:${f.line}` : f.file;
+      lines.push(
+        `${i + 1}. 🔴 **[${f.severity}]** ${f.title}`,
+        `   **File:** \`${loc}\``,
+        `   **Rule:** \`${f.patternId}\``,
+        "",
+      );
+    });
+  }
+
+  if (summary.findings && summary.findings.length > 0) {
+    if (lines.length > 0) lines.push("---", "");
+    const dt = summary.totals;
+    lines.push(
+      "### DOM Audit",
+      "",
+      `**Total findings:** ${summary.totalFindings}`,
+      `🔴 Critical: ${dt.Critical} | 🟠 Serious: ${dt.Serious} | 🟡 Moderate: ${dt.Moderate} | 🔵 Minor: ${dt.Minor}`,
+      "",
+    );
+    summary.findings.forEach((f, i) => {
+      const findingLines = [`${i + 1}. **[${f.severity}]** ${f.title}`];
+      if (f.url) {
+        try {
+          const pathname = new URL(f.url).pathname.replace(/\/index\.html$/, "/").replace(/\.html$/, "").replace(/^\//, "") || "home";
+          findingLines.push(`   **Page:** \`${pathname}\``);
+        } catch { /* ignore */ }
+      }
+      if (f.selector) findingLines.push(`   **Selector:** \`${f.selector}\``);
+      lines.push(...findingLines, "");
+    });
+  }
+
+  return lines.join("\n");
 }
 
 export function formatScanningBlocks(owner: string, repo: string, mode: string, branch?: string): Record<string, unknown>[] {
