@@ -12,6 +12,7 @@
 - [Internal Component Roles](#internal-component-roles)
 - [Audit Data Flow](#audit-data-flow)
 - [Fix Data Flow](#fix-data-flow)
+- [Slack Data Flow](#slack-data-flow)
 - [Jira Flow](#jira-flow)
 - [Local Development](#local-development)
 
@@ -131,6 +132,35 @@ flowchart LR
     class APPLY,AI,VERIFY core;
     class CMD2 trigger;
     class CR3,CR4,CACHE,BRANCH,PR storage;
+```
+
+## Slack Data Flow
+
+```mermaid
+%%{init: { 'theme': 'base', 'themeVariables': { 'primaryColor': '#3b5cd9', 'primaryTextColor': '#1e293b', 'primaryBorderColor': '#1e308a', 'lineColor': '#64748b', 'secondaryColor': '#f1f5f9', 'tertiaryColor': '#fff', 'mainBkg': '#fff', 'nodeBorder': '#e2e8f0', 'clusterBkg': '#f8fafc', 'clusterBorder': '#cbd5e1' } } }%%
+flowchart LR
+    CMD(["User types /a11y<br/>in Slack"])
+    MODAL["Modal opens<br/>(repo, branch, mode)"]
+    SCAN["POST /api/slack-progress<br/>scanning message"]
+    WF["workflow_dispatch<br/>→ dom-audit.yml"]
+    PROG["Progress updates<br/>(6 steps)"]
+    CB["POST /api/scan-callback"]
+    RES["Slack message updated<br/>with findings"]
+    FIX["Fix All button<br/>→ fix modal"]
+    WF2["workflow_dispatch<br/>→ a11y-fix.yml"]
+    FIXRES["Slack message updated<br/>with fix PR link"]
+
+    CMD --> MODAL --> SCAN --> WF --> PROG --> CB --> RES
+    RES --> FIX --> WF2 --> FIXRES
+
+    classDef default font-family:Inter,sans-serif,font-size:12px;
+    classDef core fill:#3b5cd9,color:#fff,stroke:#1e308a,stroke-width:2px;
+    classDef trigger fill:#1e293b,color:#fff,stroke:#0f172a;
+    classDef storage fill:#f1f5f9,stroke:#cbd5e1,stroke-dasharray: 5 5;
+
+    class WF,WF2 core;
+    class CMD trigger;
+    class MODAL,SCAN,PROG,RES,FIXRES storage;
 ```
 
 ## Jira Flow
