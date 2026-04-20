@@ -98,13 +98,28 @@ jobs:
     steps:
       - name: Slack progress — Checking out repository
         if: ${{ inputs.slack_channel_id != '' && inputs.callback_url != '' }}
-        run: |
-          curl -sS -X POST "${PROGRESS_URL%/scan-callback}/slack-progress" \
-            -H "Content-Type: application/json" \
-            -H "x-callback-token: ${{ inputs.callback_token }}" \
-            --data-raw '{"owner":"${{ inputs.target_owner }}","repo":"${{ inputs.target_repo }}","branch":"${{ inputs.head_ref }}","mode":"Fix","current_step":1,"steps":'"$FIX_STEPS"',"slack_channel_id":"${{ inputs.slack_channel_id }}","slack_message_ts":"${{ inputs.slack_message_ts }}"}' || true
         env:
           PROGRESS_URL: ${{ inputs.callback_url }}
+          CALLBACK_TOKEN: ${{ inputs.callback_token }}
+          TARGET_OWNER: ${{ inputs.target_owner }}
+          TARGET_REPO: ${{ inputs.target_repo }}
+          HEAD_REF: ${{ inputs.head_ref }}
+          SLACK_CHANNEL_ID: ${{ inputs.slack_channel_id }}
+          SLACK_MESSAGE_TS: ${{ inputs.slack_message_ts }}
+        run: |
+          PAYLOAD=$(jq -n \
+            --arg owner "$TARGET_OWNER" \
+            --arg repo "$TARGET_REPO" \
+            --arg branch "$HEAD_REF" \
+            --argjson current_step 1 \
+            --argjson steps "$FIX_STEPS" \
+            --arg slack_channel_id "$SLACK_CHANNEL_ID" \
+            --arg slack_message_ts "$SLACK_MESSAGE_TS" \
+            '{owner: $owner, repo: $repo, branch: $branch, mode: "Fix", current_step: $current_step, steps: $steps, slack_channel_id: $slack_channel_id, slack_message_ts: $slack_message_ts}')
+          curl -sS -X POST "${PROGRESS_URL%/scan-callback}/slack-progress" \
+            -H "Content-Type: application/json" \
+            -H "x-callback-token: $CALLBACK_TOKEN" \
+            --data-raw "$PAYLOAD" || true
 
       - name: Checkout runner repository
         uses: actions/checkout@v4
@@ -124,13 +139,28 @@ jobs:
 
       - name: Slack progress — Restoring findings
         if: ${{ inputs.slack_channel_id != '' && inputs.callback_url != '' }}
-        run: |
-          curl -sS -X POST "${PROGRESS_URL%/scan-callback}/slack-progress" \
-            -H "Content-Type: application/json" \
-            -H "x-callback-token: ${{ inputs.callback_token }}" \
-            --data-raw '{"owner":"${{ inputs.target_owner }}","repo":"${{ inputs.target_repo }}","branch":"${{ inputs.head_ref }}","mode":"Fix","current_step":2,"steps":'"$FIX_STEPS"',"slack_channel_id":"${{ inputs.slack_channel_id }}","slack_message_ts":"${{ inputs.slack_message_ts }}"}' || true
         env:
           PROGRESS_URL: ${{ inputs.callback_url }}
+          CALLBACK_TOKEN: ${{ inputs.callback_token }}
+          TARGET_OWNER: ${{ inputs.target_owner }}
+          TARGET_REPO: ${{ inputs.target_repo }}
+          HEAD_REF: ${{ inputs.head_ref }}
+          SLACK_CHANNEL_ID: ${{ inputs.slack_channel_id }}
+          SLACK_MESSAGE_TS: ${{ inputs.slack_message_ts }}
+        run: |
+          PAYLOAD=$(jq -n \
+            --arg owner "$TARGET_OWNER" \
+            --arg repo "$TARGET_REPO" \
+            --arg branch "$HEAD_REF" \
+            --argjson current_step 2 \
+            --argjson steps "$FIX_STEPS" \
+            --arg slack_channel_id "$SLACK_CHANNEL_ID" \
+            --arg slack_message_ts "$SLACK_MESSAGE_TS" \
+            '{owner: $owner, repo: $repo, branch: $branch, mode: "Fix", current_step: $current_step, steps: $steps, slack_channel_id: $slack_channel_id, slack_message_ts: $slack_message_ts}')
+          curl -sS -X POST "${PROGRESS_URL%/scan-callback}/slack-progress" \
+            -H "Content-Type: application/json" \
+            -H "x-callback-token: $CALLBACK_TOKEN" \
+            --data-raw "$PAYLOAD" || true
 
       - name: Restore findings from cache
         id: findings_cache
@@ -285,13 +315,28 @@ jobs:
 
       - name: Slack progress — Generating patches
         if: ${{ inputs.slack_channel_id != '' && inputs.callback_url != '' }}
-        run: |
-          curl -sS -X POST "${PROGRESS_URL%/scan-callback}/slack-progress" \
-            -H "Content-Type: application/json" \
-            -H "x-callback-token: ${{ inputs.callback_token }}" \
-            --data-raw '{"owner":"${{ inputs.target_owner }}","repo":"${{ inputs.target_repo }}","branch":"${{ inputs.head_ref }}","mode":"Fix","current_step":3,"steps":'"$FIX_STEPS"',"slack_channel_id":"${{ inputs.slack_channel_id }}","slack_message_ts":"${{ inputs.slack_message_ts }}"}' || true
         env:
           PROGRESS_URL: ${{ inputs.callback_url }}
+          CALLBACK_TOKEN: ${{ inputs.callback_token }}
+          TARGET_OWNER: ${{ inputs.target_owner }}
+          TARGET_REPO: ${{ inputs.target_repo }}
+          HEAD_REF: ${{ inputs.head_ref }}
+          SLACK_CHANNEL_ID: ${{ inputs.slack_channel_id }}
+          SLACK_MESSAGE_TS: ${{ inputs.slack_message_ts }}
+        run: |
+          PAYLOAD=$(jq -n \
+            --arg owner "$TARGET_OWNER" \
+            --arg repo "$TARGET_REPO" \
+            --arg branch "$HEAD_REF" \
+            --argjson current_step 3 \
+            --argjson steps "$FIX_STEPS" \
+            --arg slack_channel_id "$SLACK_CHANNEL_ID" \
+            --arg slack_message_ts "$SLACK_MESSAGE_TS" \
+            '{owner: $owner, repo: $repo, branch: $branch, mode: "Fix", current_step: $current_step, steps: $steps, slack_channel_id: $slack_channel_id, slack_message_ts: $slack_message_ts}')
+          curl -sS -X POST "${PROGRESS_URL%/scan-callback}/slack-progress" \
+            -H "Content-Type: application/json" \
+            -H "x-callback-token: $CALLBACK_TOKEN" \
+            --data-raw "$PAYLOAD" || true
 
       - name: Apply finding fixes
         id: apply_fixes
@@ -332,9 +377,9 @@ jobs:
               TARGET_DIR="${{ github.workspace }}/target" \
               FINDINGS_PATH="${{ github.workspace }}/findings/a11y-findings.json" \
               REMEDIATION_PATH="${{ github.workspace }}/findings/a11y-remediation.md" \
-              AI_MODEL="${{ inputs.ai_model }}" \
-              PROJECT_HINTS="${{ inputs.project_hints }}" \
-              ANTHROPIC_API_KEY="${{ secrets.ANTHROPIC_API_KEY }}" \
+              AI_MODEL="$AI_MODEL" \
+              PROJECT_HINTS="$PROJECT_HINTS" \
+              ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
               RESULTS_OUTPUT_PATH="$DOM_RESULTS_FILE" \
               node runner/scripts/apply-finding-fix.mjs 2>&1 || true
 
@@ -456,9 +501,9 @@ jobs:
                   FINDINGS_PATH="${{ github.workspace }}/findings/a11y-findings.json" \
                   PATTERN_FINDINGS_PATH="${{ github.workspace }}/findings/a11y-pattern-findings.json" \
                   REMEDIATION_PATH="${{ github.workspace }}/findings/a11y-remediation.md" \
-                  AI_MODEL="${{ inputs.ai_model }}" \
-                  PROJECT_HINTS="${{ inputs.project_hints }}" \
-                  ANTHROPIC_API_KEY="${{ secrets.ANTHROPIC_API_KEY }}" \
+                  AI_MODEL="$AI_MODEL" \
+                  PROJECT_HINTS="$PROJECT_HINTS" \
+                  ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
                   GITHUB_OUTPUT="$SCRIPT_OUTPUT_FILE" \
                   node runner/scripts/apply-finding-fix.mjs 2>&1 || true
               fi
@@ -511,6 +556,8 @@ jobs:
           } >> "$GITHUB_OUTPUT"
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AI_MODEL: ${{ inputs.ai_model }}
+          PROJECT_HINTS: ${{ inputs.project_hints }}
 
       - name: Rebuild target after patch
         if: ${{ steps.apply_fixes.outputs.all_failed != 'true' && steps.runtime.outputs.build_command != '' }}
@@ -552,13 +599,28 @@ jobs:
 
       - name: Slack progress — Verifying patches
         if: ${{ inputs.slack_channel_id != '' && inputs.callback_url != '' }}
-        run: |
-          curl -sS -X POST "${PROGRESS_URL%/scan-callback}/slack-progress" \
-            -H "Content-Type: application/json" \
-            -H "x-callback-token: ${{ inputs.callback_token }}" \
-            --data-raw '{"owner":"${{ inputs.target_owner }}","repo":"${{ inputs.target_repo }}","branch":"${{ inputs.head_ref }}","mode":"Fix","current_step":4,"steps":'"$FIX_STEPS"',"slack_channel_id":"${{ inputs.slack_channel_id }}","slack_message_ts":"${{ inputs.slack_message_ts }}"}' || true
         env:
           PROGRESS_URL: ${{ inputs.callback_url }}
+          CALLBACK_TOKEN: ${{ inputs.callback_token }}
+          TARGET_OWNER: ${{ inputs.target_owner }}
+          TARGET_REPO: ${{ inputs.target_repo }}
+          HEAD_REF: ${{ inputs.head_ref }}
+          SLACK_CHANNEL_ID: ${{ inputs.slack_channel_id }}
+          SLACK_MESSAGE_TS: ${{ inputs.slack_message_ts }}
+        run: |
+          PAYLOAD=$(jq -n \
+            --arg owner "$TARGET_OWNER" \
+            --arg repo "$TARGET_REPO" \
+            --arg branch "$HEAD_REF" \
+            --argjson current_step 4 \
+            --argjson steps "$FIX_STEPS" \
+            --arg slack_channel_id "$SLACK_CHANNEL_ID" \
+            --arg slack_message_ts "$SLACK_MESSAGE_TS" \
+            '{owner: $owner, repo: $repo, branch: $branch, mode: "Fix", current_step: $current_step, steps: $steps, slack_channel_id: $slack_channel_id, slack_message_ts: $slack_message_ts}')
+          curl -sS -X POST "${PROGRESS_URL%/scan-callback}/slack-progress" \
+            -H "Content-Type: application/json" \
+            -H "x-callback-token: $CALLBACK_TOKEN" \
+            --data-raw "$PAYLOAD" || true
 
       - name: Verify patched finding
         id: verify_fix
@@ -676,27 +738,49 @@ jobs:
       - name: Create branch and commit
         id: commit_fix
         if: ${{ steps.verify_result.outputs.any_verified == 'true' }}
+        env:
+          TARGET_TOKEN: ${{ inputs.target_token }}
+          TARGET_OWNER: ${{ inputs.target_owner }}
+          TARGET_REPO: ${{ inputs.target_repo }}
+          BRANCH_SLUG: ${{ steps.apply_fixes.outputs.branch_slug }}
+          PATCHED_IDS: ${{ steps.apply_fixes.outputs.patched_ids }}
+          VERIFIED_IDS: ${{ steps.verify_result.outputs.verified_ids }}
         run: |
-          BRANCH_NAME="a11y-fix/multi-${{ steps.apply_fixes.outputs.branch_slug }}"
+          BRANCH_NAME="a11y-fix/multi-$BRANCH_SLUG"
           git -C target checkout -b "$BRANCH_NAME"
           git -C target config user.name "a11y-pr-reviewer[bot]"
           git -C target config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git -C target add -u
-          git -C target commit -m "fix(a11y): resolve ${{ steps.apply_fixes.outputs.patched_ids }}"
-          git -C target remote set-url origin "https://x-access-token:${{ inputs.target_token }}@github.com/${{ inputs.target_owner }}/${{ inputs.target_repo }}.git"
+          git -C target commit -m "fix(a11y): resolve $PATCHED_IDS"
+          git -C target remote set-url origin "https://x-access-token:$TARGET_TOKEN@github.com/$TARGET_OWNER/$TARGET_REPO.git"
           git -C target push origin "$BRANCH_NAME"
           echo "branch_name=$BRANCH_NAME" >> "$GITHUB_OUTPUT"
-          echo "verified_ids=${{ steps.verify_result.outputs.verified_ids }}" >> "$GITHUB_OUTPUT"
+          echo "verified_ids=$VERIFIED_IDS" >> "$GITHUB_OUTPUT"
 
       - name: Slack progress — Creating fix PR
         if: ${{ inputs.slack_channel_id != '' && inputs.callback_url != '' && steps.commit_fix.outputs.branch_name != '' }}
-        run: |
-          curl -sS -X POST "${PROGRESS_URL%/scan-callback}/slack-progress" \
-            -H "Content-Type: application/json" \
-            -H "x-callback-token: ${{ inputs.callback_token }}" \
-            --data-raw '{"owner":"${{ inputs.target_owner }}","repo":"${{ inputs.target_repo }}","branch":"${{ inputs.head_ref }}","mode":"Fix","current_step":5,"steps":'"$FIX_STEPS"',"slack_channel_id":"${{ inputs.slack_channel_id }}","slack_message_ts":"${{ inputs.slack_message_ts }}"}' || true
         env:
           PROGRESS_URL: ${{ inputs.callback_url }}
+          CALLBACK_TOKEN: ${{ inputs.callback_token }}
+          TARGET_OWNER: ${{ inputs.target_owner }}
+          TARGET_REPO: ${{ inputs.target_repo }}
+          HEAD_REF: ${{ inputs.head_ref }}
+          SLACK_CHANNEL_ID: ${{ inputs.slack_channel_id }}
+          SLACK_MESSAGE_TS: ${{ inputs.slack_message_ts }}
+        run: |
+          PAYLOAD=$(jq -n \
+            --arg owner "$TARGET_OWNER" \
+            --arg repo "$TARGET_REPO" \
+            --arg branch "$HEAD_REF" \
+            --argjson current_step 5 \
+            --argjson steps "$FIX_STEPS" \
+            --arg slack_channel_id "$SLACK_CHANNEL_ID" \
+            --arg slack_message_ts "$SLACK_MESSAGE_TS" \
+            '{owner: $owner, repo: $repo, branch: $branch, mode: "Fix", current_step: $current_step, steps: $steps, slack_channel_id: $slack_channel_id, slack_message_ts: $slack_message_ts}')
+          curl -sS -X POST "${PROGRESS_URL%/scan-callback}/slack-progress" \
+            -H "Content-Type: application/json" \
+            -H "x-callback-token: $CALLBACK_TOKEN" \
+            --data-raw "$PAYLOAD" || true
 
       - name: Open pull request
         id: open_pr
@@ -708,6 +792,11 @@ jobs:
           TOTAL_INPUT_TOKENS: ${{ steps.apply_fixes.outputs.total_input_tokens }}
           TOTAL_OUTPUT_TOKENS: ${{ steps.apply_fixes.outputs.total_output_tokens }}
           AI_MODEL: ${{ inputs.ai_model }}
+          REQUESTED_BY: ${{ inputs.requested_by }}
+          TARGET_OWNER: ${{ inputs.target_owner }}
+          TARGET_REPO: ${{ inputs.target_repo }}
+          HEAD_REF: ${{ inputs.head_ref }}
+          BRANCH_NAME: ${{ steps.commit_fix.outputs.branch_name }}
         with:
           github-token: ${{ inputs.target_token }}
           script: |
@@ -759,7 +848,7 @@ jobs:
             const body = [
               "## Automated Accessibility Fix",
               "",
-              `**Requested by:** @${{ inputs.requested_by }}`,
+              `**Requested by:** @${process.env.REQUESTED_BY}`,
               "",
               "| Status | Finding | Title | Outcome | File |",
               "|--------|---------|-------|---------|------|",
@@ -770,11 +859,11 @@ jobs:
             ].join("\n")
 
             const response = await github.rest.pulls.create({
-              owner: "${{ inputs.target_owner }}",
-              repo: "${{ inputs.target_repo }}",
+              owner: process.env.TARGET_OWNER,
+              repo: process.env.TARGET_REPO,
               title,
-              head: "${{ steps.commit_fix.outputs.branch_name }}",
-              base: "${{ inputs.head_ref }}",
+              head: process.env.BRANCH_NAME,
+              base: process.env.HEAD_REF,
               body,
             })
             core.setOutput("pr_url", response.data.html_url)
@@ -789,6 +878,9 @@ jobs:
           TOTAL_INPUT_TOKENS: ${{ steps.apply_fixes.outputs.total_input_tokens }}
           TOTAL_OUTPUT_TOKENS: ${{ steps.apply_fixes.outputs.total_output_tokens }}
           AI_MODEL: ${{ inputs.ai_model }}
+          TARGET_OWNER: ${{ inputs.target_owner }}
+          TARGET_REPO: ${{ inputs.target_repo }}
+          PULL_NUMBER: ${{ inputs.pull_number }}
         with:
           github-token: ${{ inputs.target_token }}
           script: |
@@ -880,11 +972,11 @@ jobs:
               ].join("\n")
             }
 
-            const pullNumber = Number("${{ inputs.pull_number }}")
+            const pullNumber = Number(process.env.PULL_NUMBER)
             if (pullNumber > 0) {
               await github.rest.issues.createComment({
-                owner: "${{ inputs.target_owner }}",
-                repo: "${{ inputs.target_repo }}",
+                owner: process.env.TARGET_OWNER,
+                repo: process.env.TARGET_REPO,
                 issue_number: pullNumber,
                 body,
               })
@@ -893,17 +985,12 @@ jobs:
       - name: Send Slack fix result callback
         if: ${{ inputs.slack_channel_id != '' && inputs.callback_url != '' }}
         run: |
-          RESULTS_FILE="${{ steps.apply_fixes.outputs.results_file }}"
-          PR_URL="${{ steps.open_pr.outputs.pr_url }}"
-          ANY_VERIFIED="${{ steps.verify_result.outputs.any_verified }}"
-          ALL_FAILED="${{ steps.apply_fixes.outputs.all_failed }}"
-
-          STATUS="success"
-          SUMMARY="Fix completed"
           if [ "$ALL_FAILED" = "true" ]; then
-            STATUS="failure"
             SUMMARY="No findings could be automatically fixed"
+          else
+            SUMMARY="Fix completed"
           fi
+          export SUMMARY
 
           node <<'NODE'
           const fs = require('fs')
@@ -974,6 +1061,9 @@ jobs:
           PATCHED_IDS: ${{ steps.apply_fixes.outputs.patched_ids }}
           PATCHED_COUNT: ${{ steps.apply_fixes.outputs.patched_count }}
           RESOLVED_IDS: ${{ steps.resolve_ids.outputs.resolved_ids }}
+          TARGET_OWNER: ${{ inputs.target_owner }}
+          TARGET_REPO: ${{ inputs.target_repo }}
+          CHECK_RUN_ID: ${{ inputs.check_run_id }}
         with:
           github-token: ${{ inputs.target_token }}
           script: |
@@ -994,9 +1084,9 @@ jobs:
             }
 
             await github.rest.checks.update({
-              owner: "${{ inputs.target_owner }}",
-              repo: "${{ inputs.target_repo }}",
-              check_run_id: Number("${{ inputs.check_run_id }}"),
+              owner: process.env.TARGET_OWNER,
+              repo: process.env.TARGET_REPO,
+              check_run_id: Number(process.env.CHECK_RUN_ID),
               status: 'completed',
               conclusion,
               output: { title, summary },

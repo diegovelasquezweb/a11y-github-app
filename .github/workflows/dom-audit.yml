@@ -84,12 +84,28 @@ jobs:
     steps:
       - name: Slack progress — Checking out repository
         if: ${{ inputs.slack_channel_id != '' }}
+        env:
+          PROGRESS_URL: ${{ inputs.callback_url }}
+          CALLBACK_TOKEN: ${{ inputs.callback_token }}
+          TARGET_OWNER: ${{ inputs.target_owner }}
+          TARGET_REPO: ${{ inputs.target_repo }}
+          BRANCH: ${{ inputs.branch }}
+          SLACK_CHANNEL_ID: ${{ inputs.slack_channel_id }}
+          SLACK_MESSAGE_TS: ${{ inputs.slack_message_ts }}
         run: |
-          PROGRESS_URL="${{ inputs.callback_url }}"
+          PAYLOAD=$(jq -n \
+            --arg owner "$TARGET_OWNER" \
+            --arg repo "$TARGET_REPO" \
+            --arg branch "$BRANCH" \
+            --argjson current_step 1 \
+            --argjson steps "$SLACK_STEPS" \
+            --arg slack_channel_id "$SLACK_CHANNEL_ID" \
+            --arg slack_message_ts "$SLACK_MESSAGE_TS" \
+            '{owner: $owner, repo: $repo, branch: $branch, mode: "Full Audit", current_step: $current_step, steps: $steps, slack_channel_id: $slack_channel_id, slack_message_ts: $slack_message_ts}')
           curl -sS -X POST "${PROGRESS_URL%/scan-callback}/slack-progress" \
             -H "Content-Type: application/json" \
-            -H "x-callback-token: ${{ inputs.callback_token }}" \
-            --data-raw '{"owner":"${{ inputs.target_owner }}","repo":"${{ inputs.target_repo }}","branch":"${{ inputs.branch }}","mode":"Full Audit","current_step":1,"steps":'"$SLACK_STEPS"',"slack_channel_id":"${{ inputs.slack_channel_id }}","slack_message_ts":"${{ inputs.slack_message_ts }}"}' || true
+            -H "x-callback-token: $CALLBACK_TOKEN" \
+            --data-raw "$PAYLOAD" || true
 
       - name: Checkout runner repository
         uses: actions/checkout@v4
@@ -175,12 +191,28 @@ jobs:
 
       - name: Slack progress — Installing dependencies
         if: ${{ inputs.slack_channel_id != '' && steps.runtime.outputs.install_command != '' }}
+        env:
+          PROGRESS_URL: ${{ inputs.callback_url }}
+          CALLBACK_TOKEN: ${{ inputs.callback_token }}
+          TARGET_OWNER: ${{ inputs.target_owner }}
+          TARGET_REPO: ${{ inputs.target_repo }}
+          BRANCH: ${{ inputs.branch }}
+          SLACK_CHANNEL_ID: ${{ inputs.slack_channel_id }}
+          SLACK_MESSAGE_TS: ${{ inputs.slack_message_ts }}
         run: |
-          PROGRESS_URL="${{ inputs.callback_url }}"
+          PAYLOAD=$(jq -n \
+            --arg owner "$TARGET_OWNER" \
+            --arg repo "$TARGET_REPO" \
+            --arg branch "$BRANCH" \
+            --argjson current_step 2 \
+            --argjson steps "$SLACK_STEPS" \
+            --arg slack_channel_id "$SLACK_CHANNEL_ID" \
+            --arg slack_message_ts "$SLACK_MESSAGE_TS" \
+            '{owner: $owner, repo: $repo, branch: $branch, mode: "Full Audit", current_step: $current_step, steps: $steps, slack_channel_id: $slack_channel_id, slack_message_ts: $slack_message_ts}')
           curl -sS -X POST "${PROGRESS_URL%/scan-callback}/slack-progress" \
             -H "Content-Type: application/json" \
-            -H "x-callback-token: ${{ inputs.callback_token }}" \
-            --data-raw '{"owner":"${{ inputs.target_owner }}","repo":"${{ inputs.target_repo }}","branch":"${{ inputs.branch }}","mode":"Full Audit","current_step":2,"steps":'"$SLACK_STEPS"',"slack_channel_id":"${{ inputs.slack_channel_id }}","slack_message_ts":"${{ inputs.slack_message_ts }}"}' || true
+            -H "x-callback-token: $CALLBACK_TOKEN" \
+            --data-raw "$PAYLOAD" || true
 
       - name: Install target dependencies
         if: ${{ steps.runtime.outputs.install_command != '' }}
@@ -189,12 +221,28 @@ jobs:
 
       - name: Slack progress — Building project
         if: ${{ inputs.slack_channel_id != '' && steps.runtime.outputs.build_command != '' }}
+        env:
+          PROGRESS_URL: ${{ inputs.callback_url }}
+          CALLBACK_TOKEN: ${{ inputs.callback_token }}
+          TARGET_OWNER: ${{ inputs.target_owner }}
+          TARGET_REPO: ${{ inputs.target_repo }}
+          BRANCH: ${{ inputs.branch }}
+          SLACK_CHANNEL_ID: ${{ inputs.slack_channel_id }}
+          SLACK_MESSAGE_TS: ${{ inputs.slack_message_ts }}
         run: |
-          PROGRESS_URL="${{ inputs.callback_url }}"
+          PAYLOAD=$(jq -n \
+            --arg owner "$TARGET_OWNER" \
+            --arg repo "$TARGET_REPO" \
+            --arg branch "$BRANCH" \
+            --argjson current_step 3 \
+            --argjson steps "$SLACK_STEPS" \
+            --arg slack_channel_id "$SLACK_CHANNEL_ID" \
+            --arg slack_message_ts "$SLACK_MESSAGE_TS" \
+            '{owner: $owner, repo: $repo, branch: $branch, mode: "Full Audit", current_step: $current_step, steps: $steps, slack_channel_id: $slack_channel_id, slack_message_ts: $slack_message_ts}')
           curl -sS -X POST "${PROGRESS_URL%/scan-callback}/slack-progress" \
             -H "Content-Type: application/json" \
-            -H "x-callback-token: ${{ inputs.callback_token }}" \
-            --data-raw '{"owner":"${{ inputs.target_owner }}","repo":"${{ inputs.target_repo }}","branch":"${{ inputs.branch }}","mode":"Full Audit","current_step":3,"steps":'"$SLACK_STEPS"',"slack_channel_id":"${{ inputs.slack_channel_id }}","slack_message_ts":"${{ inputs.slack_message_ts }}"}' || true
+            -H "x-callback-token: $CALLBACK_TOKEN" \
+            --data-raw "$PAYLOAD" || true
 
       - name: Build target project
         if: ${{ steps.runtime.outputs.build_command != '' }}
@@ -225,12 +273,28 @@ jobs:
 
       - name: Slack progress — Starting server
         if: ${{ inputs.slack_channel_id != '' }}
+        env:
+          PROGRESS_URL: ${{ inputs.callback_url }}
+          CALLBACK_TOKEN: ${{ inputs.callback_token }}
+          TARGET_OWNER: ${{ inputs.target_owner }}
+          TARGET_REPO: ${{ inputs.target_repo }}
+          BRANCH: ${{ inputs.branch }}
+          SLACK_CHANNEL_ID: ${{ inputs.slack_channel_id }}
+          SLACK_MESSAGE_TS: ${{ inputs.slack_message_ts }}
         run: |
-          PROGRESS_URL="${{ inputs.callback_url }}"
+          PAYLOAD=$(jq -n \
+            --arg owner "$TARGET_OWNER" \
+            --arg repo "$TARGET_REPO" \
+            --arg branch "$BRANCH" \
+            --argjson current_step 4 \
+            --argjson steps "$SLACK_STEPS" \
+            --arg slack_channel_id "$SLACK_CHANNEL_ID" \
+            --arg slack_message_ts "$SLACK_MESSAGE_TS" \
+            '{owner: $owner, repo: $repo, branch: $branch, mode: "Full Audit", current_step: $current_step, steps: $steps, slack_channel_id: $slack_channel_id, slack_message_ts: $slack_message_ts}')
           curl -sS -X POST "${PROGRESS_URL%/scan-callback}/slack-progress" \
             -H "Content-Type: application/json" \
-            -H "x-callback-token: ${{ inputs.callback_token }}" \
-            --data-raw '{"owner":"${{ inputs.target_owner }}","repo":"${{ inputs.target_repo }}","branch":"${{ inputs.branch }}","mode":"Full Audit","current_step":4,"steps":'"$SLACK_STEPS"',"slack_channel_id":"${{ inputs.slack_channel_id }}","slack_message_ts":"${{ inputs.slack_message_ts }}"}' || true
+            -H "x-callback-token: $CALLBACK_TOKEN" \
+            --data-raw "$PAYLOAD" || true
 
       - name: Start local server
         run: |
@@ -263,12 +327,28 @@ jobs:
 
       - name: Slack progress — Running DOM scan
         if: ${{ inputs.slack_channel_id != '' }}
+        env:
+          PROGRESS_URL: ${{ inputs.callback_url }}
+          CALLBACK_TOKEN: ${{ inputs.callback_token }}
+          TARGET_OWNER: ${{ inputs.target_owner }}
+          TARGET_REPO: ${{ inputs.target_repo }}
+          BRANCH: ${{ inputs.branch }}
+          SLACK_CHANNEL_ID: ${{ inputs.slack_channel_id }}
+          SLACK_MESSAGE_TS: ${{ inputs.slack_message_ts }}
         run: |
-          PROGRESS_URL="${{ inputs.callback_url }}"
+          PAYLOAD=$(jq -n \
+            --arg owner "$TARGET_OWNER" \
+            --arg repo "$TARGET_REPO" \
+            --arg branch "$BRANCH" \
+            --argjson current_step 5 \
+            --argjson steps "$SLACK_STEPS" \
+            --arg slack_channel_id "$SLACK_CHANNEL_ID" \
+            --arg slack_message_ts "$SLACK_MESSAGE_TS" \
+            '{owner: $owner, repo: $repo, branch: $branch, mode: "Full Audit", current_step: $current_step, steps: $steps, slack_channel_id: $slack_channel_id, slack_message_ts: $slack_message_ts}')
           curl -sS -X POST "${PROGRESS_URL%/scan-callback}/slack-progress" \
             -H "Content-Type: application/json" \
-            -H "x-callback-token: ${{ inputs.callback_token }}" \
-            --data-raw '{"owner":"${{ inputs.target_owner }}","repo":"${{ inputs.target_repo }}","branch":"${{ inputs.branch }}","mode":"Full Audit","current_step":5,"steps":'"$SLACK_STEPS"',"slack_channel_id":"${{ inputs.slack_channel_id }}","slack_message_ts":"${{ inputs.slack_message_ts }}"}' || true
+            -H "x-callback-token: $CALLBACK_TOKEN" \
+            --data-raw "$PAYLOAD" || true
 
       - name: Run source pattern scanner
         id: source_scan
@@ -284,12 +364,28 @@ jobs:
 
       - name: Slack progress — Running source analysis
         if: ${{ inputs.slack_channel_id != '' && inputs.source_scan_enabled != 'false' }}
+        env:
+          PROGRESS_URL: ${{ inputs.callback_url }}
+          CALLBACK_TOKEN: ${{ inputs.callback_token }}
+          TARGET_OWNER: ${{ inputs.target_owner }}
+          TARGET_REPO: ${{ inputs.target_repo }}
+          BRANCH: ${{ inputs.branch }}
+          SLACK_CHANNEL_ID: ${{ inputs.slack_channel_id }}
+          SLACK_MESSAGE_TS: ${{ inputs.slack_message_ts }}
         run: |
-          PROGRESS_URL="${{ inputs.callback_url }}"
+          PAYLOAD=$(jq -n \
+            --arg owner "$TARGET_OWNER" \
+            --arg repo "$TARGET_REPO" \
+            --arg branch "$BRANCH" \
+            --argjson current_step 6 \
+            --argjson steps "$SLACK_STEPS" \
+            --arg slack_channel_id "$SLACK_CHANNEL_ID" \
+            --arg slack_message_ts "$SLACK_MESSAGE_TS" \
+            '{owner: $owner, repo: $repo, branch: $branch, mode: "Full Audit", current_step: $current_step, steps: $steps, slack_channel_id: $slack_channel_id, slack_message_ts: $slack_message_ts}')
           curl -sS -X POST "${PROGRESS_URL%/scan-callback}/slack-progress" \
             -H "Content-Type: application/json" \
-            -H "x-callback-token: ${{ inputs.callback_token }}" \
-            --data-raw '{"owner":"${{ inputs.target_owner }}","repo":"${{ inputs.target_repo }}","branch":"${{ inputs.branch }}","mode":"Full Audit","current_step":6,"steps":'"$SLACK_STEPS"',"slack_channel_id":"${{ inputs.slack_channel_id }}","slack_message_ts":"${{ inputs.slack_message_ts }}"}' || true
+            -H "x-callback-token: $CALLBACK_TOKEN" \
+            --data-raw "$PAYLOAD" || true
 
       - name: Run DOM audit
         id: run_audit
@@ -528,10 +624,13 @@ jobs:
 
       - name: Send callback
         if: always()
+        env:
+          CALLBACK_URL: ${{ inputs.callback_url }}
+          CALLBACK_TOKEN: ${{ inputs.callback_token }}
         run: |
-          curl -sS -X POST "${{ inputs.callback_url }}" \
+          curl -sS -X POST "$CALLBACK_URL" \
             -H "Content-Type: application/json" \
-            -H "x-callback-token: ${{ inputs.callback_token }}" \
+            -H "x-callback-token: $CALLBACK_TOKEN" \
             --data-binary @callback-payload.json
 
       - name: Stop local server
