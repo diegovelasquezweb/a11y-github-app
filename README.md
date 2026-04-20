@@ -1,5 +1,7 @@
 # A11y GitHub App
 
+A GitHub App that audits repositories for WCAG 2.2 AA accessibility issues, applies AI-generated fixes, and integrates with Slack and Jira.
+
 ---
 
 ## Table of Contents
@@ -25,7 +27,7 @@ The system has three components:
 |-----------|------|
 | **Webhook app** (this repo, deployed on Vercel) | Receives GitHub and Slack events, orchestrates workflows, posts results |
 | **Runner repository** (GitHub Actions) | Executes scans (axe, pa11y, CDP), generates AI patches, posts callbacks |
-| **Target repositories** | The repos being audited — no code changes required |
+| **Target repositories** | The repos being audited |
 
 See [Architecture](docs/architecture.md) for the full request flow and component breakdown.
 
@@ -39,8 +41,8 @@ Before you begin, make sure you have:
 - A **Vercel account** for hosting the webhook server
 - A **GitHub repository** to use as the runner
 - An **Anthropic API key** for AI-powered fix generation
-- A **Slack workspace** with permission to create apps (for the Slack integration)
-- A **Jira Cloud account** with API token access (for the Jira integration)
+- A **Slack workspace** with permission to create apps
+- A **Jira Cloud account** with API token access
 
 ---
 
@@ -53,7 +55,7 @@ Before you begin, make sure you have:
    | Field | Value |
    |-------|-------|
    | **GitHub App name** | Any name |
-   | **Homepage URL** | Your Vercel URL |
+   | **Homepage URL** | Leave blank for now |
    | **Webhook URL** | Leave blank for now |
    | **Webhook secret** | Generate a strong random string and save it |
 
@@ -101,20 +103,12 @@ In **Vercel → your project → Settings → Environment Variables**, add the f
 | `GITHUB_APP_ID` | Numeric App ID from Step 1 | GitHub App settings page |
 | `GITHUB_APP_PRIVATE_KEY` | Full PEM content from the `.pem` file | Paste the entire file contents including header and footer lines |
 | `GITHUB_WEBHOOK_SECRET` | The random string from Step 1.2 | Your own value |
-| `DOM_AUDIT_ENABLED` | `true` | — |
 | `APP_BASE_URL` | `https://<your-project>.vercel.app` | Your Vercel deployment URL |
 | `DOM_AUDIT_CALLBACK_TOKEN` | A strong random string | Your own value |
 | `SCAN_RUNNER_OWNER` | GitHub org name of the runner repo | — |
 | `SCAN_RUNNER_REPO` | Repository name of the runner repo | — |
 | `SCAN_RUNNER_REF` | Branch where workflows live | Default: `master` |
 
-### 2.3 Copy your webhook URL
-
-Your webhook endpoint is:
-
-```
-https://<your-project>.vercel.app/api/webhook
-```
 
 ---
 
@@ -124,7 +118,7 @@ The runner repository is where GitHub Actions workflows execute the actual scans
 
 ### 3.1 Fork this repository
 
-Fork this repository into your GitHub organization. The fork becomes your runner.
+Fork this repository into your GitHub organization. The fork becomes the runner.
 
 Set `SCAN_RUNNER_OWNER` and `SCAN_RUNNER_REPO` in Vercel to point to your fork.
 
@@ -194,10 +188,6 @@ The Slack integration lets users trigger audits directly from Slack. Results are
 |----------|-------|
 | `SLACK_BOT_TOKEN` | `xoxb-...` token from step 4 |
 | `SLACK_SIGNING_SECRET` | Signing secret from step 4 |
-
-### 6. Invite the bot to a channel
-
-In any Slack channel: `/invite @A11y Audit`
 
 ---
 
