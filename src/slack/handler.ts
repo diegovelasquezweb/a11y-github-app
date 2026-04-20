@@ -359,7 +359,7 @@ async function handleFixSubmit(interaction: SlackInteractionPayload): Promise<Sl
 
   let metadata: Record<string, unknown>;
   try {
-    metadata = JSON.parse(interaction.view?.private_metadata ?? "");
+    metadata = JSON.parse(interaction.view?.private_metadata ?? "{}");
   } catch {
     return { status: 200, body: { response_action: "errors", errors: { ai_model_block: "Session data lost. Please re-run the audit." } } };
   }

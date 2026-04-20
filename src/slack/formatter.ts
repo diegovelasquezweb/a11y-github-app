@@ -14,11 +14,18 @@ function escapeHtmlTags(text: string): string {
   return text.replace(/<\/?([a-zA-Z][a-zA-Z0-9]*)[^>]*>/g, (_, tag) => `\`<${tag}>\``);
 }
 
+function extractPathname(url: string): string {
+  try {
+    return new URL(url).pathname.replace(/\/index\.html$/, "/").replace(/\.html$/, "").replace(/^\//, "") || "home";
+  } catch {
+    return "";
+  }
+}
+
 function buildJiraSingleValue(id: string, severity: string, title: string, owner: string, repo: string): string {
   const MAX = 150;
   const base = { k: "s", i: id, v: severity, o: owner, r: repo };
   const baseJson = JSON.stringify(base);
-  // Adding "t" field adds: ,"t":"<title>"} → 7 chars overhead + title length
   const budget = MAX - baseJson.length - 7;
   const t = budget <= 0 ? "" : (title.length <= budget ? title : title.slice(0, budget - 3) + "...");
   const value = JSON.stringify({ ...base, t });
@@ -78,8 +85,7 @@ function buildGhBulkBody(summary: DomAuditSummary, context: ResultContext, total
     findingRows.push(`| ${f.severity} | ${f.title} | \`${f.file}\` |`);
   }
   for (const f of (summary.findings ?? [])) {
-    let pg = "";
-    if (f.url) { try { pg = new URL(f.url).pathname.replace(/\/index\.html$/, "/").replace(/\.html$/, "").replace(/^\//, "") || "home"; } catch { /* ignore */ } }
+    const pg = f.url ? extractPathname(f.url) : "";
     findingRows.push(`| ${f.severity} | ${f.title} | \`/${pg}\` |`);
   }
   if (findingRows.length === 0) return header;
@@ -158,22 +164,16 @@ export function formatAuditResultBlocks(
       blocks.push({ type: "section", text: { type: "mrkdwn", text: "*DOM Audit*" } });
       const maxDom = 20 - Math.min(summary.patternFindings?.findings.length ?? 0, 10);
       const domShown = summary.findings.slice(0, maxDom);
-      domShown.forEach((f, i) => {
+      domShown.forEach((f) => {
+        const pathname = f.url ? extractPathname(f.url) : "";
         const parts = [`${severityIcon(f.severity)} \`${f.id}\` ${escapeHtmlTags(f.title)}`];
-        if (f.url) {
-          try {
-            const pathname = new URL(f.url).pathname.replace(/\/index\.html$/, "/").replace(/\.html$/, "").replace(/^\//, "") || "home";
-            parts.push(`Page: \`${pathname}\``);
-          } catch { /* ignore */ }
-        }
+        if (pathname) parts.push(`Page: \`${pathname}\``);
         if (f.id) {
           const findingFixValue = JSON.stringify({
             id: f.id, o: context.owner, r: context.repo, s: context.headSha ?? "",
             h: context.headRef ?? context.branch ?? "", b: context.baseRef ?? "",
             i: context.installationId ?? 0,
           });
-          let pathname = "";
-          if (f.url) { try { pathname = new URL(f.url).pathname.replace(/\/index\.html$/, "/").replace(/\.html$/, "").replace(/^\//, "") || "home"; } catch { /* ignore */ } }
           const issueTableRows = [
             ...(pathname ? [`| **Page** | \`/${pathname}\` |`] : []),
             ...(f.selector ? [`| **Selector** | \`${f.selector}\` |`] : []),
@@ -236,8 +236,7 @@ export function formatAuditResultBlocks(
     }
     if (summary.findings) {
       for (const f of summary.findings) {
-        let pg = "";
-        if (f.url) { try { pg = new URL(f.url).pathname.replace(/\/index\.html$/, "/").replace(/\.html$/, "").replace(/^\//, "") || "home"; } catch { /* ignore */ } }
+        const pg = f.url ? extractPathname(f.url) : "";
         const finding: BulkFinding = { v: f.severity, t: f.title };
         if (pg) finding.pg = pg;
         if (f.selector) finding.sel = f.selector;
@@ -287,7 +286,7 @@ export function formatAuditResultBlocks(
 
 function appendPatternFindings(blocks: Record<string, unknown>[], patternFindings: PatternAuditSummary, max: number, context: ResultContext): void {
   const shown = patternFindings.findings.slice(0, max);
-  shown.forEach((f, i) => {
+  shown.forEach((f) => {
     const location = f.line ? `${f.file}:${f.line}` : f.file;
     const parts = [
       `${severityIcon(f.severity)} \`${f.id}\` ${escapeHtmlTags(f.title)}`,
