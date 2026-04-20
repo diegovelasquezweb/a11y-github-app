@@ -28,15 +28,15 @@ The fix engine runs inside the `a11y-fix.yml` GitHub Actions workflow. For each 
 %%{init: { 'theme': 'base', 'themeVariables': { 'primaryColor': '#3b5cd9', 'primaryTextColor': '#1e293b', 'primaryBorderColor': '#1e308a', 'lineColor': '#64748b', 'secondaryColor': '#f1f5f9', 'tertiaryColor': '#fff', 'mainBkg': '#fff', 'nodeBorder': '#e2e8f0', 'clusterBkg': '#f8fafc', 'clusterBorder': '#cbd5e1' } } }%%
 flowchart LR
     FIND(["Finding ID"])
-    CACHE["Load finding\nfrom cache"]
-    CTX["Extract element\ncontext from source"]
-    GUIDE["Load remediation\nguidance from\nintelligence assets"]
-    HINTS["Project hints\n(.a11y-hints.json)"]
-    CLAUDE["Claude API\ngenerates patch"]
-    APPLY["Apply patch\nto file"]
+    CACHE["Load finding<br/>from cache"]
+    CTX["Extract element<br/>context from source"]
+    GUIDE["Load remediation<br/>guidance from<br/>intelligence assets"]
+    HINTS["Project hints<br/>(.a11y-hints.json)"]
+    CLAUDE["Claude API<br/>generates patch"]
+    APPLY["Apply patch<br/>to file"]
     VERIFY{"DOM finding?"}
-    REAUDIT["Re-run audit\nfor verification"]
-    RESULT(["fixed / patched\nskipped / failed"])
+    REAUDIT["Re-run audit<br/>for verification"]
+    RESULT(["fixed / patched<br/>skipped / failed"])
 
     FIND --> CACHE --> CTX
     CTX --> CLAUDE
