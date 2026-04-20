@@ -7,10 +7,12 @@
 ## Table of Contents
 
 - [Overview](#overview)
+- [End-User Flows](#end-user-flows)
 - [Request Flow](#request-flow)
 - [Internal Component Roles](#internal-component-roles)
 - [Audit Data Flow](#audit-data-flow)
 - [Fix Data Flow](#fix-data-flow)
+- [Local Development](#local-development)
 
 ## Overview
 
@@ -19,6 +21,34 @@ The A11y GitHub App is a webhook server that listens to GitHub events on install
 The app supports two contexts:
 - **Pull Request**: audit/fix the PR head branch. Commands in PR comments.
 - **Issue**: audit/fix any branch in the repo (defaults to the repo's default branch). Commands in issue comments. Use `branch:X` to target a specific branch.
+
+## End-User Flows
+
+### PR Flow
+
+1. PR opened → bot posts a welcome comment listing all available commands
+2. Collaborator comments `/a11y-audit` → app creates a Check Run and dispatches `dom-audit.yml`
+3. Runner builds the target project, runs axe + cdp + pa11y + source pattern scanner
+4. Results posted as a single editable PR comment (finding IDs, severity, selectors, WCAG)
+5. Collaborator comments `/a11y-fix all` → app dispatches `a11y-fix.yml`
+6. Runner applies AI patches, verifies each one, commits to a new branch, opens a fix PR
+
+### Issue Flow
+
+1. Issue opened → bot posts a welcome comment listing all available commands
+2. Collaborator comments `/a11y-audit` → audits the repo's default branch
+3. `/a11y-audit branch:stage` → resolves that branch via the GitHub API and audits it
+4. Results posted as an issue comment with finding IDs and fix commands (automatically include `branch:X`)
+5. `/a11y-fix all` → same patch + PR flow as PRs, targeting the audited branch
+
+### Slack Flow
+
+1. User types `/a11y` in any channel → modal opens (repo URL, branch, audit mode)
+2. Submit → app dispatches the audit workflow; a scanning message appears in the channel
+3. Workflow reports progress → message updates live with a progress bar (6 steps)
+4. Scan completes → results posted to Slack
+5. **Fix All** button in Slack → fix modal opens (model, hint) → fix workflow dispatched
+6. Fix completes → Slack message updated with patch results and a link to the fix PR
 
 ## Request Flow
 
@@ -104,7 +134,7 @@ flowchart TD
 | `src/webhook/dom-callback.ts` | Handles `POST /api/scan-callback`. Validates the callback token with a timing-safe comparison, normalizes the findings payload, builds the final comment body (DOM section, source pattern section, quick-fix section), updates the Check Run to `completed`, and updates or creates the comment. Supports `branch` parameter to include `branch:X` in fix commands for issue-based scans. When Slack context is present in the callback payload, also posts results to Slack via `chat.update`. |
 | `src/slack/handler.ts` | Entry point for Slack interactions. Verifies Slack signing secret, routes slash commands (`/a11y`), modal submissions (audit and fix), and button actions (Fix, Fix All). Opens Block Kit modals, resolves repos/branches, dispatches workflows, and posts progress messages. |
 | `src/slack/progress.ts` | Handles `POST /api/slack-progress`. Receives progress updates from GitHub Actions workflows and updates the Slack message with a progress bar showing the current step. |
-| `src/slack/formatter.ts` | Converts `DomAuditSummary` into Slack Block Kit blocks. Handles severity icons (🟥🟧🟨🟦), finding overflow (max 20 DOM + 10 pattern), and action buttons per finding. |
+| `src/slack/formatter.ts` | Converts `DomAuditSummary` into Slack Block Kit blocks. Handles severity icons, finding overflow (max 20 DOM + 10 pattern), and action buttons per finding. |
 | `src/slack/notifier.ts` | Wraps Slack `chat.postMessage` and `chat.update` calls. All calls are non-fatal — failures are logged but never block GitHub posting. |
 | `src/review/audit-command.ts` | Parses audit commands from comment text. Matches `/a11y-audit`, `/a11y-audit dom`, and `/a11y-audit source` and returns an `AuditCommand` with `auditMode` and optional `branch`. Validates that `branch:` has a value — bare `branch` without a value returns null. |
 | `src/review/fix-command.ts` | Parses fix commands from comment text. Matches `/a11y-fix` followed by one or more finding IDs (or `all`), an optional model name, and an optional hint. Returns a `FixCommand` with the resolved `findingIds` array and optional `branch`. Bare `branch` without a value returns an invalid command. |
@@ -174,3 +204,28 @@ flowchart LR
     class CMD2 trigger;
     class CR3,CR4,CACHE,BRANCH,PR storage;
 ```
+
+## Local Development
+
+```bash
+npm install
+npm run dev        # starts the local server on PORT (default 8787)
+```
+
+Use [ngrok](https://ngrok.com/) to expose the local server for webhook testing:
+
+```bash
+ngrok http 8787
+```
+
+Update the GitHub App webhook URL to the ngrok URL while testing. Set `APP_BASE_URL` in `.env` to the ngrok URL so callback URLs are built correctly.
+
+Create a `.env` file in the project root with the required variables (see the [Configuration](configuration.md) reference).
+
+**Run tests:**
+
+```bash
+npm test
+```
+
+Tests use Vitest and cover the webhook handler, review logic, and Slack callback flow.

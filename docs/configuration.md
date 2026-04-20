@@ -13,6 +13,7 @@
 - [Environment Variables](#environment-variables)
   - [Vercel (webhook server)](#vercel-webhook-server)
   - [GitHub Actions (runner repo)](#github-actions-runner-repo)
+- [Verifying the Setup](#verifying-the-setup)
 - [Vercel Deployment Notes](#vercel-deployment-notes)
 
 ---
@@ -80,15 +81,13 @@ Set these in **Vercel → Project Settings → Environment Variables**.
 
 #### Jira Integration (optional)
 
-All five vars must be set together to enable API mode. When `JIRA_BASE_URL` is empty, the "Create Jira Ticket" buttons fall back to pre-filled browser URLs — no behavior change.
+When `JIRA_BASE_URL` is empty, the "Create Jira Ticket" buttons fall back to pre-filled browser URLs — no behavior change. Users choose the project key in the Slack modal at ticket creation time; no env var needed for it.
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `JIRA_BASE_URL` | No | `""` | Your Atlassian Cloud base URL, e.g. `https://acme.atlassian.net`. **Setting this enables API mode.** |
 | `JIRA_EMAIL` | If `JIRA_BASE_URL` set | `""` | Atlassian account email used for Basic auth. |
 | `JIRA_API_TOKEN` | If `JIRA_BASE_URL` set | `""` | API token from `id.atlassian.com/manage-profile/security/api-tokens`. |
-| `JIRA_PROJECT_KEY` | If `JIRA_BASE_URL` set | `""` | Target project key, e.g. `A11Y`. |
-| `JIRA_ISSUE_TYPE` | No | `"Bug"` | Issue type name. Must exist in the target project. |
 
 See [Jira Setup](jira-setup.md) for step-by-step configuration.
 
@@ -111,3 +110,25 @@ Set these in the runner repository under **Settings → Secrets and variables �
 - **`DOM_AUDIT_ENABLED`**: Defaults to `false`. You must explicitly set it to `"true"` or the app will accept webhooks but silently skip all commands.
 - **`FIX_AI_MODEL`**: Hot-swappable — change the value in Vercel and it takes effect on the next `/a11y-fix` command without touching the runner repo.
 - **`PORT`**: Vercel manages its own HTTP server binding. This variable is only relevant for local development.
+
+---
+
+## Verifying the Setup
+
+### Webhook delivery check
+
+1. Go to GitHub App settings → **Advanced** → **Recent Deliveries**
+2. Open a test PR or issue in a target repository — a `pull_request` or `issues` event should appear
+3. Check that the delivery returned HTTP `200`
+
+### Bot welcome comment
+
+Open a PR or Issue in an installed repository — the bot should post a welcome comment within a few seconds.
+
+### First audit
+
+Comment `/a11y-audit` on an open PR. The bot should:
+1. Post an acknowledgment comment with a progress indicator
+2. Create a `Check Run` named `A11y Audit` in `in_progress` state
+3. Dispatch a workflow run in the runner repository (visible under **Actions**)
+4. Update the comment with findings when the scan completes

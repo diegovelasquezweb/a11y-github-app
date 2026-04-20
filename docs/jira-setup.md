@@ -7,13 +7,10 @@
 ## Table of Contents
 
 - [Overview](#overview)
-- [Step 1: Create a Jira Cloud workspace](#step-1-create-a-jira-cloud-workspace)
-- [Step 2: Create a project](#step-2-create-a-project)
-- [Step 3: Generate an API token](#step-3-generate-an-api-token)
-- [Step 4: Set environment variables in Vercel](#step-4-set-environment-variables-in-vercel)
-- [Step 5: Verify the issue type](#step-5-verify-the-issue-type)
-- [How it works](#how-it-works)
-- [Ticket types](#ticket-types)
+- [Step 1: Generate a Jira API token](#step-1-generate-a-jira-api-token)
+- [Step 2: Set environment variables in Vercel](#step-2-set-environment-variables-in-vercel)
+- [How ticket creation works](#how-ticket-creation-works)
+- [Ticket content](#ticket-content)
 - [Disabling the integration](#disabling-the-integration)
 
 ---
@@ -22,38 +19,22 @@
 
 The Jira integration lets users create Jira tickets directly from Slack audit results — either one ticket per finding or a single summary ticket for all findings.
 
-The integration is **opt-in**: when `JIRA_BASE_URL` is not set, the "Create Jira Ticket" buttons open a pre-filled Jira URL in the browser (existing behavior). No behavior changes until all five env vars are configured.
+The integration is **opt-in**: when `JIRA_BASE_URL` is not set, the "Create Jira Ticket" buttons open a pre-filled Jira URL in the browser (existing behavior). No behavior changes until the three env vars below are configured.
+
+> **Slack required.** Jira tickets are created from Slack button interactions. This integration only works when the Slack integration is also configured — see [Slack Setup](slack-setup.md).
 
 ---
 
-## Step 1: Create a Jira Cloud workspace
-
-If you don't have a Jira Cloud instance:
-
-1. Go to [atlassian.com/software/jira](https://www.atlassian.com/software/jira)
-2. Click **Get it free**
-3. Create a workspace — your URL will be `https://<workspace>.atlassian.net`
-
----
-
-## Step 2: Create a project
-
-1. Inside your Jira workspace, click **Create project**
-2. Choose **Scrum**, **Kanban**, or **Bug tracking** — any type works
-3. Note the **Project Key** shown during setup (e.g. `A11Y`, `WEB`) — this goes in `JIRA_PROJECT_KEY`
-
----
-
-## Step 3: Generate an API token
+## Step 1: Generate a Jira API token
 
 1. Go to [id.atlassian.com/manage-profile/security/api-tokens](https://id.atlassian.com/manage-profile/security/api-tokens)
 2. Click **Create API token**
-3. Give it a label (e.g. `a11y-app`) and click **Create**
+3. Give it a label (e.g., `a11y-app`) and click **Create**
 4. Copy the token — **it is shown only once**
 
 ---
 
-## Step 4: Set environment variables in Vercel
+## Step 2: Set environment variables in Vercel
 
 In **Vercel → Project Settings → Environment Variables**, add:
 
@@ -61,31 +42,20 @@ In **Vercel → Project Settings → Environment Variables**, add:
 |----------|-------|
 | `JIRA_BASE_URL` | `https://<workspace>.atlassian.net` |
 | `JIRA_EMAIL` | Your Atlassian account email |
-| `JIRA_API_TOKEN` | Token from step 3 |
-| `JIRA_PROJECT_KEY` | Project key from step 2 (e.g. `A11Y`) |
-| `JIRA_ISSUE_TYPE` | `Bug` (or any issue type that exists in your project) |
+| `JIRA_API_TOKEN` | Token from step 1 |
 
 No redeploy needed — Vercel applies env var changes on the next request.
 
----
-
-## Step 5: Verify the issue type
-
-The value of `JIRA_ISSUE_TYPE` must match an issue type that exists in your project.
-
-To check:
-1. Go to your Jira project → **Project settings** → **Issue types**
-2. Confirm `Bug` (or whatever you set) is listed
-
-If it does not exist, use `Task` or any type shown in the list.
+> **Note**: No `JIRA_PROJECT_KEY` or `JIRA_ISSUE_TYPE` env vars are required. Users choose the project key in the Slack modal at ticket creation time. The issue type is always `Task`.
 
 ---
 
-## How it works
+## How ticket creation works
 
 ```
 User clicks "Create Jira Ticket" in Slack
-  → Slack fires block_actions to /api/slack
+  → Modal opens with a "Project Key" field (e.g. A11Y, KAN, WEB)
+  → User enters the project key and clicks "Create Ticket"
   → App ACKs HTTP 200 immediately (Slack 3s deadline met)
   → App calls Jira REST API v3 in the background (waitUntil)
   → On success: ephemeral reply with the ticket URL
@@ -94,29 +64,33 @@ User clicks "Create Jira Ticket" in Slack
 
 The Jira API call happens after the HTTP response is sent. Slack receives the ACK within the 3-second window regardless of Jira's response time.
 
+The project key is entered by the user each time — it is not stored. Different findings can be sent to different Jira projects.
+
 ---
 
-## Ticket types
+## Ticket content
 
 ### Per-finding ticket
 
-Clicking `...` → **Create Jira Ticket** on a specific finding creates a ticket with:
+Clicking `…` → **Create Jira Ticket** on a specific finding:
 
-- **Summary**: `[severity] finding title`
-- **Description**: Finding ID, severity, title, repo, branch
-- **Issue type**: value of `JIRA_ISSUE_TYPE`
+- **Summary**: finding title
+- **Issue type**: Task
+- **Description**:
+  - For DOM findings: WCAG criterion, recommended fix, page URL, CSS selector
+  - For source pattern findings: file path and line number
 - **Priority**: not set — uses the project default
 
 ### Bulk ticket
 
-Clicking **Create Jira Ticket** at the bottom of the audit result creates a single summary ticket with:
+Clicking **Create Jira Ticket** at the bottom of the audit result:
 
 - **Summary**: `A11y Audit: N findings in owner/repo`
-- **Description**: repo, branch, total count, breakdown by severity (Critical / Serious / Moderate / Minor)
-- **Issue type**: value of `JIRA_ISSUE_TYPE`
+- **Issue type**: Task
+- **Description**: severity breakdown (Critical / Serious / Moderate / Minor) + list of the top finding titles
 - **Priority**: not set
 
-> A11y severity (Critical/Serious/Moderate/Minor) is **not** mapped to Jira priority. They are different concepts — a11y severity is accessibility impact; Jira priority is business urgency. Severity appears in the description body only.
+> A11y severity (Critical/Serious/Moderate/Minor) does **not** map to Jira priority. Severity is accessibility impact; priority is business urgency. Severity appears in the description body only.
 
 ---
 

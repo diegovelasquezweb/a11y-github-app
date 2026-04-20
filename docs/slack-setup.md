@@ -22,7 +22,7 @@
 
 ## Overview
 
-The Slack integration lets users trigger accessibility audits and fixes from any Slack channel. Commands open an interactive modal (Block Kit) where users select a repository, branch, and audit mode. Results are posted back to both Slack and GitHub.
+The Slack integration lets users trigger accessibility audits and fixes from any Slack channel. Commands open an interactive modal where users select a repository, branch, and audit mode. Results are posted back to the channel.
 
 The integration is **opt-in** — the app works exactly as before without Slack configured.
 
@@ -154,7 +154,7 @@ User types /a11y in Slack
       ▓▓▓▓▓░  Running DOM scan…
       ▓▓▓▓▓▓  Running source pattern analysis…
   → Callback arrives at /api/scan-callback
-  → Results posted to GitHub (PR/Issue comment) AND Slack (message updated)
+  → Results posted to Slack (message updated)
   → Findings displayed with severity indicators (🟥 Critical, 🟧 Serious, 🟨 Moderate, 🟦 Minor)
   → "Fix All" button → opens fix modal (model + hint) → dispatches fix workflow
   → Individual "Fix" buttons per finding → same flow
