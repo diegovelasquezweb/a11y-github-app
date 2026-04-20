@@ -165,11 +165,6 @@ flowchart LR
 
 ## Jira Flow
 
-Jira ticket creation is triggered from Slack audit results and runs in two modes:
-
-- **API mode** (`JIRA_BASE_URL` configured): open a modal for `Project Key`, ACK immediately, then create a Jira issue via REST API in background.
-- **URL fallback mode** (`JIRA_BASE_URL` empty): buttons open a pre-filled Jira create URL in the browser.
-
 ```mermaid
 %%{init: { 'theme': 'base', 'themeVariables': { 'primaryColor': '#3b5cd9', 'primaryTextColor': '#1e293b', 'primaryBorderColor': '#1e308a', 'lineColor': '#64748b', 'secondaryColor': '#f1f5f9', 'tertiaryColor': '#fff', 'mainBkg': '#fff', 'nodeBorder': '#e2e8f0', 'clusterBkg': '#f8fafc', 'clusterBorder': '#cbd5e1' } } }%%
 flowchart LR
