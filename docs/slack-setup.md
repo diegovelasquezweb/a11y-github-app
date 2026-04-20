@@ -1,6 +1,6 @@
 # Slack Integration Setup
 
-**Navigation**: [Home](../README.md) • [Architecture](architecture.md) • [Commands](commands.md) • [Configuration](configuration.md) • [Runner Setup](runner-setup.md) • [Fix Engine](fix-engine.md) • [Slack Setup](slack-setup.md)
+**Navigation**: [Home](../README.md) • [Architecture](architecture.md) • [Commands](commands.md) • [Configuration](configuration.md) • [Runner Setup](runner-setup.md) • [Fix Engine](fix-engine.md) • [Slack Setup](slack-setup.md) • [Testing](testing.md)
 
 ---
 
@@ -10,11 +10,9 @@
 - [Step 1: Create the Slack App](#step-1-create-the-slack-app)
 - [Step 2: Configure Slash Command](#step-2-configure-slash-command)
 - [Step 3: Enable Interactivity](#step-3-enable-interactivity)
-- [Step 4: Add Bot Token Scopes](#step-4-add-bot-token-scopes)
-- [Step 5: Install to Workspace](#step-5-install-to-workspace)
-- [Step 6: Set Environment Variables](#step-6-set-environment-variables)
-- [Step 7: Invite the Bot](#step-7-invite-the-bot)
-- [Verifying the Setup](#verifying-the-setup)
+- [Step 4: Add Scopes and Install](#step-4-add-scopes-and-install)
+- [Step 5: Set Environment Variables](#step-5-set-environment-variables)
+- [Step 6: Invite the Bot](#step-6-invite-the-bot)
 - [How It Works](#how-it-works)
 - [Disabling Slack Integration](#disabling-slack-integration)
 
@@ -67,49 +65,29 @@ The integration is **opt-in** — the app works exactly as before without Slack 
 
 ---
 
-## Step 4: Add Bot Token Scopes
+## Step 4: Add Scopes and Install
 
-1. Go to **OAuth & Permissions**
-2. Scroll to **Scopes** → **Bot Token Scopes**
-3. Add these scopes:
-
-| Scope | Why |
-|-------|-----|
-| `commands` | Receive the `/a11y` slash command |
-| `chat:write` | Post and update messages in channels where the bot is invited |
-
-Optional:
-
-| Scope | Why |
-|-------|-----|
-| `chat:write.public` | Post to channels without explicit bot invite |
-
----
-
-## Step 5: Install to Workspace
-
-1. Go to **Install App** (or **OAuth & Permissions** → **Install to Workspace**)
-2. Click **Install to Workspace** and authorize
+1. Go to **OAuth & Permissions** → **Bot Token Scopes** and add: `commands`, `chat:write`, `chat:write.public`
+2. Go to **Install App** → **Install to Workspace** and authorize
 3. Copy the **Bot User OAuth Token** (`xoxb-...`)
-4. Go to **Basic Information** → scroll to **App Credentials**
-5. Copy the **Signing Secret**
+4. Go to **Basic Information** → **App Credentials** → copy the **Signing Secret**
 
 ---
 
-## Step 6: Set Environment Variables
+## Step 5: Set Environment Variables
 
 In **Vercel → Project Settings → Environment Variables**, add:
 
 | Variable | Value |
 |----------|-------|
-| `SLACK_BOT_TOKEN` | The `xoxb-...` token from step 5 |
-| `SLACK_SIGNING_SECRET` | The signing secret from step 5 |
+| `SLACK_BOT_TOKEN` | The `xoxb-...` token from step 4 |
+| `SLACK_SIGNING_SECRET` | The signing secret from step 4 |
 
 No redeploy needed if using Vercel's runtime env vars.
 
 ---
 
-## Step 7: Invite the Bot
+## Step 6: Invite the Bot
 
 In any Slack channel where you want to use `/a11y`:
 
@@ -120,22 +98,6 @@ In any Slack channel where you want to use `/a11y`:
 Or mention the bot: `@A11y Audit` — Slack will prompt you to invite it.
 
 > If you added the `chat:write.public` scope, this step is optional.
-
----
-
-## Verifying the Setup
-
-1. In a Slack channel, type `/a11y`
-2. A modal should appear with fields for Repository, Branch, and Audit Mode
-3. Paste a GitHub repository URL (e.g., `https://github.com/your-org/your-repo`), leave Branch empty, select "Full Audit"
-4. Click **Run Audit**
-5. A "⏳ Scanning..." message should appear in the channel
-6. When the audit completes, the message updates with findings and Fix buttons
-
-If the modal does not appear:
-- Check that `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET` are set in Vercel
-- Check that the Request URL matches your Vercel deployment URL
-- Check the Vercel function logs for errors
 
 ---
 

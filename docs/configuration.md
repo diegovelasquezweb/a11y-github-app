@@ -1,6 +1,6 @@
 # Configuration
 
-**Navigation**: [Home](../README.md) • [Architecture](architecture.md) • [Commands](commands.md) • [Configuration](configuration.md) • [Runner Setup](runner-setup.md) • [Fix Engine](fix-engine.md)
+**Navigation**: [Home](../README.md) • [Architecture](architecture.md) • [Commands](commands.md) • [Configuration](configuration.md) • [Runner Setup](runner-setup.md) • [Fix Engine](fix-engine.md) • [Testing](testing.md)
 
 ---
 
@@ -115,20 +115,18 @@ Set these in the runner repository under **Settings → Secrets and variables �
 
 ## Verifying the Setup
 
-### Webhook delivery check
+### GitHub App
 
 1. Go to GitHub App settings → **Advanced** → **Recent Deliveries**
-2. Open a test PR or issue in a target repository — a `pull_request` or `issues` event should appear
+2. Open a PR or Issue in a target repository — a `pull_request` or `issues` event should appear
 3. Check that the delivery returned HTTP `200`
+4. The bot should post a welcome comment within a few seconds
 
-### Bot welcome comment
+### Slack
 
-Open a PR or Issue in an installed repository — the bot should post a welcome comment within a few seconds.
+Type `/a11y` in a channel — a modal should appear with Repository, Branch, and Audit Mode fields.
 
-### First audit
+### Jira
 
-Comment `/a11y-audit` on an open PR. The bot should:
-1. Post an acknowledgment comment with a progress indicator
-2. Create a `Check Run` named `A11y Audit` in `in_progress` state
-3. Dispatch a workflow run in the runner repository (visible under **Actions**)
-4. Update the comment with findings when the scan completes
+Click **Create Jira Ticket** on any finding in a Slack audit result — a modal should ask for the project key and confirm the ticket was created.
+

@@ -1,8 +1,4 @@
-# A11y GitHub App — Installation Manual
-
-A GitHub App that automatically audits repositories for WCAG 2.2 AA accessibility issues and applies AI-generated fixes — triggered from PR comments, Issue comments, or Slack.
-
-When installed on a repository, the bot posts a welcome comment on every opened PR or Issue with the available commands. Team members can then run audits or request fixes on demand without leaving GitHub or Slack.
+# A11y GitHub App
 
 ---
 
@@ -13,11 +9,10 @@ When installed on a repository, the bot posts a welcome comment on every opened 
 - [Step 1: Create the GitHub App](#step-1-create-the-github-app)
 - [Step 2: Deploy to Vercel](#step-2-deploy-to-vercel)
 - [Step 3: Set Up the Runner Repository](#step-3-set-up-the-runner-repository)
-- [Step 4: Complete the GitHub App Configuration](#step-4-complete-the-github-app-configuration)
-- [Step 5: Install the App on Repositories](#step-5-install-the-app-on-repositories)
-- [Step 6: Set Up the Slack Integration](#step-6-set-up-the-slack-integration)
-- [Step 7: Set Up the Jira Integration](#step-7-set-up-the-jira-integration)
-- [Step 8: Verify the Setup](#step-8-verify-the-setup)
+- [Step 4: Complete Configuration and Install](#step-4-complete-configuration-and-install)
+- [Step 5: Set Up the Slack Integration](#step-5-set-up-the-slack-integration)
+- [Step 6: Set Up the Jira Integration](#step-6-set-up-the-jira-integration)
+- [Step 7: Verify the Setup](#step-7-verify-the-setup)
 - [Detailed Docs](#detailed-docs)
 
 ---
@@ -44,6 +39,8 @@ Before you begin, make sure you have:
 - A **Vercel account** for hosting the webhook server
 - A **GitHub repository** to use as the runner
 - An **Anthropic API key** for AI-powered fix generation
+- A **Slack workspace** with permission to create apps (for the Slack integration)
+- A **Jira Cloud account** with API token access (for the Jira integration)
 
 ---
 
@@ -111,11 +108,7 @@ In **Vercel → your project → Settings → Environment Variables**, add the f
 | `SCAN_RUNNER_REPO` | Repository name of the runner repo | — |
 | `SCAN_RUNNER_REF` | Branch where workflows live | Default: `master` |
 
-### 2.3 Redeploy
-
-After saving the env vars, go to **Deployments** and click **Redeploy** on the latest deployment to pick up the new variables.
-
-### 2.4 Copy your webhook URL
+### 2.3 Copy your webhook URL
 
 Your webhook endpoint is:
 
@@ -149,7 +142,7 @@ In the runner repository: **Settings → Actions → General → Workflow permis
 
 ---
 
-## Step 4: Complete the GitHub App Configuration
+## Step 4: Complete Configuration and Install
 
 Go back to **GitHub Settings → Developer settings → GitHub Apps → your app**:
 
@@ -157,23 +150,11 @@ Go back to **GitHub Settings → Developer settings → GitHub Apps → your app
 2. Set **Webhook URL** to `https://<your-project>.vercel.app/api/webhook`.
 3. Set the **Webhook secret** to match `GITHUB_WEBHOOK_SECRET`.
 4. Click **Save changes**.
-5. Go to **Install App** and install it on the runner repository.
+5. Go to **Install App** → install it on the runner repository and every target repo you want to audit.
 
 ---
 
-## Step 5: Install the App on Repositories
-
-To audit a repository, the GitHub App must be installed on it.
-
-1. Go to your GitHub App → **Install App**
-2. Click **Install** next to your organization or account
-3. Choose **Only select repositories** and select every target repo you want to audit
-4. Click **Install**
-
-
----
-
-## Step 6: Set Up the Slack Integration
+## Step 5: Set Up the Slack Integration
 
 The Slack integration lets users trigger audits directly from Slack. Results are posted back to the channel.
 
@@ -207,21 +188,20 @@ The Slack integration lets users trigger audits directly from Slack. Results are
 3. Copy the **Bot User OAuth Token** (`xoxb-...`)
 4. Go to **Basic Information** → copy the **Signing Secret**
 
-### 6. Add environment variables in Vercel
+### 5. Add environment variables in Vercel
 
 | Variable | Value |
 |----------|-------|
 | `SLACK_BOT_TOKEN` | `xoxb-...` token from step 4 |
 | `SLACK_SIGNING_SECRET` | Signing secret from step 4 |
 
-### 7. Invite the bot to a channel
+### 6. Invite the bot to a channel
 
 In any Slack channel: `/invite @A11y Audit`
 
-
 ---
 
-## Step 7: Set Up the Jira Integration
+## Step 6: Set Up the Jira Integration
 
 Enables one-click Jira ticket creation from Slack audit results. Requires a Jira Cloud account.
 
@@ -241,22 +221,9 @@ Enables one-click Jira ticket creation from Slack audit results. Requires a Jira
 
 ---
 
-## Step 8: Verify the Setup
+## Step 7: Verify the Setup
 
-### GitHub App
-
-1. Go to GitHub App settings → **Advanced** → **Recent Deliveries**
-2. Open a PR or Issue in a target repository — a `pull_request` or `issues` event should appear
-3. Check that the delivery returned HTTP `200`
-4. The bot should post a welcome comment within a few seconds
-
-### Slack
-
-Type `/a11y` in a channel — a modal should appear with Repository, Branch, and Audit Mode fields.
-
-### Jira
-
-Click **Create Jira Ticket** on any finding in a Slack audit result — a modal should ask for the project key and confirm the ticket was created.
+See [Configuration → Verifying the Setup](docs/configuration.md#verifying-the-setup).
 
 ---
 
@@ -267,7 +234,8 @@ Click **Create Jira Ticket** on any finding in a Slack audit result — a modal 
 | [Architecture](docs/architecture.md) | System design, request flow, component roles, data flow diagrams |
 | [Commands](docs/commands.md) | Full command reference with output examples and fix result statuses |
 | [Configuration](docs/configuration.md) | Full environment variables reference and Vercel deployment notes |
-| [Runner Setup](docs/runner-setup.md) | Workflow file reference, auto-detection logic, and `.a11y-runner.json` config |
+| [Runner Setup](docs/runner-setup.md) | Workflow file reference and auto-detection logic |
 | [Fix Engine](docs/fix-engine.md) | AI patch engine internals, git checkpoint pattern, token cost |
 | [Slack Setup](docs/slack-setup.md) | Full Slack App configuration and how the integration works |
 | [Jira Setup](docs/jira-setup.md) | Jira Cloud integration details and ticket format |
+| [Testing](docs/testing.md) | Test suite reference |
