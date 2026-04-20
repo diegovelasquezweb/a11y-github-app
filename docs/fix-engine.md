@@ -7,6 +7,7 @@
 ## Table of Contents
 
 - [Overview](#overview)
+- [Fix Flow](#fix-flow)
 - [Fix Strategies](#fix-strategies)
   - [DOM Findings (A11Y-*)](#dom-findings-a11y-)
   - [Pattern Findings (PAT-*)](#pattern-findings-pat-)
@@ -18,7 +19,42 @@
 
 ## Overview
 
-The fix engine is implemented in `runner/scripts/apply-finding-fix.mjs` and runs inside the `a11y-fix.yml` GitHub Actions workflow. For each finding ID, the workflow invokes the script with environment variables pointing to the target directory, findings cache, and the AI model to use. The script calls `applyFindingFix()` from the `@diegovelasquezweb/a11y-engine` package, which handles the full patch lifecycle: locating the element, generating a code patch via the Claude API, and writing the result to disk.
+The fix engine runs inside the `a11y-fix.yml` GitHub Actions workflow. For each finding, it follows a two-layer process:
+
+- **The engine provides the knowledge**: it loads the finding from cache, extracts the element context from the source files, and supplies WCAG remediation guidance from its intelligence database.
+- **Claude executes the fix**: it receives the element context + remediation guidance + any project hints and produces a concrete code patch (search/replace) for that specific file. Claude does not decide *what* to fix or *how* to fix it in the abstract — the engine's intelligence assets define that. Claude only translates the guidance into a change in the target file.
+
+```mermaid
+%%{init: { 'theme': 'base', 'themeVariables': { 'primaryColor': '#3b5cd9', 'primaryTextColor': '#1e293b', 'primaryBorderColor': '#1e308a', 'lineColor': '#64748b', 'secondaryColor': '#f1f5f9', 'tertiaryColor': '#fff', 'mainBkg': '#fff', 'nodeBorder': '#e2e8f0', 'clusterBkg': '#f8fafc', 'clusterBorder': '#cbd5e1' } } }%%
+flowchart LR
+    FIND(["Finding ID"])
+    CACHE["Load finding\nfrom cache"]
+    CTX["Extract element\ncontext from source"]
+    GUIDE["Load remediation\nguidance from\nintelligence assets"]
+    HINTS["Project hints\n(.a11y-hints.json)"]
+    CLAUDE["Claude API\ngenerates patch"]
+    APPLY["Apply patch\nto file"]
+    VERIFY{"DOM finding?"}
+    REAUDIT["Re-run audit\nfor verification"]
+    RESULT(["fixed / patched\nskipped / failed"])
+
+    FIND --> CACHE --> CTX
+    CTX --> CLAUDE
+    GUIDE --> CLAUDE
+    HINTS --> CLAUDE
+    CLAUDE --> APPLY --> VERIFY
+    VERIFY -->|yes| REAUDIT --> RESULT
+    VERIFY -->|no| RESULT
+
+    classDef default font-family:Inter,sans-serif,font-size:12px;
+    classDef trigger fill:#1e293b,color:#fff,stroke:#0f172a;
+    classDef core fill:#3b5cd9,color:#fff,stroke:#1e308a,stroke-width:2px;
+    classDef knowledge fill:#f1f5f9,stroke:#cbd5e1,stroke-dasharray: 5 5;
+
+    class FIND trigger;
+    class CLAUDE,APPLY core;
+    class CACHE,CTX,GUIDE,HINTS knowledge;
+```
 
 ## Fix Strategies
 
