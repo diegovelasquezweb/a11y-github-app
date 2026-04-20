@@ -1,6 +1,6 @@
 {
   "name": "@diegovelasquezweb/a11y-github-app",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "GitHub App webhook service for accessibility PR reviews",
   "type": "module",
   "private": true,

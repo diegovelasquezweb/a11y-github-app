@@ -95,8 +95,15 @@ When `JIRA_BASE_URL` is empty, the "Create Jira Ticket" buttons fall back to pre
 | `JIRA_BASE_URL` | No | `""` | Your Atlassian Cloud base URL, e.g. `https://acme.atlassian.net`. **Setting this enables API mode.** |
 | `JIRA_EMAIL` | If `JIRA_BASE_URL` set | `""` | Atlassian account email used for Basic auth. |
 | `JIRA_API_TOKEN` | If `JIRA_BASE_URL` set | `""` | API token from `id.atlassian.com/manage-profile/security/api-tokens`. |
+| `JIRA_PROJECT_KEY` | No | `""` | Optional. Pre-fills the Project Key field in the Slack modal. Users can still override it per ticket. |
 
 See [Jira Setup](jira-setup.md) for step-by-step configuration.
+
+#### Extras
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `GITHUB_ISSUES_ENABLED` | No | `false` | Set to `"true"` to show a "Create GitHub Issue" button next to each Slack finding. Opens a pre-filled GitHub issue URL in the target repo. |
 
 ### GitHub Actions (runner repo)
 

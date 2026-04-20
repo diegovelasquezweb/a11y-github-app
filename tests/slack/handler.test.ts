@@ -9,7 +9,6 @@ vi.mock("../../src/config.js", () => ({
     jiraEmail: "test@example.com",
     jiraApiToken: "token",
     jiraProjectKey: "A11Y",
-    jiraIssueType: "Bug",
   },
 }));
 

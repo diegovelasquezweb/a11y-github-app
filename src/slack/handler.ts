@@ -149,7 +149,7 @@ export function errorCodeToMessage(code: CreateIssueErrorCode): string {
     case "missing_config": return "Jira is not configured. Ask your admin to set JIRA_* environment variables.";
     case "unauthorized": return "Jira credentials are invalid. Check JIRA_EMAIL and JIRA_API_TOKEN.";
     case "forbidden": return "Not authorized to create issues in this Jira project. Check JIRA_PROJECT_KEY permissions.";
-    case "bad_request": return "Jira rejected the request. Check JIRA_ISSUE_TYPE and project configuration.";
+    case "bad_request": return "Jira rejected the request. Check the project key and project configuration.";
     case "not_found": return "Jira project or resource not found. Check JIRA_BASE_URL and JIRA_PROJECT_KEY.";
     case "server_error": return "Jira returned a server error. Please try again later.";
     case "network_error": return "Could not reach Jira. Check JIRA_BASE_URL and network connectivity.";

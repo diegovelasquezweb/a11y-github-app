@@ -52,8 +52,8 @@ User clicks "Create Jira Ticket" in Slack
   → User enters the project key and clicks "Create Ticket"
   → App ACKs HTTP 200 immediately (Slack 3s deadline met)
   → App calls Jira REST API v3 in the background (waitUntil)
-  → On success: ephemeral reply with the ticket URL
-  → On failure: ephemeral error message with remediation hint
+  → On success: posts a message in the Slack thread with the ticket URL
+  → On failure: posts a message in the Slack thread with the error and a remediation hint
 ```
 
 The Jira API call happens after the HTTP response is sent. Slack receives the ACK within the 3-second window regardless of Jira's response time.

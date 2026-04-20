@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented here.
 
-## Unreleased
+## 0.2.0 (2026-04-20)
 
 ### Added
 
@@ -19,6 +19,9 @@ All notable changes to this project are documented here.
 - **GitHub URL input** — Slack audit modal accepts full GitHub URLs (e.g., `https://github.com/owner/repo`), not just `owner/repo`.
 - **`api/slack` endpoint** — receives Slack slash commands, modal submissions, and button actions.
 - **`api/slack-progress` endpoint** — receives progress updates from workflows to update Slack messages.
+- **Jira integration** — create Jira tickets directly from Slack audit results. Per-finding or bulk ticket via Jira REST API v3. Falls back to pre-filled browser URLs when Jira env vars are not set.
+- **Documented `GITHUB_ISSUES_ENABLED`** — configuration var to enable the "Create GitHub Issue" button next to each Slack finding.
+- **Documented `JIRA_PROJECT_KEY`** — optional pre-fill for the Slack Jira project key modal.
 
 ### Fixed
 
@@ -27,6 +30,13 @@ All notable changes to this project are documented here.
 - Plain bullets in suggested workflow to avoid GitHub task list drag handles in issue comments.
 - Bare `/a11y-audit branch` (without a value) returns null instead of triggering an audit.
 - Branch not found error posts an explanatory comment instead of failing silently.
+- Docs: Jira flow in `architecture.md` now describes the actual one-step flow (project key → hardcoded `Task` → create) instead of the inexistent five-step flow with issue type selection.
+- Docs: Slack formatter cap in `architecture.md` corrected to `max 20 findings total` (up to 10 pattern + remaining DOM) instead of the misleading `20 DOM + 10 pattern`.
+- Docs: Jira success/failure replies in `jira-setup.md` correctly described as thread messages (`chat.postMessage`) instead of ephemeral replies.
+
+### Removed
+
+- `JIRA_ISSUE_TYPE` env var — dead code residual from the pre-`jira-modal` design. Issue type is hardcoded to `"Task"` in the handler.
 
 ## 0.1.0
 

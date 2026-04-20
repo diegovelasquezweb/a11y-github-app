@@ -7,7 +7,6 @@ export function getJiraConfig(): JiraConfig | null {
     jiraEmail: email,
     jiraApiToken: apiToken,
     jiraProjectKey: projectKey,
-    jiraIssueType: issueType,
   } = CONFIG;
   if (!baseUrl || !email || !apiToken) return null;
   const authHeader = `Basic ${Buffer.from(`${email}:${apiToken}`).toString("base64")}`;
@@ -16,7 +15,6 @@ export function getJiraConfig(): JiraConfig | null {
     email,
     apiToken,
     ...(projectKey ? { projectKey } : {}),
-    ...(issueType ? { issueType } : {}),
     authHeader,
   };
 }

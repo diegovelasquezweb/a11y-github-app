@@ -43,7 +43,6 @@ export interface JiraConfig {
   email: string;
   apiToken: string;
   projectKey?: string;
-  issueType?: string;
   authHeader: string;
 }
 

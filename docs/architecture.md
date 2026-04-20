@@ -57,9 +57,8 @@ The app supports two contexts:
 
 1. Scan completes in Slack → each finding has a **Create Jira Ticket** button
 2. User clicks the button → modal opens asking for the Jira project key
-3. User submits → app fetches available issue types for that project from the Jira API
-4. Second modal opens → user selects the issue type and confirms
-5. App creates the ticket via the Jira REST API and posts a confirmation in the Slack thread
+3. User submits → app ACKs immediately and creates the ticket via the Jira REST API (issue type `Task`) in the background via `waitUntil`
+4. App posts a confirmation message in the Slack thread with the ticket URL (or an error message on failure)
 
 ## Request Flow
 
@@ -73,7 +72,7 @@ GitHub receives a webhook event → the app verifies the HMAC signature and dedu
 | `src/webhook/dom-callback.ts` | Handles `POST /api/scan-callback`. Validates the callback token with a timing-safe comparison, normalizes the findings payload, builds the final comment body (DOM section, source pattern section, quick-fix section), updates the Check Run to `completed`, and updates or creates the comment. Supports `branch` parameter to include `branch:X` in fix commands for issue-based scans. When Slack context is present in the callback payload, also posts results to Slack via `chat.update`. |
 | `src/slack/handler.ts` | Entry point for Slack interactions. Verifies Slack signing secret, routes slash commands (`/a11y`), modal submissions (audit and fix), and button actions (Fix, Fix All). Opens Block Kit modals, resolves repos/branches, dispatches workflows, and posts progress messages. |
 | `src/slack/progress.ts` | Handles `POST /api/slack-progress`. Receives progress updates from GitHub Actions workflows and updates the Slack message with a progress bar showing the current step. |
-| `src/slack/formatter.ts` | Converts `DomAuditSummary` into Slack Block Kit blocks. Handles severity icons, finding overflow (max 20 DOM + 10 pattern), and action buttons per finding. |
+| `src/slack/formatter.ts` | Converts `DomAuditSummary` into Slack Block Kit blocks. Handles severity icons, finding overflow (max 20 findings total: up to 10 pattern + remaining DOM), and action buttons per finding. |
 | `src/slack/notifier.ts` | Wraps Slack `chat.postMessage` and `chat.update` calls. All calls are non-fatal — failures are logged but never block GitHub posting. |
 | `src/review/audit-command.ts` | Parses audit commands from comment text. Matches `/a11y-audit`, `/a11y-audit dom`, and `/a11y-audit source` and returns an `AuditCommand` with `auditMode` and optional `branch`. Validates that `branch:` has a value — bare `branch` without a value returns null. |
 | `src/review/fix-command.ts` | Parses fix commands from comment text. Matches `/a11y-fix` followed by one or more finding IDs (or `all`), an optional model name, and an optional hint. Returns a `FixCommand` with the resolved `findingIds` array and optional `branch`. Bare `branch` without a value returns an invalid command. |
@@ -181,12 +180,12 @@ flowchart LR
     MODE{"JIRA_BASE_URL set?"}
     MODAL["Open modal<br/>Project Key"]
     ACK["ACK interaction<br/>(< 3s)"]
-    API["Create issue via<br/>Jira REST API v3"]
-    EPH["Post ephemeral<br/>success/failure"]
+    API["Create issue via<br/>Jira REST API v3<br/>(issue type: Task)"]
+    MSG["Post thread message<br/>with ticket URL"]
     URL["Open pre-filled Jira<br/>create URL"]
 
     SLK --> MODE
-    MODE -->|Yes| MODAL --> ACK --> API --> EPH
+    MODE -->|Yes| MODAL --> ACK --> API --> MSG
     MODE -->|No| URL
 
     classDef default font-family:Inter,sans-serif,font-size:12px;
@@ -196,7 +195,7 @@ flowchart LR
 
     class SLK trigger;
     class API,MODAL core;
-    class ACK,EPH,URL storage;
+    class ACK,MSG,URL storage;
 ```
 
 ## Local Development
