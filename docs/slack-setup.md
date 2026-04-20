@@ -1,6 +1,6 @@
 # Slack Integration Setup
 
-**Navigation**: [Home](../README.md) • [Architecture](architecture.md) • [Commands](commands.md) • [Configuration](configuration.md) • [Runner Setup](runner-setup.md) • [Fix Engine](fix-engine.md) • [Slack Setup](slack-setup.md) • [Testing](testing.md)
+**Navigation**: [Home](../README.md) • [Architecture](architecture.md) • [Commands](commands.md) • [Configuration](configuration.md) • [Runner Setup](runner-setup.md) • [Slack Setup](slack-setup.md) • [Jira Setup](jira-setup.md) • [Fix Engine](fix-engine.md)
 
 ---
 
@@ -21,8 +21,6 @@
 ## Overview
 
 The Slack integration lets users trigger accessibility audits and fixes from any Slack channel. Commands open an interactive modal where users select a repository, branch, and audit mode. Results are posted back to the channel.
-
-The integration is **opt-in** — the app works exactly as before without Slack configured.
 
 ---
 

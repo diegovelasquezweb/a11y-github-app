@@ -1,6 +1,6 @@
 # Configuration
 
-**Navigation**: [Home](../README.md) • [Architecture](architecture.md) • [Commands](commands.md) • [Configuration](configuration.md) • [Runner Setup](runner-setup.md) • [Fix Engine](fix-engine.md) • [Testing](testing.md)
+**Navigation**: [Home](../README.md) • [Architecture](architecture.md) • [Commands](commands.md) • [Configuration](configuration.md) • [Runner Setup](runner-setup.md) • [Slack Setup](slack-setup.md) • [Jira Setup](jira-setup.md) • [Fix Engine](fix-engine.md)
 
 ---
 
@@ -129,4 +129,3 @@ Type `/a11y` in a channel — a modal should appear with Repository, Branch, and
 ### Jira
 
 Click **Create Jira Ticket** on any finding in a Slack audit result — a modal should ask for the project key and confirm the ticket was created.
-

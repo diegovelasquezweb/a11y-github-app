@@ -1,6 +1,6 @@
 # Architecture
 
-**Navigation**: [Home](../README.md) • [Architecture](architecture.md) • [Commands](commands.md) • [Configuration](configuration.md) • [Runner Setup](runner-setup.md) • [Fix Engine](fix-engine.md) • [Testing](testing.md)
+**Navigation**: [Home](../README.md) • [Architecture](architecture.md) • [Commands](commands.md) • [Configuration](configuration.md) • [Runner Setup](runner-setup.md) • [Slack Setup](slack-setup.md) • [Jira Setup](jira-setup.md) • [Fix Engine](fix-engine.md)
 
 ---
 
@@ -12,6 +12,7 @@
 - [Internal Component Roles](#internal-component-roles)
 - [Audit Data Flow](#audit-data-flow)
 - [Fix Data Flow](#fix-data-flow)
+- [Jira Flow](#jira-flow)
 - [Local Development](#local-development)
 
 ## Overview
@@ -52,79 +53,7 @@ The app supports two contexts:
 
 ## Request Flow
 
-```mermaid
-%%{init: { 'theme': 'base', 'themeVariables': { 'primaryColor': '#3b5cd9', 'primaryTextColor': '#1e293b', 'primaryBorderColor': '#1e308a', 'lineColor': '#64748b', 'secondaryColor': '#f1f5f9', 'tertiaryColor': '#fff', 'mainBkg': '#fff', 'nodeBorder': '#e2e8f0', 'clusterBkg': '#f8fafc', 'clusterBorder': '#cbd5e1' } } }%%
-flowchart LR
-    GH(["GitHub Event"])
-
-    subgraph Webhook ["POST /api/webhook"]
-        direction TB
-        V["Verify HMAC Signature"]
-        D["Deduplicate Delivery ID"]
-        R{"Route by<br/>Event Type"}
-        V --> D --> R
-    end
-
-    subgraph PR ["pull_request event"]
-        direction TB
-        PA{"action:<br/>opened / reopened?"}
-        WC["Post Welcome Comment"]
-        PA -->|yes| WC
-        PA -->|no| SKIP1["Skip"]
-    end
-
-    subgraph ISS ["issues event"]
-        direction TB
-        IA{"action:<br/>opened?"}
-        IWC["Post Welcome Comment"]
-        IA -->|yes| IWC
-        IA -->|no| SKIP4["Skip"]
-    end
-
-    subgraph IC ["issue_comment event"]
-        direction TB
-        CTX{"PR or<br/>Issue?"}
-        AUTH{"author_association:<br/>OWNER / MEMBER /<br/>COLLABORATOR?"}
-        CTX --> AUTH
-        AUTH -->|yes| PARSE["Parse Command"]
-        AUTH -->|no| SKIP2["Ignore"]
-        PARSE --> CMD{"Command?"}
-        CMD -->|"/a11y-audit<br/>/a11y-audit dom<br/>/a11y-audit source"| AUDIT["Resolve Branch<br/>Create Check Run<br/>Dispatch Audit Workflow"]
-        CMD -->|"/a11y-fix"| FIX["Resolve Branch<br/>Create Check Run<br/>Dispatch Fix Workflow"]
-        CMD -->|"none"| SKIP3["Ignore"]
-    end
-
-    subgraph Runner ["GitHub Actions Runner"]
-        direction TB
-        RUN["Execute Scan / Fix"]
-        CB["POST /api/scan-callback"]
-        RUN --> CB
-    end
-
-    subgraph Callback ["Callback Handler"]
-        direction TB
-        TOK["Verify Callback Token"]
-        UPD["Update Check Run"]
-        CMT["Update Comment"]
-        TOK --> UPD --> CMT
-    end
-
-    GH --> Webhook
-    R -->|pull_request| PR
-    R -->|issues| ISS
-    R -->|issue_comment| IC
-    AUDIT --> Runner
-    FIX --> Runner
-    Runner --> Callback
-
-    classDef default font-family:Inter,sans-serif,font-size:12px;
-    classDef entry fill:#1e293b,color:#fff,stroke:#0f172a;
-    classDef core fill:#3b5cd9,color:#fff,stroke:#1e308a,stroke-width:2px;
-    classDef decision fill:#f1f5f9,stroke:#cbd5e1;
-
-    class GH entry;
-    class V,RUN,TOK core;
-```
+GitHub receives a webhook event → the app verifies the HMAC signature and deduplicates the delivery → routes by event type (`pull_request`, `issues`, `issue_comment`) → on commands, resolves the branch, creates a Check Run, and dispatches a workflow to the runner → the runner executes the scan or fix and POSTs a callback → the app updates the Check Run and the comment with results.
 
 ## Internal Component Roles
 
@@ -202,6 +131,38 @@ flowchart LR
     class APPLY,AI,VERIFY core;
     class CMD2 trigger;
     class CR3,CR4,CACHE,BRANCH,PR storage;
+```
+
+## Jira Flow
+
+Jira ticket creation is triggered from Slack audit results and runs in two modes:
+
+- **API mode** (`JIRA_BASE_URL` configured): open a modal for `Project Key`, ACK immediately, then create a Jira issue via REST API in background.
+- **URL fallback mode** (`JIRA_BASE_URL` empty): buttons open a pre-filled Jira create URL in the browser.
+
+```mermaid
+%%{init: { 'theme': 'base', 'themeVariables': { 'primaryColor': '#3b5cd9', 'primaryTextColor': '#1e293b', 'primaryBorderColor': '#1e308a', 'lineColor': '#64748b', 'secondaryColor': '#f1f5f9', 'tertiaryColor': '#fff', 'mainBkg': '#fff', 'nodeBorder': '#e2e8f0', 'clusterBkg': '#f8fafc', 'clusterBorder': '#cbd5e1' } } }%%
+flowchart LR
+    SLK["Slack finding action<br/>Create Jira Ticket"]
+    MODE{"JIRA_BASE_URL set?"}
+    MODAL["Open modal<br/>Project Key"]
+    ACK["ACK interaction<br/>(< 3s)"]
+    API["Create issue via<br/>Jira REST API v3"]
+    EPH["Post ephemeral<br/>success/failure"]
+    URL["Open pre-filled Jira<br/>create URL"]
+
+    SLK --> MODE
+    MODE -->|Yes| MODAL --> ACK --> API --> EPH
+    MODE -->|No| URL
+
+    classDef default font-family:Inter,sans-serif,font-size:12px;
+    classDef core fill:#3b5cd9,color:#fff,stroke:#1e308a,stroke-width:2px;
+    classDef trigger fill:#1e293b,color:#fff,stroke:#0f172a;
+    classDef storage fill:#f1f5f9,stroke:#cbd5e1,stroke-dasharray: 5 5;
+
+    class SLK trigger;
+    class API,MODAL core;
+    class ACK,EPH,URL storage;
 ```
 
 ## Local Development

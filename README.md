@@ -25,8 +25,8 @@ The system has three components:
 
 | Component | Role |
 |-----------|------|
-| **Webhook app** (this repo, deployed on Vercel) | Receives GitHub and Slack events, orchestrates workflows, posts results |
-| **Runner repository** (GitHub Actions) | Executes scans (axe, pa11y, CDP), generates AI patches, posts callbacks |
+| **Webhook app** (deployed on Vercel) | Receives GitHub and Slack events, orchestrates workflows, posts results |
+| **Runner** (runs on GitHub Actions) | Executes scans (axe, pa11y, CDP), generates AI patches, posts callbacks |
 | **Target repositories** | The repos being audited |
 
 See [Architecture](docs/architecture.md) for the full request flow and component breakdown.
@@ -225,7 +225,6 @@ See [Configuration → Verifying the Setup](docs/configuration.md#verifying-the-
 | [Commands](docs/commands.md) | Full command reference with output examples and fix result statuses |
 | [Configuration](docs/configuration.md) | Full environment variables reference and Vercel deployment notes |
 | [Runner Setup](docs/runner-setup.md) | Workflow file reference and auto-detection logic |
-| [Fix Engine](docs/fix-engine.md) | AI patch engine internals, git checkpoint pattern, token cost |
 | [Slack Setup](docs/slack-setup.md) | Full Slack App configuration and how the integration works |
 | [Jira Setup](docs/jira-setup.md) | Jira Cloud integration details and ticket format |
-| [Testing](docs/testing.md) | Test suite reference |
+| [Fix Engine](docs/fix-engine.md) | AI patch engine internals, git checkpoint pattern, token cost |
