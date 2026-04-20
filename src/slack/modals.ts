@@ -1,5 +1,6 @@
 import type { AuditModalMetadata, FixModalMetadata, JiraModalMetadata } from "./types.js";
 import type { IssueType } from "../jira/types.js";
+import { MODELS } from "../models.js";
 
 export function buildAuditModal(metadata: AuditModalMetadata) {
   return {
@@ -104,23 +105,23 @@ export function buildFixModal(metadata: FixModalMetadata, findingLabel: string) 
           initial_option: {
             text: { type: "plain_text" as const, text: "Haiku (fastest)" },
             description: { type: "plain_text" as const, text: "Low cost, good for most fixes" },
-            value: "claude-haiku-4-5-20251001",
+            value: MODELS.haiku,
           },
           options: [
             {
               text: { type: "plain_text" as const, text: "Haiku (fastest)" },
               description: { type: "plain_text" as const, text: "Low cost, good for most fixes" },
-              value: "claude-haiku-4-5-20251001",
+              value: MODELS.haiku,
             },
             {
               text: { type: "plain_text" as const, text: "Sonnet (balanced)" },
               description: { type: "plain_text" as const, text: "Better reasoning, moderate cost" },
-              value: "claude-sonnet-4-5-20241022",
+              value: MODELS.sonnet,
             },
             {
               text: { type: "plain_text" as const, text: "Opus (most capable)" },
               description: { type: "plain_text" as const, text: "Best results, highest cost" },
-              value: "claude-opus-4-5-20250415",
+              value: MODELS.opus,
             },
           ],
         },

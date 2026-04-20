@@ -1,3 +1,5 @@
+import { MODELS } from "../models.js";
+
 export interface FixCommand {
   requested: boolean;
   findingIds: string[];
@@ -9,11 +11,7 @@ export interface FixCommand {
 const FIX_COMMAND_RE = /^\/a11y-fix(?:\s+(.+))?$/i;
 const HINT_RE = /"([^"]+)"\s*$/;
 
-const MODEL_ALIASES: Record<string, string> = {
-  haiku: "claude-haiku-4-5-20251001",
-  sonnet: "claude-sonnet-4-6",
-  opus: "claude-opus-4-6",
-};
+const MODEL_ALIASES: Record<string, string> = { ...MODELS };
 
 function resolveModel(token: string): string | null {
   const lower = token.toLowerCase();

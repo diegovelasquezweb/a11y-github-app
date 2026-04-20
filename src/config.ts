@@ -1,3 +1,5 @@
+import { MODELS } from "./models.js";
+
 const required = [
   "GITHUB_APP_ID",
   "GITHUB_APP_PRIVATE_KEY",
@@ -32,7 +34,7 @@ export const CONFIG = {
   scanFixWorkflow: process.env.SCAN_FIX_WORKFLOW?.trim() || "a11y-fix.yml",
   scanSourceWorkflow: process.env.SCAN_SOURCE_WORKFLOW?.trim() || "source-audit.yml",
   scanRunnerRef: process.env.SCAN_RUNNER_REF?.trim() || "master",
-  fixAiModel: process.env.FIX_AI_MODEL?.trim() || "claude-haiku-4-5-20251001",
+  fixAiModel: process.env.FIX_AI_MODEL?.trim() || MODELS.haiku,
   slackBotToken: process.env.SLACK_BOT_TOKEN?.trim() || "",
   slackSigningSecret: process.env.SLACK_SIGNING_SECRET?.trim() || "",
   jiraBaseUrl: process.env.JIRA_BASE_URL?.trim() ?? "",

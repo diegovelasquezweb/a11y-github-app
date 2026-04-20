@@ -59,11 +59,9 @@ flowchart LR
 
 ## Intelligence Assets
 
-The engine's knowledge base lives in `assets/remediation/intelligence.mjs` — one entry per axe-core rule. Each entry defines what the rule means, how to fix it, and context for specific frameworks and CMS platforms.
+The engine's knowledge base lives in `assets/remediation/intelligence.mjs` — one entry per axe-core rule. Each entry defines what the rule means, how to fix it, and context for specific project.
 
 When Claude receives a finding, the engine injects the rule's `fix.description`, `fix.code`, and the relevant `framework_notes` entry into the prompt. Claude never decides the remediation strategy — it only translates the pre-written guidance into a patch for the specific file.
-
-**Example entry — `image-alt`:**
 
 ```json
 {
@@ -71,20 +69,35 @@ When Claude receives a finding, the engine injects the rule's `fix.description`,
     "category": "text-alternatives",
     "fix": {
       "description": "Add a descriptive alt attribute to every <img>. Use alt=\"\" for decorative images.",
-      "code": "<img src=\"photo.jpg\" alt=\"Brown leather hiking boots with red laces\">\n<!-- Decorative image (hidden from AT): -->\n<img src=\"divider.png\" alt=\"\">"
+      "code": "<img src=\"photo.jpg\" alt=\"Brown leather hiking boots with red laces on a white background\">\n<!-- Decorative image (hidden from AT): -->\n<img src=\"divider.png\" alt=\"\">"
     },
     "framework_notes": {
       "react": "Use the alt prop directly on <img>: <img src={src} alt=\"Description\" />. For decorative images: alt=\"\".",
       "vue": "Use :alt binding or plain alt attribute — standard HTML semantics apply.",
+      "angular": "Use [attr.alt] binding or plain alt attribute on <img> elements.",
       "svelte": "Svelte's compiler enforces alt attributes on <img> at build time — missing alt triggers a warning. Use alt='' for decorative images.",
       "astro": "Astro's <Image /> component requires the alt prop by default. For plain <img> tags in .astro files, add alt manually."
     },
-    "fix_difficulty_notes": "axe-core confirms alt presence but cannot evaluate alt quality. An alt='photo.jpg' passes axe but violates WCAG 1.1.1. Always verify alt text is descriptive. For decorative images, use alt='' — omitting alt causes some screen readers to announce the filename."
+    "cms_notes": {
+      "shopify": "Product images use {{ image | image_url }} with product.featured_image.alt as alt text. Add a fallback: alt='{{ image.alt | default: product.title }}'.",
+      "wordpress": "WordPress stores alt text per attachment via update_post_meta($id, '_wp_attachment_image_alt', $value). Ensure custom rendering via wp_get_attachment_image() preserves the stored alt attribute.",
+      "drupal": "Drupal's Image field requires alt text by default. In Twig templates, use {{ content.field_image }} which renders with the stored alt."
+    },
+    "guardrails_overrides": {
+      "must": [
+        "If visible text exists, preserve label-in-name: accessible name must include the visible label."
+      ],
+      "must_not": [
+        "Do not add or replace aria-label when a valid accessible name already exists."
+      ],
+      "verify": [
+        "Confirm computed accessible name matches expected spoken phrase."
+      ]
+    },
   }
 }
 ```
 
-The engine selects the `framework_notes` entry that matches the detected stack of the target project, so Claude receives framework-specific guidance rather than generic HTML advice.
 
 ---
 
@@ -202,6 +215,6 @@ The result is formatted to 6 decimal places (e.g., `$0.000420`).
 
 The Claude model used for patch generation is controlled by the `FIX_AI_MODEL` environment variable on the webhook app. Its value is forwarded to the runner workflow as the `ai_model` input at dispatch time and passed to `apply-finding-fix.mjs` via the `AI_MODEL` environment variable.
 
-The default model is `claude-haiku-4-5-20251001`.
+The default model is `haiku`. Model IDs are centralized in `src/models.ts` — update them there when new versions are released.
 
-To switch models, update `FIX_AI_MODEL` in your deployment environment (e.g., Vercel project settings). No runner redeployment is required — the value is injected fresh with each workflow dispatch.
+**Why Haiku is sufficient for most cases**: each patch task is narrow and well-scoped — the engine has already identified the element, extracted the source context, and pre-loaded the remediation guidance. Claude only needs to translate that into a search/replace change in a single file. Haiku handles this reliably at a fraction of the cost and latency of Sonnet or Opus. Consider upgrading to Sonnet only if patches consistently fail on particularly complex components or heavily abstracted codebases.
