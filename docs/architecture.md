@@ -1,6 +1,6 @@
 # Architecture
 
-**Navigation**: [Home](../README.md) • [Architecture](architecture.md) • [Commands](commands.md) • [Configuration](configuration.md) • [Runner Setup](runner-setup.md) • [Slack Setup](slack-setup.md) • [Jira Setup](jira-setup.md) • [Fix Engine](fix-engine.md)
+**Navigation**: [Home](../README.md) • [Architecture](architecture.md) • [Configuration](configuration.md) • [Runner Setup](runner-setup.md) • [Slack Setup](slack-setup.md) • [Jira Setup](jira-setup.md) • [Audit Engine](audit-engine.md) • [Fix Engine](fix-engine.md)
 
 ---
 
@@ -15,6 +15,7 @@
 - [Slack Data Flow](#slack-data-flow)
 - [Jira Flow](#jira-flow)
 - [Local Development](#local-development)
+- [GitHub Commands](#github-commands)
 
 ## Overview
 
@@ -51,6 +52,14 @@ The app supports two contexts:
 4. Scan completes → results posted to Slack
 5. **Fix All** button in Slack → fix modal opens (model, hint) → fix workflow dispatched
 6. Fix completes → Slack message updated with patch results and a link to the fix PR
+
+### Jira Flow
+
+1. Scan completes in Slack → each finding has a **Create Jira Ticket** button
+2. User clicks the button → modal opens asking for the Jira project key
+3. User submits → app fetches available issue types for that project from the Jira API
+4. Second modal opens → user selects the issue type and confirms
+5. App creates the ticket via the Jira REST API and posts a confirmation in the Slack thread
 
 ## Request Flow
 
@@ -214,3 +223,61 @@ npm test
 ```
 
 Tests use Vitest and cover the webhook handler, review logic, and Slack callback flow.
+
+## GitHub Commands
+
+Commands are triggered via PR or Issue comments. Only users with `COLLABORATOR`, `MEMBER`, or `OWNER` association can trigger them.
+
+| Context | Trigger | Branch resolution |
+|---------|---------|-------------------|
+| **Pull Request** | PR comment | Uses PR head SHA and branch |
+| **Issue** | Issue comment | Defaults to default branch; use `branch:X` for a specific branch |
+
+| Command | Context | What it does |
+|---------|---------|--------------|
+| `/a11y-audit` | PR or Issue | Full audit: DOM scan + source pattern analysis |
+| `/a11y-audit dom` | PR or Issue | DOM scan only |
+| `/a11y-audit source` | PR or Issue | Source pattern scan only |
+| `/a11y-audit branch:stage` | Issue only | Audit a specific branch |
+| `/a11y-fix <ID>` | PR or Issue | Fix one finding |
+| `/a11y-fix <ID1> <ID2>` | PR or Issue | Fix multiple findings |
+| `/a11y-fix all` | PR or Issue | Fix all findings from the last audit |
+
+### /a11y-audit
+
+```
+/a11y-audit
+/a11y-audit branch:stage
+```
+
+Dispatches `dom-audit.yml`. The runner builds the target, runs axe + cdp + pa11y + source pattern scanner, caches findings by head SHA, and POSTs a callback. The app updates the Check Run and posts the results comment.
+
+### /a11y-audit dom
+
+```
+/a11y-audit dom
+/a11y-audit dom branch:stage
+```
+
+Same as `/a11y-audit` but with `source_scan_enabled=false`. Only the DOM section appears in the result.
+
+### /a11y-audit source
+
+```
+/a11y-audit source
+/a11y-audit source branch:stage
+```
+
+Dispatches `source-audit.yml`. No browser is launched — only the source pattern scanner runs.
+
+### /a11y-fix
+
+```
+/a11y-fix <ID>
+/a11y-fix <ID1> <ID2> <ID3>
+/a11y-fix all
+/a11y-fix sonnet all
+/a11y-fix all "use sr-only labels"
+```
+
+Dispatches `a11y-fix.yml`. The runner restores cached findings, applies AI patches, verifies each one, commits to a new branch, and opens a fix PR. An optional model name (`haiku`, `sonnet`, `opus`) and an optional hint in quotes can be passed to guide the fix.

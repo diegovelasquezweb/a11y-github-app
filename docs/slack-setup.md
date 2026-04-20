@@ -1,6 +1,6 @@
 # Slack Integration Setup
 
-**Navigation**: [Home](../README.md) • [Architecture](architecture.md) • [Commands](commands.md) • [Configuration](configuration.md) • [Runner Setup](runner-setup.md) • [Slack Setup](slack-setup.md) • [Jira Setup](jira-setup.md) • [Fix Engine](fix-engine.md)
+**Navigation**: [Home](../README.md) • [Architecture](architecture.md) • [Configuration](configuration.md) • [Runner Setup](runner-setup.md) • [Slack Setup](slack-setup.md) • [Jira Setup](jira-setup.md) • [Audit Engine](audit-engine.md) • [Fix Engine](fix-engine.md)
 
 ---
 
@@ -14,7 +14,6 @@
 - [Step 5: Set Environment Variables](#step-5-set-environment-variables)
 - [Step 6: Invite the Bot](#step-6-invite-the-bot)
 - [How It Works](#how-it-works)
-- [Disabling Slack Integration](#disabling-slack-integration)
 
 ---
 
@@ -59,8 +58,6 @@ The Slack integration lets users trigger accessibility audits and fixes from any
 3. Set **Request URL** to: `https://<your-vercel-domain>/api/slack`
 4. Click **Save Changes**
 
-> The same endpoint handles both slash commands and modal interactions.
-
 ---
 
 ## Step 4: Add Scopes and Install
@@ -95,8 +92,6 @@ In any Slack channel where you want to use `/a11y`:
 
 Or mention the bot: `@A11y Audit` — Slack will prompt you to invite it.
 
-> If you added the `chat:write.public` scope, this step is optional.
-
 ---
 
 ## How It Works
@@ -128,9 +123,3 @@ Slack is only the messaging layer. All audit/fix logic, workflow dispatch, and G
 |----------|---------|
 | `api/slack` | Receives slash commands, modal submissions, and button actions |
 | `api/slack-progress` | Receives progress updates from workflows to update the Slack message in real time |
-
----
-
-## Disabling Slack Integration
-
-Remove or clear `SLACK_BOT_TOKEN` in Vercel. The `/api/slack` endpoint returns 503 and all Slack code paths become no-ops. No code changes or redeployment needed.

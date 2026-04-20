@@ -1,6 +1,6 @@
 # Runner Setup
 
-**Navigation**: [Home](../README.md) • [Architecture](architecture.md) • [Commands](commands.md) • [Configuration](configuration.md) • [Runner Setup](runner-setup.md) • [Slack Setup](slack-setup.md) • [Jira Setup](jira-setup.md) • [Fix Engine](fix-engine.md)
+**Navigation**: [Home](../README.md) • [Architecture](architecture.md) • [Configuration](configuration.md) • [Runner Setup](runner-setup.md) • [Slack Setup](slack-setup.md) • [Jira Setup](jira-setup.md) • [Audit Engine](audit-engine.md) • [Fix Engine](fix-engine.md)
 
 ---
 
@@ -67,8 +67,6 @@ permissions:
 
 `dom-audit.yml` and `source-audit.yml` only need `issues: write` (to post callback comments). `a11y-fix.yml` needs all three.
 
-> These permissions apply to the **target repository** and are authorized via the `target_token` passed as a workflow input — not via the runner's `GITHUB_TOKEN`. The `GITHUB_TOKEN` of the runner repo is only used to check out the runner repository itself.
-
 ---
 
 ## Runner Repository Configuration
@@ -80,13 +78,6 @@ The runner repository is controlled by three environment variables on the Vercel
 | `SCAN_RUNNER_OWNER` | Owner of the runner repo. If empty, defaults to the target repository's owner. |
 | `SCAN_RUNNER_REPO` | Name of the runner repo. If empty, defaults to the target repository name. |
 | `SCAN_RUNNER_REF` | Branch or tag to dispatch workflows on. Defaults to `"master"`. |
-
-### Same-repo vs dedicated runner
-
-| Setup | How to configure |
-|-------|-----------------|
-| **Same repo** (target = runner) | Leave `SCAN_RUNNER_OWNER` and `SCAN_RUNNER_REPO` empty. The workflows must exist in the target repo. |
-| **Dedicated runner repo** | Set `SCAN_RUNNER_OWNER` and `SCAN_RUNNER_REPO` to the dedicated repo. **Install the GitHub App on that repo** — otherwise the app cannot authenticate to dispatch workflows. |
 
 ---
 
@@ -205,9 +196,9 @@ flowchart TD
 
 ## Target Project Runtime Config
 
-### Automatic Stack Detection (default)
+### Automatic Stack Detection
 
-When no `.a11y-runner.json` file is present, the DOM audit and fix workflows **auto-detect the project stack** using a two-phase approach:
+The DOM audit and fix workflows **auto-detect the project stack** using a two-phase approach:
 
 **Phase 1 — Pre-build detection** (checks `package.json`):
 - If `package.json` exists → sets `installCommand: "npm install"` and `buildCommand: "npm run build"` (if a `build` script exists).
@@ -223,29 +214,3 @@ After install and build complete, the workflow detects the output directory and 
 | `build/index.html` | `npx serve build -l 4173` (CRA, etc.) |
 | `.next/` directory | `npx next start -p 4173` (Next.js) |
 | None of the above | `python3 -m http.server 4173` (plain HTML) |
-
-This means **most projects work without any configuration file** — the workflow auto-detects the stack and serves the project correctly.
-
-### Manual Override (`.a11y-runner.json`)
-
-For projects that need custom server commands, create an `.a11y-runner.json` file in the repository root. When present, auto-detection is skipped entirely.
-
-| Field | Default | Description |
-|-------|---------|-------------|
-| `workdir` | `"target"` | Working directory for install, build, and start commands. |
-| `installCommand` | `""` | Command to install dependencies. Skipped if empty. |
-| `buildCommand` | `""` | Command to build the project. Skipped if empty. |
-| `startCommand` | `"python3 -m http.server 4173 --bind 127.0.0.1"` | Command to start the local server. |
-| `healthUrl` | `"http://127.0.0.1:4173"` | URL polled until the server responds `200 OK`. |
-| `readyTimeoutMs` | `120000` | Max milliseconds to wait for server readiness. |
-
-Example `.a11y-runner.json` for a Vite project:
-
-```json
-{
-  "installCommand": "npm install",
-  "buildCommand": "npm run build",
-  "startCommand": "npx serve dist -l 4173",
-  "healthUrl": "http://127.0.0.1:4173"
-}
-```

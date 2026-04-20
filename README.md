@@ -215,9 +215,9 @@ Enables one-click Jira ticket creation from Slack audit results. Requires a Jira
 | Document | Description |
 |----------|-------------|
 | [Architecture](docs/architecture.md) | System design, request flow, component roles, data flow diagrams |
-| [Commands](docs/commands.md) | Full command reference with output examples and fix result statuses |
-| [Configuration](docs/configuration.md) | Full environment variables reference and Vercel deployment notes |
+| [Configuration](docs/configuration.md) | Full environment variables reference and GitHub App permissions |
 | [Runner Setup](docs/runner-setup.md) | Workflow file reference and auto-detection logic |
 | [Slack Setup](docs/slack-setup.md) | Full Slack App configuration and how the integration works |
 | [Jira Setup](docs/jira-setup.md) | Jira Cloud integration details and ticket format |
+| [Audit Engine](docs/audit-engine.md) | Scanner pipeline (axe, CDP, pa11y), finding IDs, caching, output format |
 | [Fix Engine](docs/fix-engine.md) | AI patch engine internals, git checkpoint pattern, token cost |

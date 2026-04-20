@@ -1,6 +1,6 @@
 # Jira Integration Setup
 
-**Navigation**: [Home](../README.md) • [Architecture](architecture.md) • [Commands](commands.md) • [Configuration](configuration.md) • [Runner Setup](runner-setup.md) • [Slack Setup](slack-setup.md) • [Jira Setup](jira-setup.md) • [Fix Engine](fix-engine.md)
+**Navigation**: [Home](../README.md) • [Architecture](architecture.md) • [Configuration](configuration.md) • [Runner Setup](runner-setup.md) • [Slack Setup](slack-setup.md) • [Jira Setup](jira-setup.md) • [Audit Engine](audit-engine.md) • [Fix Engine](fix-engine.md)
 
 ---
 
@@ -11,7 +11,6 @@
 - [Step 2: Set environment variables in Vercel](#step-2-set-environment-variables-in-vercel)
 - [How ticket creation works](#how-ticket-creation-works)
 - [Ticket content](#ticket-content)
-- [Disabling the integration](#disabling-the-integration)
 
 ---
 
@@ -19,9 +18,6 @@
 
 The Jira integration lets users create Jira tickets directly from Slack audit results — either one ticket per finding or a single summary ticket for all findings.
 
-The integration is **opt-in**: when `JIRA_BASE_URL` is not set, the "Create Jira Ticket" buttons open a pre-filled Jira URL in the browser (existing behavior). No behavior changes until the three env vars below are configured.
-
-> **Slack required.** Jira tickets are created from Slack button interactions. This integration only works when the Slack integration is also configured — see [Slack Setup](slack-setup.md).
 
 ---
 
@@ -45,8 +41,6 @@ In **Vercel → Project Settings → Environment Variables**, add:
 | `JIRA_API_TOKEN` | Token from step 1 |
 
 No redeploy needed — Vercel applies env var changes on the next request.
-
-> **Note**: No `JIRA_PROJECT_KEY` or `JIRA_ISSUE_TYPE` env vars are required. Users choose the project key in the Slack modal at ticket creation time. The issue type is always `Task`.
 
 ---
 
@@ -89,11 +83,3 @@ Clicking **Create Jira Ticket** at the bottom of the audit result:
 - **Issue type**: Task
 - **Description**: severity breakdown (Critical / Serious / Moderate / Minor) + list of the top finding titles
 - **Priority**: not set
-
-> A11y severity (Critical/Serious/Moderate/Minor) does **not** map to Jira priority. Severity is accessibility impact; priority is business urgency. Severity appears in the description body only.
-
----
-
-## Disabling the integration
-
-Clear or remove `JIRA_BASE_URL` in Vercel. The buttons revert to pre-filled browser URLs immediately. No code changes needed.
