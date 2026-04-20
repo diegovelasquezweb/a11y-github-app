@@ -105,7 +105,7 @@ flowchart TD
         direction TB
         TOK["Verify Callback Token"]
         UPD["Update Check Run"]
-        CMT["Update PR Comment"]
+        CMT["Update Comment"]
         TOK --> UPD --> CMT
     end
 
@@ -151,7 +151,7 @@ flowchart TD
 ```mermaid
 %%{init: { 'theme': 'base', 'themeVariables': { 'primaryColor': '#3b5cd9', 'primaryTextColor': '#1e293b', 'primaryBorderColor': '#1e308a', 'lineColor': '#64748b', 'secondaryColor': '#f1f5f9', 'tertiaryColor': '#fff', 'mainBkg': '#fff', 'nodeBorder': '#e2e8f0', 'clusterBkg': '#f8fafc', 'clusterBorder': '#cbd5e1' } } }%%
 flowchart LR
-    CMD(["PR comment:<br/>/a11y-audit"])
+    CMD(["PR or Issue comment:<br/>/a11y-audit"])
     CR1["Check Run created<br/>(in_progress)"]
     WF["workflow_dispatch<br/>→ dom-audit.yml"]
     BUILD["Build + start<br/>target project"]
@@ -159,7 +159,7 @@ flowchart LR
     PAT["Source pattern<br/>scanner"]
     CB["POST /api/scan-callback"]
     CR2["Check Run updated<br/>(completed)"]
-    CMT["PR comment updated<br/>with findings"]
+    CMT["Comment updated<br/>with findings"]
 
     CMD --> CR1 --> WF --> BUILD --> SCAN
     SCAN --> PAT --> CB --> CR2
@@ -180,19 +180,18 @@ flowchart LR
 ```mermaid
 %%{init: { 'theme': 'base', 'themeVariables': { 'primaryColor': '#3b5cd9', 'primaryTextColor': '#1e293b', 'primaryBorderColor': '#1e308a', 'lineColor': '#64748b', 'secondaryColor': '#f1f5f9', 'tertiaryColor': '#fff', 'mainBkg': '#fff', 'nodeBorder': '#e2e8f0', 'clusterBkg': '#f8fafc', 'clusterBorder': '#cbd5e1' } } }%%
 flowchart LR
-    CMD2(["PR comment:<br/>/a11y-fix A11Y-001"])
+    CMD2(["PR or Issue comment:<br/>/a11y-fix A11Y-001"])
     CR3["Check Run created<br/>(in_progress)"]
     WF2["workflow_dispatch<br/>→ a11y-fix.yml"]
     CACHE["Restore findings<br/>from cache"]
-    APPLY["Apply patch per finding<br/>(git checkpoint)"]
     AI["Claude API<br/>generates patch"]
+    APPLY["Apply patch per finding<br/>(git checkpoint)"]
     VERIFY["Re-run audit<br/>for verification"]
     BRANCH["Commit to<br/>new branch"]
     PR["Open PR with<br/>fix summary"]
     CR4["Check Run updated<br/>(completed)"]
 
-    CMD2 --> CR3 --> WF2 --> CACHE --> APPLY
-    AI --> APPLY
+    CMD2 --> CR3 --> WF2 --> CACHE --> AI --> APPLY
     APPLY --> VERIFY --> BRANCH --> PR --> CR4
 
     classDef default font-family:Inter,sans-serif,font-size:12px;
