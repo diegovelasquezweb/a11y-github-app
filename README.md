@@ -14,7 +14,6 @@ A GitHub App that audits repositories for WCAG 2.2 AA accessibility issues, appl
 - [Step 4: Complete Configuration and Install](#step-4-complete-configuration-and-install)
 - [Step 5: Set Up the Slack Integration](#step-5-set-up-the-slack-integration)
 - [Step 6: Set Up the Jira Integration](#step-6-set-up-the-jira-integration)
-- [Step 7: Verify the Setup](#step-7-verify-the-setup)
 - [Detailed Docs](#detailed-docs)
 
 ---
@@ -208,12 +207,6 @@ Enables one-click Jira ticket creation from Slack audit results. Requires a Jira
 | `JIRA_BASE_URL` | `https://<workspace>.atlassian.net` |
 | `JIRA_EMAIL` | Your Atlassian account email |
 | `JIRA_API_TOKEN` | Token from step 1 |
-
----
-
-## Step 7: Verify the Setup
-
-See [Configuration → Verifying the Setup](docs/configuration.md#verifying-the-setup).
 
 ---
 
