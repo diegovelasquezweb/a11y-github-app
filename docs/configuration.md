@@ -76,7 +76,7 @@ Set these in **Vercel → Project Settings → Environment Variables**.
 | `SCAN_FIX_WORKFLOW` | No | `"a11y-fix.yml"` | Filename of the fix workflow. |
 | `SCAN_SOURCE_WORKFLOW` | No | `"source-audit.yml"` | Filename of the source-only audit workflow. |
 | `SOURCE_PATTERNS_ENABLED` | No | `true` | Set to `"false"` to disable the source pattern scanner inside DOM audit runs. Has no effect on `/a11y-audit-source`. |
-| `FIX_AI_MODEL` | No | `"claude-haiku-4-5-20251001"` | Claude model forwarded to the fix workflow at dispatch time. Changing this takes effect immediately — no redeploy needed. |
+| `FIX_AI_MODEL` | No | `haiku` | Claude model forwarded to the fix workflow at dispatch time. Changing this takes effect immediately — no redeploy needed. |
 | `PORT` | No | `8787` | Local dev server port. Not needed on Vercel. |
 
 #### Jira Integration (optional)

@@ -153,7 +153,7 @@ Dispatched by `dispatchFixWorkflow()` in `src/review/fix-workflow.ts`.
 | `requested_by` | Yes | GitHub username who triggered the fix command. |
 | `target_token` | Yes | GitHub installation token for the target repository. |
 | `check_run_id` | Yes | ID of the `A11y Fix` Check Run to update. |
-| `ai_model` | No | Claude model for patch generation. Defaults to `"claude-haiku-4-5-20251001"`. Controlled by `FIX_AI_MODEL` on Vercel. |
+| `ai_model` | No | Claude model for patch generation. Defaults to `haiku`. Controlled by `FIX_AI_MODEL` on Vercel. |
 | `callback_url` | No | Base URL for Slack progress updates. Only sent for Slack-triggered fixes. |
 | `callback_token` | No | Auth token for progress updates. Only sent for Slack-triggered fixes. |
 | `slack_channel_id` | No | Slack channel ID for progress updates. |

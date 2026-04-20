@@ -48,7 +48,7 @@ on:
       ai_model:
         description: "Claude model to use for fix generation"
         required: false
-        default: "claude-haiku-4-5-20251001"
+        default: "claude-haiku-4-5-20251001"  # keep in sync with src/models.ts
         type: string
       project_hints:
         description: "Optional hint string to inject into Claude context (e.g. 'use sr-only labels')"
@@ -735,15 +735,22 @@ jobs:
               : verifiedIds.join(', ')
             const title = `fix(a11y): ${titleSuffix.length > 72 ? titleSuffix.slice(0, 72) + '…' : titleSuffix}`
 
+            const MODEL_PRICING = {
+              'claude-haiku-4-5-20251001': { input: 0.80, output: 4.00 },
+              'claude-sonnet-4-6': { input: 3.00, output: 15.00 },
+              'claude-opus-4-7': { input: 15.00, output: 75.00 },
+            }
+            const aiModel = process.env.AI_MODEL || 'claude-haiku-4-5-20251001'
+            const price = MODEL_PRICING[aiModel] || { input: 0, output: 0 }
             const inputTokens = parseInt(process.env.TOTAL_INPUT_TOKENS || '0', 10)
             const outputTokens = parseInt(process.env.TOTAL_OUTPUT_TOKENS || '0', 10)
-            const estimatedCost = ((inputTokens * 0.80 + outputTokens * 4.00) / 1_000_000).toFixed(6)
+            const estimatedCost = ((inputTokens * price.input + outputTokens * price.output) / 1_000_000).toFixed(6)
             const usageSection = [
               "",
               "### AI Usage",
               "| Metric | Value |",
               "|--------|-------|",
-              `| Model | \`${process.env.AI_MODEL || 'claude-haiku-4-5-20251001'}\` |`,
+              `| Model | \`${aiModel}\` |`,
               `| Input tokens | ${inputTokens.toLocaleString()} |`,
               `| Output tokens | ${outputTokens.toLocaleString()} |`,
               `| Estimated cost | $${estimatedCost} |`,
@@ -808,15 +815,22 @@ jobs:
               return `| ${icon} | \`${r.id}\` | ${escHtml(r.title) || '—'} | ${statusText} |`
             })
 
+            const MODEL_PRICING = {
+              'claude-haiku-4-5-20251001': { input: 0.80, output: 4.00 },
+              'claude-sonnet-4-6': { input: 3.00, output: 15.00 },
+              'claude-opus-4-7': { input: 15.00, output: 75.00 },
+            }
+            const aiModel = process.env.AI_MODEL || 'claude-haiku-4-5-20251001'
+            const price = MODEL_PRICING[aiModel] || { input: 0, output: 0 }
             const inputTokens = parseInt(process.env.TOTAL_INPUT_TOKENS || '0', 10)
             const outputTokens = parseInt(process.env.TOTAL_OUTPUT_TOKENS || '0', 10)
-            const estimatedCost = ((inputTokens * 0.80 + outputTokens * 4.00) / 1_000_000).toFixed(6)
+            const estimatedCost = ((inputTokens * price.input + outputTokens * price.output) / 1_000_000).toFixed(6)
             const usageSection = [
               "",
               "### AI Usage",
               "| Metric | Value |",
               "|--------|-------|",
-              `| Model | \`${process.env.AI_MODEL || 'claude-haiku-4-5-20251001'}\` |`,
+              `| Model | \`${aiModel}\` |`,
               `| Input tokens | ${inputTokens.toLocaleString()} |`,
               `| Output tokens | ${outputTokens.toLocaleString()} |`,
               `| Estimated cost | $${estimatedCost} |`,

@@ -198,16 +198,18 @@ The totals are reported in both the fix PR description and the result comment po
 
 | Metric | Value |
 |--------|-------|
-| Model | `claude-haiku-4-5-20251001` (or the configured model) |
+| Model | The configured model (`haiku` by default) |
 | Input tokens | Accumulated across all findings |
 | Output tokens | Accumulated across all findings |
-| Estimated cost | Calculated as shown below |
+| Estimated cost | Calculated per-model from the pricing table |
 
-**Cost formula** (Haiku 4.5 pricing):
+**Cost formula**:
 
 ```
-estimated_cost = (input_tokens × $0.80 + output_tokens × $4.00) / 1,000,000
+estimated_cost = (input_tokens × input_price + output_tokens × output_price) / 1,000,000
 ```
+
+Pricing is looked up per model at runtime. The workflow maintains a pricing table keyed by model ID; unknown models produce `$0.000000`.
 
 The result is formatted to 6 decimal places (e.g., `$0.000420`).
 
