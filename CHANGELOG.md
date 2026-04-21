@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented here.
 
+## 0.4.0 (2026-04-20)
+
+### Added
+
+- **Audit PRs from Slack.** The `/a11y` audit modal now accepts a branch name, a PR number (`123` or `#123`), or a PR URL in the "Branch or PR" field. PR references are resolved via `octokit.pulls.get` to the PR's head SHA, head ref, and pull number, so audit results comment on the PR instead of using the hardcoded `pullNumber: 0`.
+- `src/github/resolve-pr-input.ts` — pure `parsePrInput` (regex detection, returns branch/pr/error kind) and `resolvePr` (Octokit PR fetch). 15 new unit tests.
+
+### Known limitations
+
+- Fix workflows triggered from Slack on a PR-based audit still use the audit's head ref as base (preexisting behavior). Propagating the real PR `base_ref` through the workflow callback is deferred to a follow-up.
+- Handler integration tests for the PR audit flow are deferred (requires broader test-infra mocking). Unit tests cover the new logic exhaustively; handler wiring is type-checked and straight delegation.
+
 ## 0.3.0 (2026-04-20)
 
 ### Changed

@@ -1,6 +1,7 @@
 import { waitUntil } from "@vercel/functions";
 import { CONFIG } from "../config.js";
 import { findInstallationForRepo, getInstallationOctokit, createInstallationToken } from "../github/auth.js";
+import { parsePrInput, resolvePr } from "../github/resolve-pr-input.js";
 import { createDomAuditPendingCheck, createFixPendingCheck } from "../review/dom-reporter.js";
 import { createScanToken, dispatchDomAuditWorkflow, dispatchSourceAuditWorkflow } from "../review/dom-workflow.js";
 import { dispatchFixWorkflow } from "../review/fix-workflow.js";
@@ -258,14 +259,35 @@ async function handleAuditSubmit(interaction: SlackInteractionPayload): Promise<
   }
 
   const octokit = getInstallationOctokit(installationId);
+
+  const parsedInput = parsePrInput(branchRaw, owner, repo);
+  if (parsedInput.kind === "error") {
+    return { status: 200, body: { response_action: "errors", errors: { branch_block: "PR URL must point to the selected repository" } } };
+  }
+
   let ref: string;
   let sha: string;
-  try {
-    const resolved = await resolveBranchRef(octokit, owner, repo, branchRaw || undefined);
-    ref = resolved.ref;
-    sha = resolved.sha;
-  } catch {
-    return { status: 200, body: { response_action: "errors", errors: { branch_block: "Branch not found" } } };
+  let pullNumber = 0;
+  if (parsedInput.kind === "pr") {
+    try {
+      const resolvedPr = await resolvePr(octokit, owner, repo, parsedInput.pullNumber);
+      ref = resolvedPr.headRef;
+      sha = resolvedPr.headSha;
+      pullNumber = resolvedPr.pullNumber;
+    } catch (err) {
+      const status = (err as { status?: number }).status;
+      const msg = status === 404 ? "PR not found" : "Could not resolve PR — try again";
+      if (status !== 404) console.warn("[slack] resolvePr failed:", err);
+      return { status: 200, body: { response_action: "errors", errors: { branch_block: msg } } };
+    }
+  } else {
+    try {
+      const resolved = await resolveBranchRef(octokit, owner, repo, parsedInput.value || undefined);
+      ref = resolved.ref;
+      sha = resolved.sha;
+    } catch {
+      return { status: 200, body: { response_action: "errors", errors: { branch_block: "Branch not found" } } };
+    }
   }
 
   let metadata: Record<string, unknown>;
@@ -294,7 +316,7 @@ async function handleAuditSubmit(interaction: SlackInteractionPayload): Promise<
     }
   }
 
-  const scanToken = createScanToken(owner, repo, 0);
+  const scanToken = createScanToken(owner, repo, pullNumber);
   const targetToken = await createInstallationToken(installationId);
   const runnerOctokit = getInstallationOctokit(installationId);
 
@@ -315,7 +337,7 @@ async function handleAuditSubmit(interaction: SlackInteractionPayload): Promise<
       callbackToken: CONFIG.domAuditCallbackToken,
       targetOwner: owner,
       targetRepo: repo,
-      pullNumber: 0,
+      pullNumber,
       headSha: sha,
       checkRunId,
       targetToken,
@@ -337,7 +359,7 @@ async function handleAuditSubmit(interaction: SlackInteractionPayload): Promise<
       callbackToken: CONFIG.domAuditCallbackToken,
       targetOwner: owner,
       targetRepo: repo,
-      pullNumber: 0,
+      pullNumber,
       headSha: sha,
       checkRunId,
       targetToken,

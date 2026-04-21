@@ -33,11 +33,11 @@ export function buildAuditModal(metadata: AuditModalMetadata) {
         type: "input",
         block_id: "branch_block",
         optional: true,
-        label: { type: "plain_text" as const, text: "Branch" },
+        label: { type: "plain_text" as const, text: "Branch or PR" },
         element: {
           type: "plain_text_input",
           action_id: "branch",
-          placeholder: { type: "plain_text" as const, text: "Leave empty for default branch" },
+          placeholder: { type: "plain_text" as const, text: "Branch name, PR number, or PR URL (empty = default branch)" },
         },
       },
       {
