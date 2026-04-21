@@ -540,7 +540,7 @@ async function handleBlockAction(interaction: SlackInteractionPayload): Promise<
           baseRef: String(fixCtx.b ?? ""),
           pullNumber: 0,
           installationId: 0,
-        }, findingLabel) as Parameters<typeof client.views.open>[0]["view"],
+        }, findingLabel, CONFIG.fixAiModel) as Parameters<typeof client.views.open>[0]["view"],
       });
     } catch (err) {
       console.error("[slack] fix modal open failed:", err);

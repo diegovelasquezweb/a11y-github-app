@@ -64,7 +64,7 @@ Set these in **Vercel → Project Settings → Environment Variables**.
 | `GITHUB_APP_ID` | **Yes** | — | Numeric ID of the GitHub App. Found on the App settings page. |
 | `GITHUB_APP_PRIVATE_KEY` | **Yes** | — | PEM-encoded RSA private key. Paste the full key — Vercel stores it as a single-line value with `\n` escapes, which the app normalizes automatically. |
 | `GITHUB_WEBHOOK_SECRET` | **Yes** | — | Webhook secret configured in the GitHub App settings. Used to verify `X-Hub-Signature-256` on every incoming event. |
-| `DOM_AUDIT_ENABLED` | **Yes*** | `false` | Must be `"true"` to enable audit commands. Default is `false` — audits are silently ignored until this is set. |
+| `DOM_AUDIT_ENABLED` | No | `true` | Set to `"false"` to silently ignore audit commands. Default: audits are enabled. |
 | `APP_BASE_URL` | **Yes*** | `""` | Public URL of this Vercel deployment (e.g. `https://your-app.vercel.app`). Used to build the callback URL: `{APP_BASE_URL}/api/scan-callback`. Without this, audit commands return `503`. |
 | `DOM_AUDIT_CALLBACK_TOKEN` | **Yes*** | `""` | Secret token sent by the runner in the `x-callback-token` header and verified (timing-safe) by the callback endpoint. Must match `CALLBACK_TOKEN` in the runner workflows. |
 | `SCAN_RUNNER_OWNER` | No | target repo owner | GitHub owner of the runner repository. Omit to use the target repository's owner. |
@@ -103,7 +103,7 @@ See [Jira Setup](jira-setup.md) for step-by-step configuration.
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `GITHUB_ISSUES_ENABLED` | No | `false` | Set to `"true"` to show a "Create GitHub Issue" button next to each Slack finding. Opens a pre-filled GitHub issue URL in the target repo. |
+| `GITHUB_ISSUES_ENABLED` | No | `true` | Set to `"false"` to hide the "Create GitHub Issue" button next to each Slack finding. Default: button is shown. |
 
 ### GitHub Actions (runner repo)
 

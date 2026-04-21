@@ -81,42 +81,42 @@ describe("buildAuditModal", () => {
 
 describe("buildFixModal", () => {
   it("has correct callback_id and blocks", () => {
-    const modal = buildFixModal(fixMeta, "all");
+    const modal = buildFixModal(fixMeta, "all", "");
     expect(modal.callback_id).toBe("a11y_fix_modal");
     expect(modal.blocks.length).toBeGreaterThanOrEqual(3);
   });
 
   it("stores findingIds in private_metadata", () => {
-    const modal = buildFixModal(fixMeta, "A11Y-001");
+    const modal = buildFixModal(fixMeta, "A11Y-001", "");
     const meta = JSON.parse(modal.private_metadata);
     expect(meta.findingIds).toBe("A11Y-001");
   });
 
   it("has description section for fix all", () => {
-    const modal = buildFixModal(fixMeta, "all");
+    const modal = buildFixModal(fixMeta, "all", "");
     const content = JSON.stringify(modal.blocks[0]);
     expect(content).toContain("all findings");
   });
 
   it("has description section for single finding", () => {
-    const modal = buildFixModal(fixMeta, "A11Y-001");
+    const modal = buildFixModal(fixMeta, "A11Y-001", "");
     const content = JSON.stringify(modal.blocks[0]);
     expect(content).toContain("A11Y-001");
   });
 
   it("title changes based on findingLabel", () => {
-    expect(buildFixModal(fixMeta, "all").title.text).toBe("Fix All Findings");
-    expect(buildFixModal(fixMeta, "A11Y-001").title.text).toBe("Fix Finding");
+    expect(buildFixModal(fixMeta, "all", "").title.text).toBe("Fix All Findings");
+    expect(buildFixModal(fixMeta, "A11Y-001", "").title.text).toBe("Fix Finding");
   });
 
   it("no finding_ids input block", () => {
-    const modal = buildFixModal(fixMeta, "all");
+    const modal = buildFixModal(fixMeta, "all", "");
     const ids = modal.blocks.find((b: { block_id?: string }) => b.block_id === "finding_ids_block");
     expect(ids).toBeUndefined();
   });
 
   it("model and hint blocks are optional", () => {
-    const modal = buildFixModal(fixMeta, "all");
+    const modal = buildFixModal(fixMeta, "all", "");
     const model = modal.blocks.find((b: { block_id?: string }) => b.block_id === "ai_model_block")!;
     const hint = modal.blocks.find((b: { block_id?: string }) => b.block_id === "hint_block")!;
     expect(model).toHaveProperty("optional", true);
@@ -124,7 +124,7 @@ describe("buildFixModal", () => {
   });
 
   it("model select has 3 options", () => {
-    const modal = buildFixModal(fixMeta, "all");
+    const modal = buildFixModal(fixMeta, "all", "");
     const model = modal.blocks.find((b: { block_id?: string }) => b.block_id === "ai_model_block")!;
     expect(model.element!.options).toHaveLength(3);
   });

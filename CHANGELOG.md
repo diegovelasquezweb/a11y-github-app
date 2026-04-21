@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented here.
 
+## 0.3.0 (2026-04-20)
+
+### Changed
+
+- **`DOM_AUDIT_ENABLED` default is now `true`.** Previously the app silently ignored audit commands unless this env var was explicitly set to `"true"`, which was a common setup footgun. To disable, set `DOM_AUDIT_ENABLED=false` explicitly.
+- **`GITHUB_ISSUES_ENABLED` default is now `true`.** The "Create GitHub Issue" button is shown in Slack findings by default. Set `GITHUB_ISSUES_ENABLED=false` to hide it.
+- **Slack fix modal respects `FIX_AI_MODEL`.** The AI Model dropdown in the Slack modal now preselects the model configured in `FIX_AI_MODEL` instead of hardcoding Haiku.
+
+### Security
+
+- **CVE-avoidance: template injection in workflow `run`/`script` blocks.** All `${{ inputs.X }}` interpolations inside shell or `github-script` blocks moved to `env:` vars and read via `$VAR` or `process.env.X`. Prevents RCE via maliciously crafted `/a11y-fix all "hint"` comments, which previously could inject shell commands onto the runner.
+
+### Fixed
+
+- README Step 1 numbering (skipped `6.`).
+
 ## 0.2.0 (2026-04-20)
 
 ### Added

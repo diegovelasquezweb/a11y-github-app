@@ -75,11 +75,23 @@ export function buildAuditModal(metadata: AuditModalMetadata) {
   };
 }
 
-export function buildFixModal(metadata: FixModalMetadata, findingLabel: string) {
+const FIX_MODEL_OPTIONS = [
+  { text: "Haiku (fastest)", description: "Low cost, good for most fixes", value: MODELS.haiku },
+  { text: "Sonnet (balanced)", description: "Better reasoning, moderate cost", value: MODELS.sonnet },
+  { text: "Opus (most capable)", description: "Best results, highest cost", value: MODELS.opus },
+].map((o) => ({
+  text: { type: "plain_text" as const, text: o.text },
+  description: { type: "plain_text" as const, text: o.description },
+  value: o.value,
+}));
+
+export function buildFixModal(metadata: FixModalMetadata, findingLabel: string, defaultModel: string) {
   const isAll = findingLabel === "all";
   const description = isAll
     ? "Apply AI-powered fixes to *all findings* from the last audit. A new Pull Request will be created with the patches."
     : `Apply an AI-powered fix for *\`${findingLabel}\`*. A new Pull Request will be created with the patch.`;
+
+  const initialOption = FIX_MODEL_OPTIONS.find((o) => o.value === defaultModel) ?? FIX_MODEL_OPTIONS[0];
 
   return {
     type: "modal" as const,
@@ -102,28 +114,8 @@ export function buildFixModal(metadata: FixModalMetadata, findingLabel: string) 
         element: {
           type: "static_select",
           action_id: "ai_model",
-          initial_option: {
-            text: { type: "plain_text" as const, text: "Haiku (fastest)" },
-            description: { type: "plain_text" as const, text: "Low cost, good for most fixes" },
-            value: MODELS.haiku,
-          },
-          options: [
-            {
-              text: { type: "plain_text" as const, text: "Haiku (fastest)" },
-              description: { type: "plain_text" as const, text: "Low cost, good for most fixes" },
-              value: MODELS.haiku,
-            },
-            {
-              text: { type: "plain_text" as const, text: "Sonnet (balanced)" },
-              description: { type: "plain_text" as const, text: "Better reasoning, moderate cost" },
-              value: MODELS.sonnet,
-            },
-            {
-              text: { type: "plain_text" as const, text: "Opus (most capable)" },
-              description: { type: "plain_text" as const, text: "Best results, highest cost" },
-              value: MODELS.opus,
-            },
-          ],
+          initial_option: initialOption,
+          options: FIX_MODEL_OPTIONS,
         },
       },
       {

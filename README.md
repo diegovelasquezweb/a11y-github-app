@@ -77,7 +77,7 @@ Before you begin, make sure you have:
 
 5. Under **Where can this GitHub App be installed?**, choose **Only on this account** → click **Create GitHub App**.
 
-7. On the next page:
+6. On the next page:
    - Copy the **App ID** — you will need it as `GITHUB_APP_ID`
    - Scroll to **Private keys** → click **Generate a private key** → download the `.pem` file — this is `GITHUB_APP_PRIVATE_KEY`
 

@@ -25,7 +25,7 @@ export const CONFIG = {
   port: Number(process.env.PORT ?? 8787),
   maxInlineComments: Number(process.env.MAX_INLINE_COMMENTS ?? 30),
   sourcePatternsEnabled: process.env.SOURCE_PATTERNS_ENABLED !== "false",
-  domAuditEnabled: process.env.DOM_AUDIT_ENABLED === "true",
+  domAuditEnabled: process.env.DOM_AUDIT_ENABLED !== "false",
   appBaseUrl: process.env.APP_BASE_URL?.trim() || "",
   domAuditCallbackToken: process.env.DOM_AUDIT_CALLBACK_TOKEN?.trim() || "",
   scanRunnerOwner: process.env.SCAN_RUNNER_OWNER?.trim() || "",
@@ -41,5 +41,5 @@ export const CONFIG = {
   jiraEmail: process.env.JIRA_EMAIL?.trim() ?? "",
   jiraApiToken: process.env.JIRA_API_TOKEN?.trim() ?? "",
   jiraProjectKey: process.env.JIRA_PROJECT_KEY?.trim() ?? "",
-  githubIssuesEnabled: process.env.GITHUB_ISSUES_ENABLED === "true",
+  githubIssuesEnabled: process.env.GITHUB_ISSUES_ENABLED !== "false",
 };
