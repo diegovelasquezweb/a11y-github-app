@@ -394,19 +394,38 @@ async function handleFixSubmit(interaction: SlackInteractionPayload): Promise<Sl
 
   const owner = String(metadata.owner ?? "");
   const repo = String(metadata.repo ?? "");
-  const headSha = String(metadata.headSha ?? "");
-  const headRef = String(metadata.headRef ?? "");
-  const baseRef = String(metadata.baseRef ?? "");
+  let headSha = String(metadata.headSha ?? "");
+  let headRef = String(metadata.headRef ?? "");
+  let baseRef = String(metadata.baseRef ?? "");
+  let pullNumber = Number(metadata.pullNumber ?? 0);
   const channelId = String(metadata.channelId ?? "");
   const messageTs = String(metadata.messageTs ?? "");
 
-  if (!owner || !repo || !headSha) {
+  if (!owner || !repo) {
     return { status: 200, body: { response_action: "errors", errors: { ai_model_block: "Session data lost. Please re-run the audit." } } };
   }
 
   const installationId = Number(metadata.installationId) || await findInstallationForRepo(owner, repo);
   if (!installationId) {
     return { status: 200, body: { response_action: "errors", errors: { ai_model_block: "Repository not accessible" } } };
+  }
+
+  if (!headSha && pullNumber > 0) {
+    try {
+      const octokit = getInstallationOctokit(installationId);
+      const resolved = await resolvePr(octokit, owner, repo, pullNumber);
+      headSha = resolved.headSha;
+      headRef = resolved.headRef;
+      baseRef = resolved.baseRef;
+      pullNumber = resolved.pullNumber;
+    } catch (err) {
+      console.warn("[slack] handleFixSubmit resolvePr failed:", err);
+      return { status: 200, body: { response_action: "errors", errors: { ai_model_block: "Could not resolve PR — re-run the audit." } } };
+    }
+  }
+
+  if (!headSha) {
+    return { status: 200, body: { response_action: "errors", errors: { ai_model_block: "Session data lost. Please re-run the audit." } } };
   }
 
   const client = getSlackClient();
@@ -441,7 +460,7 @@ async function handleFixSubmit(interaction: SlackInteractionPayload): Promise<Sl
     ref: CONFIG.scanRunnerRef,
     targetOwner: owner,
     targetRepo: repo,
-    pullNumber: 0,
+    pullNumber,
     headSha,
     headRef: headRef || "main",
     baseRef: baseRef || "main",
@@ -564,8 +583,8 @@ async function handleBlockAction(interaction: SlackInteractionPayload): Promise<
           headSha: String(fixCtx.s ?? ""),
           headRef: String(fixCtx.h ?? ""),
           baseRef: String(fixCtx.b ?? ""),
-          pullNumber: 0,
-          installationId: 0,
+          pullNumber: Number(fixCtx.n ?? 0),
+          installationId: Number(fixCtx.i ?? 0),
         }, findingLabel, CONFIG.fixAiModel) as Parameters<typeof client.views.open>[0]["view"],
       });
     } catch (err) {

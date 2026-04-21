@@ -62,10 +62,32 @@ export interface ResultContext {
   headRef?: string;
   baseRef?: string;
   installationId?: number;
+  pullNumber?: number;
   /** When true, Jira buttons use API mode (value JSON payload). When false/absent, use URL mode. */
   jiraApiMode?: boolean;
   /** When true, "Create GitHub Issue" buttons are shown. Hidden by default. */
   githubIssuesEnabled?: boolean;
+}
+
+function buildFixValue(id: string | null, context: ResultContext): string {
+  if (context.pullNumber && context.pullNumber > 0) {
+    return JSON.stringify({
+      ...(id ? { id } : {}),
+      o: context.owner,
+      r: context.repo,
+      n: context.pullNumber,
+      i: context.installationId ?? 0,
+    });
+  }
+  return JSON.stringify({
+    ...(id ? { id } : {}),
+    o: context.owner,
+    r: context.repo,
+    s: context.headSha ?? "",
+    h: context.headRef ?? context.branch ?? "",
+    b: context.baseRef ?? "",
+    i: context.installationId ?? 0,
+  });
 }
 
 function buildGhBulkBody(summary: DomAuditSummary, context: ResultContext, total: number): string {
@@ -169,11 +191,7 @@ export function formatAuditResultBlocks(
         const parts = [`${severityIcon(f.severity)} \`${f.id}\` ${escapeHtmlTags(f.title)}`];
         if (pathname) parts.push(`Page: \`${pathname}\``);
         if (f.id) {
-          const findingFixValue = JSON.stringify({
-            id: f.id, o: context.owner, r: context.repo, s: context.headSha ?? "",
-            h: context.headRef ?? context.branch ?? "", b: context.baseRef ?? "",
-            i: context.installationId ?? 0,
-          });
+          const findingFixValue = buildFixValue(f.id, context);
           const issueTableRows = [
             ...(pathname ? [`| **Page** | \`/${pathname}\` |`] : []),
             ...(f.selector ? [`| **Selector** | \`${f.selector}\` |`] : []),
@@ -217,11 +235,7 @@ export function formatAuditResultBlocks(
     }
   }
 
-  const fixContext = JSON.stringify({
-    o: context.owner, r: context.repo, s: context.headSha ?? "",
-    h: context.headRef ?? context.branch ?? "", b: context.baseRef ?? "",
-    i: context.installationId ?? 0,
-  });
+  const fixContext = buildFixValue(null, context);
 
   const actions: Record<string, unknown>[] = [];
   if (total > 0) {
@@ -293,11 +307,7 @@ function appendPatternFindings(blocks: Record<string, unknown>[], patternFinding
       `File: \`${location}\``,
     ];
     if (f.id) {
-      const findingFixValue = JSON.stringify({
-        id: f.id, o: context.owner, r: context.repo, s: context.headSha ?? "",
-        h: context.headRef ?? context.branch ?? "", b: context.baseRef ?? "",
-        i: context.installationId ?? 0,
-      });
+      const findingFixValue = buildFixValue(f.id, context);
       const patIssueBody = `${f.title}\n\n| | |\n|---|---|\n| **File** | \`${location}\` |\n| **Branch** | \`${context.branch ?? "default"}\` |`;
       const ghIssueUrl = `https://github.com/${context.owner}/${context.repo}/issues/new?title=${encodeURIComponent(`[A11y] [${f.severity}] ${f.title}`)}&body=${encodeURIComponent(patIssueBody)}&labels=${encodeURIComponent("accessibility")}`;
       const patJiraOption: Record<string, unknown> = context.jiraApiMode

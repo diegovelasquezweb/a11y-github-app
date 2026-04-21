@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here.
 
+## 0.4.2 (2026-04-20)
+
+### Fixed
+
+- **Slack `chat.update` failed with `invalid_blocks` after auditing a PR.** The overflow menu option `value` is capped at 150 characters by Slack. After 0.4.0 started threading the real `headRef` (longer than the previous `master` default) into the value JSON, it pushed past the cap and the audit result message stayed stuck on the last progress step. The value now uses a compact PR-mode form (`{id, o, r, n: pullNumber, i}`, ~83 chars) when `pullNumber > 0`. On fix-submit the PR is re-resolved via Octokit to recover the SHA and refs.
+
 ## 0.4.1 (2026-04-20)
 
 ### Changed
