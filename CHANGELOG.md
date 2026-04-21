@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented here.
 
+## 0.4.1 (2026-04-20)
+
+### Changed
+
+- **PR detection moved to the Repository field.** Previously 0.4.0 asked users to paste a PR number/URL in the "Branch or PR" field. Now the Repository field itself accepts a PR URL (`https://github.com/owner/repo/pull/N`) and auto-detects the pull number. The Branch field is restored to its pre-0.4.0 label and placeholder.
+
+### Removed
+
+- `parsePrInput` helper (the Branch-field parser). Replaced by an extension of the existing `parseRepoInput` that returns `{ owner, repo, pullNumber? }`. `resolvePr` is kept and still performs the Octokit fetch.
+
 ## 0.4.0 (2026-04-20)
 
 ### Added

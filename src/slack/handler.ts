@@ -1,7 +1,7 @@
 import { waitUntil } from "@vercel/functions";
 import { CONFIG } from "../config.js";
 import { findInstallationForRepo, getInstallationOctokit, createInstallationToken } from "../github/auth.js";
-import { parsePrInput, resolvePr } from "../github/resolve-pr-input.js";
+import { resolvePr } from "../github/resolve-pr-input.js";
 import { createDomAuditPendingCheck, createFixPendingCheck } from "../review/dom-reporter.js";
 import { createScanToken, dispatchDomAuditWorkflow, dispatchSourceAuditWorkflow } from "../review/dom-workflow.js";
 import { dispatchFixWorkflow } from "../review/fix-workflow.js";
@@ -20,14 +20,24 @@ import { buildSingleFindingBody, buildSingleFindingSummary, buildBulkBody, build
 import { createJiraIssue } from "../jira/create-issue.js";
 import type { JiraSlackPayload, JiraSinglePayload, JiraBulkPayload, CreateIssueErrorCode } from "../jira/types.js";
 
-function parseRepoInput(input: string): [string, string] | null {
+interface ParsedRepo {
+  owner: string;
+  repo: string;
+  pullNumber?: number;
+}
+
+function parseRepoInput(input: string): ParsedRepo | null {
+  const prUrl = input.match(/github\.com\/([^/]+)\/([^/\s?#]+?)(?:\.git)?\/pull\/(\d+)(?:[/?#].*)?$/);
+  if (prUrl) {
+    return { owner: prUrl[1], repo: prUrl[2], pullNumber: Number(prUrl[3]) };
+  }
   const githubUrl = input.match(/github\.com\/([^/]+)\/([^/\s?#]+)/);
   if (githubUrl) {
-    return [githubUrl[1], githubUrl[2].replace(/\.git$/, "")];
+    return { owner: githubUrl[1], repo: githubUrl[2].replace(/\.git$/, "") };
   }
   const parts = input.split("/");
   if (parts.length === 2 && parts[0] && parts[1]) {
-    return [parts[0], parts[1]];
+    return { owner: parts[0], repo: parts[1] };
   }
   return null;
 }
@@ -251,7 +261,7 @@ async function handleAuditSubmit(interaction: SlackInteractionPayload): Promise<
   if (!parsed) {
     return { status: 200, body: { response_action: "errors", errors: { repo_block: "Paste a valid GitHub repository URL" } } };
   }
-  const [owner, repo] = parsed;
+  const { owner, repo } = parsed;
 
   const installationId = await findInstallationForRepo(owner, repo);
   if (!installationId) {
@@ -259,18 +269,12 @@ async function handleAuditSubmit(interaction: SlackInteractionPayload): Promise<
   }
 
   const octokit = getInstallationOctokit(installationId);
-
-  const parsedInput = parsePrInput(branchRaw, owner, repo);
-  if (parsedInput.kind === "error") {
-    return { status: 200, body: { response_action: "errors", errors: { branch_block: "PR URL must point to the selected repository" } } };
-  }
-
   let ref: string;
   let sha: string;
   let pullNumber = 0;
-  if (parsedInput.kind === "pr") {
+  if (parsed.pullNumber) {
     try {
-      const resolvedPr = await resolvePr(octokit, owner, repo, parsedInput.pullNumber);
+      const resolvedPr = await resolvePr(octokit, owner, repo, parsed.pullNumber);
       ref = resolvedPr.headRef;
       sha = resolvedPr.headSha;
       pullNumber = resolvedPr.pullNumber;
@@ -278,11 +282,11 @@ async function handleAuditSubmit(interaction: SlackInteractionPayload): Promise<
       const status = (err as { status?: number }).status;
       const msg = status === 404 ? "PR not found" : "Could not resolve PR — try again";
       if (status !== 404) console.warn("[slack] resolvePr failed:", err);
-      return { status: 200, body: { response_action: "errors", errors: { branch_block: msg } } };
+      return { status: 200, body: { response_action: "errors", errors: { repo_block: msg } } };
     }
   } else {
     try {
-      const resolved = await resolveBranchRef(octokit, owner, repo, parsedInput.value || undefined);
+      const resolved = await resolveBranchRef(octokit, owner, repo, branchRaw || undefined);
       ref = resolved.ref;
       sha = resolved.sha;
     } catch {
