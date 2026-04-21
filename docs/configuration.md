@@ -103,7 +103,7 @@ See [Jira Setup](jira-setup.md) for step-by-step configuration.
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `GITHUB_ISSUES_ENABLED` | No | `true` | Set to `"false"` to hide the "Create GitHub Issue" button next to each Slack finding. Default: button is shown. |
+| `GITHUB_ISSUES_ENABLED` | No | `false` | Set to `"true"` to show a "Create GitHub Issue" button next to each Slack finding. Default: button is hidden. |
 
 ### GitHub Actions (runner repo)
 

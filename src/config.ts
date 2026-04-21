@@ -41,5 +41,5 @@ export const CONFIG = {
   jiraEmail: process.env.JIRA_EMAIL?.trim() ?? "",
   jiraApiToken: process.env.JIRA_API_TOKEN?.trim() ?? "",
   jiraProjectKey: process.env.JIRA_PROJECT_KEY?.trim() ?? "",
-  githubIssuesEnabled: process.env.GITHUB_ISSUES_ENABLED !== "false",
+  githubIssuesEnabled: process.env.GITHUB_ISSUES_ENABLED === "true",
 };
