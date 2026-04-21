@@ -10,9 +10,10 @@
 - [Step 1: Create the Slack App](#step-1-create-the-slack-app)
 - [Step 2: Configure Slash Command](#step-2-configure-slash-command)
 - [Step 3: Enable Interactivity](#step-3-enable-interactivity)
-- [Step 4: Add Scopes and Install](#step-4-add-scopes-and-install)
-- [Step 5: Set Environment Variables](#step-5-set-environment-variables)
-- [Step 6: Invite the Bot](#step-6-invite-the-bot)
+- [Step 4: Enable Event Subscriptions](#step-4-enable-event-subscriptions)
+- [Step 5: Add Scopes and Install](#step-5-add-scopes-and-install)
+- [Step 6: Set Environment Variables](#step-6-set-environment-variables)
+- [Step 7: Invite the Bot](#step-7-invite-the-bot)
 - [How It Works](#how-it-works)
 
 ---
@@ -60,29 +61,41 @@ The Slack integration lets users trigger accessibility audits and fixes from any
 
 ---
 
-## Step 4: Add Scopes and Install
+## Step 4: Enable Event Subscriptions
 
-1. Go to **OAuth & Permissions** → **Bot Token Scopes** and add: `commands`, `chat:write`, `chat:write.public`
+Required so the bot can post a welcome message when invited to a channel.
+
+1. Go to **Event Subscriptions**
+2. Toggle **Enable Events** to **On**
+3. Set **Request URL** to: `https://<your-vercel-domain>/api/slack`
+4. Under **Subscribe to bot events**, click **Add Bot User Event** and add: `member_joined_channel`
+5. Click **Save Changes**
+
+---
+
+## Step 5: Add Scopes and Install
+
+1. Go to **OAuth & Permissions** → **Bot Token Scopes** and add: `commands`, `chat:write`, `channels:read`, `pins:write`
 2. Go to **Install App** → **Install to Workspace** and authorize
 3. Copy the **Bot User OAuth Token** (`xoxb-...`)
 4. Go to **Basic Information** → **App Credentials** → copy the **Signing Secret**
 
 ---
 
-## Step 5: Set Environment Variables
+## Step 6: Set Environment Variables
 
 In **Vercel → Project Settings → Environment Variables**, add:
 
 | Variable | Value |
 |----------|-------|
-| `SLACK_BOT_TOKEN` | The `xoxb-...` token from step 4 |
-| `SLACK_SIGNING_SECRET` | The signing secret from step 4 |
+| `SLACK_BOT_TOKEN` | The `xoxb-...` token from step 5 |
+| `SLACK_SIGNING_SECRET` | The signing secret from step 5 |
 
 No redeploy needed if using Vercel's runtime env vars.
 
 ---
 
-## Step 6: Invite the Bot
+## Step 7: Invite the Bot
 
 In any Slack channel where you want to use `/a11y`:
 

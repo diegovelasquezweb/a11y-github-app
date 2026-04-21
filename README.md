@@ -151,14 +151,9 @@ Go back to **GitHub Settings → Developer settings → GitHub Apps → your app
 
 The Slack integration lets users trigger audits directly from Slack. Results are posted back to the channel.
 
-### 1. Create the Slack App
+1. Go to [api.slack.com/apps](https://api.slack.com/apps) → **Create New App** → **From scratch** → pick a name and workspace.
 
-1. Go to [api.slack.com/apps](https://api.slack.com/apps) → **Create New App** → **From scratch**
-2. Choose a name, pick your workspace → **Create App**
-
-### 2. Configure the Slash Command
-
-1. Go to **Slash Commands** → **Create New Command**
+2. **Slash Commands** → **Create New Command**:
 
    | Field | Value |
    |-------|-------|
@@ -166,27 +161,20 @@ The Slack integration lets users trigger audits directly from Slack. Results are
    | Request URL | `https://<your-vercel-domain>/api/slack` |
    | Short Description | Run accessibility audits |
 
-2. Click **Save**
+3. **Interactivity & Shortcuts** → toggle **On** → Request URL: `https://<your-vercel-domain>/api/slack` → **Save Changes**.
 
-### 3. Enable Interactivity
+4. **Event Subscriptions** → toggle **On** → Request URL: `https://<your-vercel-domain>/api/slack` → under **Subscribe to bot events** add `member_joined_channel` → **Save Changes**.
 
-1. Go to **Interactivity & Shortcuts** → toggle **Interactivity** to **On**
-2. Request URL: `https://<your-vercel-domain>/api/slack`
-3. **Save Changes**
+5. **OAuth & Permissions → Bot Token Scopes**: add `commands`, `chat:write`, `channels:read`, `pins:write`.
 
-### 4. Add Bot Token Scopes and install
+6. **Install App** → **Install to Workspace** → authorize. Copy the **Bot User OAuth Token** (`xoxb-...`), then from **Basic Information** copy the **Signing Secret**.
 
-1. Go to **OAuth & Permissions → Bot Token Scopes** and add: `commands`, `chat:write`, `chat:write.public`
-2. Go to **Install App** → **Install to Workspace** → authorize
-3. Copy the **Bot User OAuth Token** (`xoxb-...`)
-4. Go to **Basic Information** → copy the **Signing Secret**
+7. Add to Vercel environment variables:
 
-### 5. Add environment variables in Vercel
-
-| Variable | Value |
-|----------|-------|
-| `SLACK_BOT_TOKEN` | `xoxb-...` token from step 4 |
-| `SLACK_SIGNING_SECRET` | Signing secret from step 4 |
+   | Variable | Value |
+   |----------|-------|
+   | `SLACK_BOT_TOKEN` | `xoxb-...` token |
+   | `SLACK_SIGNING_SECRET` | Signing secret |
 
 ---
 
