@@ -12,7 +12,7 @@
 - [Fix Strategies](#fix-strategies)
   - [DOM Findings (A11Y-*)](#dom-findings-a11y-)
   - [Pattern Findings (PAT-*)](#pattern-findings-pat-)
-- [Project Hints (.a11y-hints.json)](#project-hints-a11y-hintsjson)
+- [Project Hints](#project-hints)
 - [Git Checkpoint Pattern](#git-checkpoint-pattern)
 - [Fix Result Statuses](#fix-result-statuses)
 - [AI Usage Reporting](#ai-usage-reporting)
@@ -32,7 +32,7 @@ flowchart LR
     CACHE["Load finding<br/>from cache"]
     CTX["Extract element<br/>context from source"]
     GUIDE["Load remediation<br/>guidance from<br/>intelligence assets"]
-    HINTS["Project hints<br/>(.a11y-hints.json)"]
+    HINTS["Project hint<br/>(command or modal)"]
     CLAUDE["Claude API<br/>generates patch"]
     APPLY["Apply patch<br/>to file"]
     VERIFY{"DOM finding?"}
@@ -128,36 +128,9 @@ Pattern findings originate from the static source pattern scanner. Each finding 
 4. Apply the generated patch to the target file.
 5. No DOM re-verification is performed for pattern findings — the fix is marked `patched` after successful application.
 
-## Project Hints (.a11y-hints.json)
+## Project Hints
 
-You can customize how the AI applies fixes by placing an `.a11y-hints.json` file in the root of your target repository. The workflow reads this file before each fix run and passes its contents to the engine as project context.
-
-**Example `.a11y-hints.json`:**
-
-```json
-{
-  "labelStrategy": "sr-only",
-  "cssFramework": "tailwind",
-  "conventions": [
-    "Use sr-only utility class for visually hidden labels instead of aria-label",
-    "Button text must be wrapped in a <span class=\"sr-only\"> when using icon-only buttons"
-  ]
-}
-```
-
-The contents are injected verbatim into the Claude prompt as project context. Claude reads these conventions before generating any patch and applies them alongside the WCAG guidance from the engine's intelligence database.
-
-**When the file is absent**, the workflow proceeds normally with no additional context — there is zero impact on runs where `.a11y-hints.json` does not exist.
-
-**Supported fields** (all optional, free-form — Claude interprets them):
-
-| Field | Example | Effect |
-|-------|---------|--------|
-| `labelStrategy` | `"sr-only"` | Preferred technique for visually hidden labels |
-| `cssFramework` | `"tailwind"` | Tells Claude which utility classes are available |
-| `conventions` | `["..."]` | Free-text rules Claude must follow when patching |
-
-Any valid JSON is accepted. You can add any fields that describe your project's conventions — Claude reads the whole object.
+An optional hint string can be passed per fix run — either inline in the command (`/a11y-fix all "use sr-only labels, prefer Tailwind utilities"`) or through the Slack fix modal. The hint is injected into the Claude prompt as project context alongside the WCAG guidance from the engine's intelligence database.
 
 ## Git Checkpoint Pattern
 

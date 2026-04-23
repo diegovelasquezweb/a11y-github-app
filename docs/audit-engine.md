@@ -103,7 +103,7 @@ PAT-* IDs are stable across reruns — the same pattern at the same file and lin
 
 ## Result Caching
 
-Findings are cached in GitHub Actions by head SHA. A re-run on the same commit restores the cached findings without re-scanning.
+Findings are cached in GitHub Actions by head SHA after each audit run. The fix workflow restores these caches to resolve finding IDs without re-auditing.
 
 | Cache key | Contents |
 |-----------|----------|
