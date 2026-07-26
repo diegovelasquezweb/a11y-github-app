@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here.
 
+## 0.4.3 (2026-07-26)
+
+### Changed
+
+- **`sonnet` model alias updated to `claude-sonnet-5`** (was `claude-sonnet-4-6`) in `src/models.ts`. Added the `claude-sonnet-5` pricing entry ($3.00 input / $15.00 output per 1M tokens) to both `MODEL_PRICING` tables in `.github/workflows/a11y-fix.yml`. The `claude-sonnet-4-6` entry is kept for backward-compatibility with any `FIX_AI_MODEL` override still pointing at it.
+
 ## 0.4.2 (2026-04-20)
 
 ### Fixed
