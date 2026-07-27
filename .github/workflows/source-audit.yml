@@ -208,7 +208,6 @@ jobs:
                   const bRank = severityRank[String(b.severity || '').toLowerCase()] ?? 99
                   return aRank !== bRank ? aRank - bRank : String(a.title || '').localeCompare(String(b.title || ''))
                 })
-                .slice(0, 10)
                 .map(f => ({
                   id: String(f.id || ''),
                   title: String(f.title || 'Untitled finding'),
