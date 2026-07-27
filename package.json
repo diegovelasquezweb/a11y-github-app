@@ -11,7 +11,7 @@
     "test": "vitest run tests"
   },
   "dependencies": {
-    "@diegovelasquezweb/a11y-engine": "^1.0.0",
+    "@diegovelasquezweb/a11y-engine": "^1.1.0",
     "@octokit/auth-app": "^8.1.0",
     "@octokit/rest": "^22.0.0",
     "@slack/web-api": "^7.15.1",
