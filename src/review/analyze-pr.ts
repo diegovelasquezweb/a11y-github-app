@@ -11,7 +11,7 @@ import type {
   ReviewComment,
 } from "../types.js";
 import { getAddedLinesFromPatch } from "./diff.js";
-import { normalizeSeverity } from "./severity.js";
+import { normalizeSeverity } from "../severity.js";
 
 const SUPPORTED_EXTENSIONS = new Set([
   ".js",

@@ -1,6 +1,6 @@
 import type { Octokit } from "@octokit/rest";
 import type { ReviewAnalysisResult } from "../types.js";
-import { normalizeSeverity } from "./severity.js";
+import { countBySeverity, normalizeSeverity, severityIcon } from "../severity.js";
 
 interface ReportInput {
   octokit: Octokit;
@@ -12,19 +12,7 @@ interface ReportInput {
 }
 
 function buildSeveritySummary(analysis: ReviewAnalysisResult): Record<string, number> {
-  const summary: Record<string, number> = {
-    Critical: 0,
-    Serious: 0,
-    Moderate: 0,
-    Minor: 0,
-  };
-
-  for (const item of analysis.findings) {
-    const severity = normalizeSeverity(item.finding.severity);
-    summary[severity] = (summary[severity] ?? 0) + 1;
-  }
-
-  return summary;
+  return countBySeverity(analysis.findings, (item) => item.finding.severity);
 }
 
 function buildCheckSummary(analysis: ReviewAnalysisResult): string {
@@ -48,6 +36,7 @@ function buildCheckSummary(analysis: ReviewAnalysisResult): string {
     `Serious: ${severity.Serious}`,
     `Moderate: ${severity.Moderate}`,
     `Minor: ${severity.Minor}`,
+    severity.Unknown > 0 ? `Unknown: ${severity.Unknown}` : "",
     "",
     `Inline comments posted: ${inline}`,
     overflow > 0 ? `Additional findings in summary only: ${overflow}` : "",
@@ -67,21 +56,12 @@ function buildReviewBody(analysis: ReviewAnalysisResult): string {
   const exampleFindingId = analysis.findings[0]?.finding.id;
   return [
     `A11y review found ${analysis.findings.length} issue(s) in this PR.`,
-    `Critical: ${severity.Critical} | Serious: ${severity.Serious} | Moderate: ${severity.Moderate} | Minor: ${severity.Minor}`,
+    `Critical: ${severity.Critical} | Serious: ${severity.Serious} | Moderate: ${severity.Moderate} | Minor: ${severity.Minor}${severity.Unknown > 0 ? ` | Unknown: ${severity.Unknown}` : ""}`,
     "",
     "This review is generated from the a11y-engine intelligence layer.",
   ]
     .filter(Boolean)
     .join("\n");
-}
-
-function severityIcon(severity: string): string {
-  const normalized = normalizeSeverity(severity);
-  if (normalized === "Critical") return "🔴";
-  if (normalized === "Serious") return "🟠";
-  if (normalized === "Moderate") return "🟡";
-  if (normalized === "Minor") return "🔵";
-  return "⚪";
 }
 
 export function buildSourcePatternsSection(analysis: ReviewAnalysisResult): string {
@@ -99,7 +79,7 @@ export function buildSourcePatternsSection(analysis: ReviewAnalysisResult): stri
   }
 
   const summary = buildSeveritySummary(analysis);
-  const summaryLine = `🔴 Critical: ${summary.Critical} | 🟠 Serious: ${summary.Serious} | 🟡 Moderate: ${summary.Moderate} | 🔵 Minor: ${summary.Minor}`;
+  const summaryLine = `🔴 Critical: ${summary.Critical} | 🟠 Serious: ${summary.Serious} | 🟡 Moderate: ${summary.Moderate} | 🔵 Minor: ${summary.Minor}${summary.Unknown > 0 ? ` | ⚪ Unknown: ${summary.Unknown}` : ""}`;
 
   const list = analysis.findings
     .map((item, index) => {

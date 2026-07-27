@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  normalizeSeverity,
-  rankSeverity,
-  shouldRequestChanges,
-} from "../src/review/severity.js";
+import { countBySeverity, normalizeSeverity, severityIcon } from "../src/severity.js";
 
 describe("severity helpers", () => {
   it("normalizes severity strings", () => {
@@ -11,13 +7,30 @@ describe("severity helpers", () => {
     expect(normalizeSeverity("SERIOUS")).toBe("Serious");
   });
 
-  it("sorts by expected severity ranking", () => {
-    expect(rankSeverity("Critical")).toBeGreaterThan(rankSeverity("Moderate"));
+  it("keeps unknown severity honest instead of reclassifying to Moderate", () => {
+    expect(normalizeSeverity("weird-value")).toBe("Unknown");
+    expect(normalizeSeverity("")).toBe("Unknown");
+    expect(normalizeSeverity("Unknown")).toBe("Unknown");
   });
 
-  it("requests changes for serious or critical findings", () => {
-    expect(shouldRequestChanges(["Minor", "Moderate"])).toBe(false);
-    expect(shouldRequestChanges(["Serious"])).toBe(true);
-    expect(shouldRequestChanges(["Critical"])).toBe(true);
+  it("maps severity to per-surface icons", () => {
+    expect(severityIcon("critical")).toBe("🔴");
+    expect(severityIcon("critical", "slack")).toBe(":red_circle:");
+    expect(severityIcon("weird-value")).toBe("⚪");
+    expect(severityIcon("weird-value", "slack")).toBe(":white_circle:");
+  });
+
+  it("counts findings by severity and keeps Unknown reconciled", () => {
+    const items = [
+      { severity: "Critical" },
+      { severity: "critical" },
+      { severity: "minor" },
+      { severity: "weird-value" },
+    ];
+    const counts = countBySeverity(items, (item) => item.severity);
+    expect(counts.Critical).toBe(2);
+    expect(counts.Minor).toBe(1);
+    expect(counts.Unknown).toBe(1);
+    expect(counts.Serious).toBe(0);
   });
 });

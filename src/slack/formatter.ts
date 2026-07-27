@@ -1,14 +1,6 @@
+import { severityIcon } from "../severity.js";
 import type { BulkFinding, JiraBulkPayload } from "../jira/types.js";
 import type { DomAuditSummary, PatternAuditSummary } from "../types.js";
-
-function severityIcon(severity: string): string {
-	const s = severity.trim().toLowerCase();
-	if (s === "critical") return ":red_circle:";
-	if (s === "serious") return ":large_orange_circle:";
-	if (s === "moderate") return ":large_yellow_circle:";
-	if (s === "minor") return ":large_blue_circle:";
-	return ":white_circle:";
-}
 
 function escapeHtmlTags(text: string): string {
 	return text.replace(
@@ -294,7 +286,7 @@ export function formatAuditResultBlocks(
 			domShown.forEach((f) => {
 				const pathname = f.url ? extractPathname(f.url) : "";
 				const parts = [
-					`${severityIcon(f.severity)} \`${f.id}\` ${escapeHtmlTags(f.title)}`,
+					`${severityIcon(f.severity, "slack")} \`${f.id}\` ${escapeHtmlTags(f.title)}`,
 				];
 				if (pathname) parts.push(`Page: \`${pathname}\``);
 				if (f.id) {
@@ -459,7 +451,7 @@ function appendPatternFindings(
 	shown.forEach((f) => {
 		const location = f.line ? `${f.file}:${f.line}` : f.file;
 		const parts = [
-			`${severityIcon(f.severity)} \`${f.id}\` ${escapeHtmlTags(f.title)}`,
+			`${severityIcon(f.severity, "slack")} \`${f.id}\` ${escapeHtmlTags(f.title)}`,
 			`File: \`${location}\``,
 		];
 		if (f.id) {

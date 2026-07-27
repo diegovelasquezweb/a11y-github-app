@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { CONFIG } from "../config.js";
 import { getRepoOctokit } from "../github/auth.js";
 import { completeDomAuditCheck } from "../review/dom-reporter.js";
+import { countBySeverity, severityIcon } from "../severity.js";
 import type { DomAuditFindingSummary, DomAuditSummary, PatternAuditSummary, PatternFindingSummary } from "../types.js";
 
 
@@ -89,22 +90,8 @@ function normalizePatternFindings(input: unknown): PatternAuditSummary | undefin
         }))
         .filter((f) => f.id && f.title && f.severity)
     : [];
-  const totals = {
-    Critical: findings.filter((f) => f.severity.toLowerCase() === "critical").length,
-    Serious: findings.filter((f) => f.severity.toLowerCase() === "serious").length,
-    Moderate: findings.filter((f) => f.severity.toLowerCase() === "moderate").length,
-    Minor: findings.filter((f) => f.severity.toLowerCase() === "minor").length,
-  };
+  const totals = countBySeverity(findings, (f) => f.severity);
   return { totalFindings: findings.length, totals, findings };
-}
-
-function severityIcon(severity: string): string {
-  const normalized = severity.trim().toLowerCase();
-  if (normalized === "critical") return "🔴";
-  if (normalized === "serious") return "🟠";
-  if (normalized === "moderate") return "🟡";
-  if (normalized === "minor") return "🔵";
-  return "⚪";
 }
 
 function buildPatternSection(patternFindings: PatternAuditSummary, branch?: string): string {
