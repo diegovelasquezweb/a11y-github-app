@@ -1207,3 +1207,31 @@ jobs:
           if [ -f "$RUNNER_TEMP/local-server.pid" ]; then
             kill "$(cat "$RUNNER_TEMP/local-server.pid")" || true
           fi
+
+      - name: Ensure check run is not left in progress
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ inputs.target_token }}
+          script: |
+            const owner = process.env.TARGET_OWNER
+            const repo = process.env.TARGET_REPO
+            const checkRunId = process.env.CHECK_RUN_ID
+            if (!checkRunId) return
+            const { data: checkRun } = await github.rest.checks.get({
+              owner, repo, check_run_id: Number(checkRunId),
+            })
+            if (checkRun.status === 'completed') return
+            await github.rest.checks.update({
+              owner, repo, check_run_id: Number(checkRunId),
+              status: 'completed',
+              conclusion: 'failure',
+              output: {
+                title: 'Fix workflow did not complete normally',
+                summary: 'The workflow run ended (crash, timeout, or cancellation) before it could report a result. Re-run the command to try again.',
+              },
+            })
+        env:
+          TARGET_OWNER: ${{ inputs.target_owner }}
+          TARGET_REPO: ${{ inputs.target_repo }}
+          CHECK_RUN_ID: ${{ inputs.check_run_id }}
