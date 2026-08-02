@@ -71,16 +71,22 @@ export async function processProgressUpdate(input: ProgressInput): Promise<Progr
   try {
     const blocks = buildProgressBlocks(input);
     const currentName = input.steps[input.current_step - 1] ?? "Processing";
-    await client.chat.update({
+    const result = await client.chat.update({
       channel: input.slack_channel_id,
       ts: input.slack_message_ts,
       blocks,
       text: `${currentName}…`,
     });
+    if (!result.ok) {
+      console.error("[slack] progress update returned not ok:", result.error ?? "unknown_error");
+      return { status: 200, body: { ok: true, warning: "Slack update failed", error: result.error } };
+    }
     return { status: 200, body: { ok: true } };
   } catch (err) {
-    console.warn("[slack] progress update failed:", err);
-    return { status: 200, body: { ok: true, warning: "Slack update failed" } };
+    const slackError = (err as { data?: { error?: string } })?.data?.error;
+    const message = slackError ?? (err instanceof Error ? err.message : String(err));
+    console.error("[slack] progress update failed:", message);
+    return { status: 200, body: { ok: true, warning: "Slack update failed", error: message } };
   }
 }
 

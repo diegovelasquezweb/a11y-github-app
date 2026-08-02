@@ -139,6 +139,7 @@ jobs:
           cache-dependency-path: runner/pnpm-lock.yaml
 
       - name: Install runner dependencies
+        id: install_runner_deps
         run: pnpm install --frozen-lockfile
         working-directory: runner
 
@@ -233,6 +234,7 @@ jobs:
         run: node "$(find runner/node_modules -path '*/puppeteer/install.mjs' -print -quit)"
 
       - name: Checkout target repository at PR head
+        id: checkout_target
         uses: actions/checkout@v4
         with:
           repository: ${{ inputs.target_owner }}/${{ inputs.target_repo }}
@@ -287,11 +289,13 @@ jobs:
           NODE
 
       - name: Install target dependencies
+        id: install_target_deps
         if: ${{ steps.runtime.outputs.install_command != '' }}
         run: bash -lc "${{ steps.runtime.outputs.install_command }}"
         working-directory: ${{ steps.runtime.outputs.workdir }}
 
       - name: Build target project
+        id: build_target
         if: ${{ steps.runtime.outputs.build_command != '' }}
         run: bash -lc "${{ steps.runtime.outputs.build_command }}"
         working-directory: ${{ steps.runtime.outputs.workdir }}
@@ -565,11 +569,13 @@ jobs:
           PROJECT_HINTS: ${{ inputs.project_hints }}
 
       - name: Rebuild target after patch
+        id: rebuild
         if: ${{ steps.apply_fixes.outputs.all_failed != 'true' && steps.runtime.outputs.build_command != '' }}
         run: bash -lc "${{ steps.runtime.outputs.build_command }}"
         working-directory: ${{ steps.runtime.outputs.workdir }}
 
       - name: Restart local server for verification
+        id: restart_server
         if: ${{ steps.apply_fixes.outputs.all_failed != 'true' }}
         run: |
           nohup bash -lc "${{ steps.server_detect.outputs.start_command || steps.runtime.outputs.start_command }}" > "$RUNNER_TEMP/local-server.log" 2>&1 &
@@ -577,6 +583,7 @@ jobs:
         working-directory: ${{ steps.runtime.outputs.workdir }}
 
       - name: Wait for local server readiness after patch
+        id: wait_server_ready
         if: ${{ steps.apply_fixes.outputs.all_failed != 'true' }}
         run: |
           HEALTH_URL="${{ steps.server_detect.outputs.health_url || steps.runtime.outputs.health_url }}"
@@ -992,72 +999,93 @@ jobs:
             }
 
       - name: Send Slack fix result callback
-        if: ${{ inputs.slack_channel_id != '' && inputs.callback_url != '' }}
+        if: ${{ always() && inputs.slack_channel_id != '' && inputs.callback_url != '' }}
         run: |
-          if [ "$ALL_FAILED" = "true" ]; then
-            SUMMARY="No findings could be automatically fixed"
-          else
-            SUMMARY="Fix completed"
-          fi
-          export SUMMARY
-
           node <<'NODE'
           const fs = require('fs')
+
           const resultsFile = process.env.RESULTS_FILE
           let results = []
           if (resultsFile && fs.existsSync(resultsFile)) {
-            results = JSON.parse(fs.readFileSync(resultsFile, 'utf8'))
+            try { results = JSON.parse(fs.readFileSync(resultsFile, 'utf8')) } catch {}
           }
 
-          const rows = results.map(r => {
-            const resolved = (r.message || '').toLowerCase().includes('already resolved')
-            const icon = resolved ? ':white_check_mark:' : r.verified ? ':white_check_mark:' : r.status === 'skipped' ? ':fast_forward:' : ':x:'
-            const text = resolved ? 'Already resolved' : r.verified ? 'Fixed & verified' : r.status === 'skipped' ? 'Skipped' : 'Failed'
-            return `${icon}  \`${r.id}\` ${r.title || '—'} — ${text}`
-          }).join('\n')
-
+          // PR existing is the only success signal — never offer retry then, it'd duplicate the PR.
           const prUrl = process.env.PR_URL || ''
-          const blocks = [
-            { type: 'header', text: { type: 'plain_text', text: process.env.STATUS === 'failure' ? '❌ Fix Failed' : '✅ Fix Complete' } },
-            { type: 'section', text: { type: 'mrkdwn', text: rows || 'No results' } },
-          ]
-          if (prUrl) {
-            blocks.push({ type: 'actions', elements: [
-              { type: 'button', text: { type: 'plain_text', text: 'View Fix' }, url: prUrl, action_id: 'view_fix_pr' },
-            ]})
+
+          let failedStep = ''
+          let reason = ''
+          if (!prUrl) {
+            if (process.env.ALL_FAILED === 'true') {
+              reason = 'No findings could be automatically fixed'
+            } else {
+              const stepChecks = [
+                ['Install runner dependencies', process.env.STEP_INSTALL_RUNNER_DEPS],
+                ['Checkout target repository', process.env.STEP_CHECKOUT_TARGET],
+                ['Install target dependencies', process.env.STEP_INSTALL_TARGET_DEPS],
+                ['Build target project', process.env.STEP_BUILD_TARGET],
+                ['Rebuild target after patch', process.env.STEP_REBUILD],
+                ['Restart local server for verification', process.env.STEP_RESTART_SERVER],
+                ['Wait for local server readiness after patch', process.env.STEP_WAIT_SERVER_READY],
+                ['Create branch and commit', process.env.STEP_COMMIT_FIX],
+                ['Open pull request', process.env.STEP_OPEN_PR],
+              ]
+              const failed = stepChecks.find(([, outcome]) => outcome === 'failure')
+              if (failed) {
+                failedStep = failed[0]
+              } else {
+                reason = 'Patches were generated but verification did not pass'
+              }
+            }
           }
 
-          const payload = JSON.stringify({ blocks })
-          fs.writeFileSync('slack-fix-payload.json', payload)
-          NODE
-
-          node <<'SEND'
-          const fs = require('fs')
-          const payload = JSON.parse(fs.readFileSync('slack-fix-payload.json', 'utf8'))
-          const body = JSON.stringify({
+          const payload = {
             slack_channel_id: process.env.SLACK_CHANNEL_ID,
             slack_message_ts: process.env.SLACK_MESSAGE_TS,
-            blocks: payload.blocks,
-          })
-          fetch(`${process.env.CALLBACK_URL.replace('/scan-callback', '/slack-fix-result')}`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-callback-token': process.env.CALLBACK_TOKEN,
-            },
-            body,
-          }).catch(err => console.warn('Slack fix result callback failed:', err))
-          SEND
+            target_owner: process.env.TARGET_OWNER,
+            target_repo: process.env.TARGET_REPO,
+            branch: process.env.HEAD_REF,
+            head_sha: process.env.HEAD_SHA,
+            head_ref: process.env.HEAD_REF,
+            base_ref: process.env.BASE_REF,
+            pull_number: process.env.PULL_NUMBER,
+            finding_ids: process.env.FINDING_IDS_INPUT,
+            pr_url: prUrl,
+            failed_step: failedStep,
+            reason,
+            results,
+          }
+          fs.writeFileSync('slack-fix-payload.json', JSON.stringify(payload))
+          NODE
+
+          curl -sS -X POST "${CALLBACK_URL%/scan-callback}/slack-fix-result" \
+            -H "Content-Type: application/json" \
+            -H "x-callback-token: $CALLBACK_TOKEN" \
+            --data-binary @slack-fix-payload.json || true
         env:
           CALLBACK_URL: ${{ inputs.callback_url }}
           CALLBACK_TOKEN: ${{ inputs.callback_token }}
           SLACK_CHANNEL_ID: ${{ inputs.slack_channel_id }}
           SLACK_MESSAGE_TS: ${{ inputs.slack_message_ts }}
+          TARGET_OWNER: ${{ inputs.target_owner }}
+          TARGET_REPO: ${{ inputs.target_repo }}
+          HEAD_SHA: ${{ inputs.head_sha }}
+          HEAD_REF: ${{ inputs.head_ref }}
+          BASE_REF: ${{ inputs.base_ref }}
+          PULL_NUMBER: ${{ inputs.pull_number }}
+          FINDING_IDS_INPUT: ${{ inputs.finding_ids }}
           RESULTS_FILE: ${{ steps.apply_fixes.outputs.results_file }}
           PR_URL: ${{ steps.open_pr.outputs.pr_url }}
-          ANY_VERIFIED: ${{ steps.verify_result.outputs.any_verified }}
           ALL_FAILED: ${{ steps.apply_fixes.outputs.all_failed }}
-          STATUS: ${{ steps.verify_result.outputs.any_verified == 'true' && 'success' || 'failure' }}
+          STEP_INSTALL_RUNNER_DEPS: ${{ steps.install_runner_deps.outcome }}
+          STEP_CHECKOUT_TARGET: ${{ steps.checkout_target.outcome }}
+          STEP_INSTALL_TARGET_DEPS: ${{ steps.install_target_deps.outcome }}
+          STEP_BUILD_TARGET: ${{ steps.build_target.outcome }}
+          STEP_REBUILD: ${{ steps.rebuild.outcome }}
+          STEP_RESTART_SERVER: ${{ steps.restart_server.outcome }}
+          STEP_WAIT_SERVER_READY: ${{ steps.wait_server_ready.outcome }}
+          STEP_COMMIT_FIX: ${{ steps.commit_fix.outcome }}
+          STEP_OPEN_PR: ${{ steps.open_pr.outcome }}
 
       - name: Update fix check run
         if: always()

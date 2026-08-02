@@ -557,7 +557,12 @@ async function handleBlockAction(interaction: SlackInteractionPayload): Promise<
     }
   }
 
-  if (action.action_id.startsWith("a11y_fix_") || action.action_id === "a11y_fix_all" || action.action_id === "a11y_fix_trigger") {
+  if (
+    action.action_id.startsWith("a11y_fix_") ||
+    action.action_id === "a11y_fix_all" ||
+    action.action_id === "a11y_fix_trigger" ||
+    action.action_id === "a11y_retry_fix"
+  ) {
     const channelId = interaction.channel?.id ?? "";
     const messageTs = interaction.message?.ts ?? "";
 
@@ -565,7 +570,7 @@ async function handleBlockAction(interaction: SlackInteractionPayload): Promise<
     let findingLabel = "all";
     try {
       fixCtx = JSON.parse(action.value ?? "{}");
-      findingLabel = action.action_id === "a11y_fix_all" ? "all" : String(fixCtx.id ?? "");
+      findingLabel = fixCtx.id ? String(fixCtx.id) : "all";
     } catch {
       findingLabel = action.value ?? "all";
     }

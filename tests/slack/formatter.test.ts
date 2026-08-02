@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatAuditResultBlocks, formatScanningBlocks, formatFixProgressBlocks } from "../../src/slack/formatter.js";
+import { formatAuditResultBlocks, formatScanningBlocks, formatFixProgressBlocks, formatFixResultBlocks } from "../../src/slack/formatter.js";
 import type { DomAuditSummary } from "../../src/types.js";
 
 const baseSummary: DomAuditSummary = {
@@ -124,5 +124,77 @@ describe("formatFixProgressBlocks", () => {
     expect(header.text.text).toContain("Applying Fix");
     const content = JSON.stringify(blocks);
     expect(content).toContain("A11Y-001 A11Y-002");
+  });
+});
+
+describe("formatFixResultBlocks", () => {
+  it("shows success with a View Fix link and no retry button when a PR was created", () => {
+    const blocks = formatFixResultBlocks(
+      {
+        prUrl: "https://github.com/acme/site/pull/42",
+        results: [
+          { id: "A11Y-001", status: "patched", verified: true, title: "Missing alt text" },
+          { id: "A11Y-002", status: "skipped", title: "Duplicate finding" },
+        ],
+      },
+      { owner: "acme", repo: "site" },
+    );
+    const header = blocks[0] as { text: { text: string } };
+    expect(header.text.text).toContain("Fix Complete");
+    const content = JSON.stringify(blocks);
+    expect(content).toContain("https://github.com/acme/site/pull/42");
+    expect(content).toContain("View Fix");
+    expect(content).not.toContain("a11y_retry_fix");
+    expect(content).not.toContain("Retry Fix");
+  });
+
+  it("shows success even when the job also reports a failed step, as long as a PR exists (lost notification, not a real failure)", () => {
+    const blocks = formatFixResultBlocks(
+      { prUrl: "https://github.com/acme/site/pull/7", failedStep: "Rebuild target after patch" },
+      { owner: "acme", repo: "site" },
+    );
+    const header = blocks[0] as { text: { text: string } };
+    expect(header.text.text).toContain("Fix Complete");
+    const content = JSON.stringify(blocks);
+    expect(content).not.toContain("Retry Fix");
+  });
+
+  it("shows failure with the failed step and a retry button when no PR was created", () => {
+    const blocks = formatFixResultBlocks(
+      { failedStep: "Rebuild target after patch" },
+      { owner: "acme", repo: "site", headSha: "abc1234", headRef: "feat/x", baseRef: "main", findingIds: "A11Y-001,A11Y-002" },
+    );
+    const header = blocks[0] as { text: { text: string } };
+    expect(header.text.text).toContain("Fix Failed");
+    const content = JSON.stringify(blocks);
+    expect(content).toContain("Rebuild target after patch");
+    expect(content).toContain("a11y_retry_fix");
+    expect(content).toContain("Retry Fix");
+    const retryValue = JSON.parse((blocks.at(-1) as any).elements[0].value);
+    expect(retryValue.id).toBe("A11Y-001,A11Y-002");
+    expect(retryValue.o).toBe("acme");
+    expect(retryValue.r).toBe("site");
+  });
+
+  it("falls back to a generic reason when no step could be attributed", () => {
+    const blocks = formatFixResultBlocks(
+      {},
+      { owner: "acme", repo: "site", pullNumber: 12 },
+    );
+    const content = JSON.stringify(blocks);
+    expect(content).toContain("did not complete");
+    expect(content).toContain("a11y_retry_fix");
+    const retryValue = JSON.parse((blocks.at(-1) as any).elements[0].value);
+    expect(retryValue.n).toBe(12);
+    expect(retryValue.id).toBeUndefined();
+  });
+
+  it("uses the explicit reason (e.g. nothing to fix) over the generic fallback", () => {
+    const blocks = formatFixResultBlocks(
+      { reason: "No findings could be automatically fixed" },
+      { owner: "acme", repo: "site" },
+    );
+    const content = JSON.stringify(blocks);
+    expect(content).toContain("No findings could be automatically fixed");
   });
 });

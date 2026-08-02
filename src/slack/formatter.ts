@@ -86,6 +86,8 @@ export interface ResultContext {
 	jiraApiMode?: boolean;
 	/** When true, "Create GitHub Issue" buttons are shown. Hidden by default. */
 	githubIssuesEnabled?: boolean;
+	/** Original finding_ids requested for a fix ("all" or comma-separated IDs) — used to rebuild a retry value. */
+	findingIds?: string;
 }
 
 function buildFixValue(id: string | null, context: ResultContext): string {
@@ -567,4 +569,114 @@ export function formatFixProgressBlocks(
 		},
 		{ type: "section", text: { type: "mrkdwn", text: "Fix in progress…" } },
 	];
+}
+
+export interface FixResultRow {
+	id: string;
+	status?: string;
+	verified?: boolean;
+	title?: string;
+	message?: string;
+}
+
+export interface FixResultSummary {
+	/** Presence means a PR was actually created — always show success, never a retry button. */
+	prUrl?: string;
+	/** Name of the workflow step that crashed the job, when it can be determined. */
+	failedStep?: string;
+	/** Human-readable reason when the job finished without crashing but produced no PR. */
+	reason?: string;
+	results?: FixResultRow[];
+}
+
+function buildFixResultRows(results: FixResultRow[]): string {
+	return results
+		.map((r) => {
+			const alreadyResolved = (r.message ?? "")
+				.toLowerCase()
+				.includes("already resolved");
+			const icon =
+				alreadyResolved || r.verified
+					? ":white_check_mark:"
+					: r.status === "skipped"
+						? ":fast_forward:"
+						: ":x:";
+			const text = alreadyResolved
+				? "Already resolved"
+				: r.verified
+					? "Fixed & verified"
+					: r.status === "skipped"
+						? "Skipped"
+						: "Failed";
+			return `${icon}  \`${r.id}\` ${r.title || "—"} — ${text}`;
+		})
+		.join("\n");
+}
+
+export function formatFixResultBlocks(
+	summary: FixResultSummary,
+	context: ResultContext,
+): Record<string, unknown>[] {
+	const label = `${context.owner}/${context.repo}`;
+	const rows = buildFixResultRows(summary.results ?? []);
+
+	if (summary.prUrl) {
+		return [
+			{
+				type: "header",
+				text: { type: "plain_text", text: `✅ Fix Complete — ${label}` },
+			},
+			{
+				type: "section",
+				text: { type: "mrkdwn", text: rows || "No results" },
+			},
+			{
+				type: "actions",
+				elements: [
+					{
+						type: "button",
+						text: { type: "plain_text", text: "View Fix" },
+						url: summary.prUrl,
+						action_id: "view_fix_pr",
+					},
+				],
+			},
+		];
+	}
+
+	const reasonText = summary.failedStep
+		? `Failed at step: *${summary.failedStep}*`
+		: (summary.reason ?? "The fix workflow did not complete.");
+
+	const retryValue = buildFixValue(context.findingIds ?? null, context);
+
+	const blocks: Record<string, unknown>[] = [
+		{
+			type: "header",
+			text: { type: "plain_text", text: `❌ Fix Failed — ${label}` },
+		},
+		{
+			type: "section",
+			text: { type: "mrkdwn", text: reasonText },
+		},
+	];
+
+	if (rows) {
+		blocks.push({ type: "section", text: { type: "mrkdwn", text: rows } });
+	}
+
+	blocks.push({
+		type: "actions",
+		elements: [
+			{
+				type: "button",
+				text: { type: "plain_text", text: "Retry Fix" },
+				action_id: "a11y_retry_fix",
+				value: retryValue,
+				style: "primary",
+			},
+		],
+	});
+
+	return blocks;
 }

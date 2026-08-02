@@ -193,6 +193,41 @@ describe("Jira project key modal submission", () => {
   });
 });
 
+describe("a11y_retry_fix button → reuses the fix-trigger mechanism", () => {
+  it("opens the fix modal targeting the same PR, defaulting to 'all' findings", async () => {
+    const retryValue = JSON.stringify({ o: "acme", r: "site", n: 42, i: 0 });
+    const result = await verifyAndRoute({
+      rawBody: makeBlockActionPayload(retryValue, "a11y_retry_fix"),
+      timestamp: "12345",
+      signature: "v0=fake",
+    });
+
+    expect(result.status).toBe(200);
+    expect(mockViewsOpen).toHaveBeenCalledOnce();
+    const callArg = mockViewsOpen.mock.calls[0][0] as { view: { callback_id: string; private_metadata: string } };
+    expect(callArg.view.callback_id).toBe("a11y_fix_modal");
+    const metadata = JSON.parse(callArg.view.private_metadata);
+    expect(metadata.findingIds).toBe("all");
+    expect(metadata.owner).toBe("acme");
+    expect(metadata.repo).toBe("site");
+    expect(metadata.pullNumber).toBe(42);
+  });
+
+  it("reuses the original finding IDs when they were reconstructable", async () => {
+    const retryValue = JSON.stringify({ id: "A11Y-001,A11Y-002", o: "acme", r: "site", n: 42, i: 0 });
+    const result = await verifyAndRoute({
+      rawBody: makeBlockActionPayload(retryValue, "a11y_retry_fix"),
+      timestamp: "12345",
+      signature: "v0=fake",
+    });
+
+    expect(result.status).toBe(200);
+    const callArg = mockViewsOpen.mock.calls[0][0] as { view: { private_metadata: string } };
+    const metadata = JSON.parse(callArg.view.private_metadata);
+    expect(metadata.findingIds).toBe("A11Y-001,A11Y-002");
+  });
+});
+
 describe("executeDeferredWork block_actions", () => {
   it("handles block_actions deferred work without throwing", async () => {
     const interaction: SlackInteractionPayload = {
