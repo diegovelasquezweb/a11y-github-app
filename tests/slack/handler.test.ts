@@ -33,9 +33,35 @@ vi.mock("@vercel/functions", () => ({
   waitUntil: vi.fn((p: Promise<unknown>) => p),
 }));
 
+vi.mock("../../src/github/auth.js", () => ({
+  findInstallationForRepo: vi.fn().mockResolvedValue(123),
+  getInstallationOctokit: vi.fn().mockReturnValue({} as unknown),
+  createInstallationToken: vi.fn().mockResolvedValue("token123"),
+  getRepoOctokit: vi.fn(),
+}));
+
+vi.mock("../../src/github/resolve-pr-input.js", () => ({
+  resolvePr: vi.fn(),
+}));
+
+vi.mock("../../src/review/dom-reporter.js", () => ({
+  createDomAuditPendingCheck: vi.fn().mockResolvedValue(1),
+  createFixPendingCheck: vi.fn().mockResolvedValue(2),
+}));
+
+vi.mock("../../src/review/fix-workflow.js", () => ({
+  dispatchFixWorkflow: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("../../src/webhook/process.js", () => ({
+  resolveBranchRef: vi.fn(),
+}));
+
 import { errorCodeToMessage, executeDeferredWork, verifyAndRoute } from "../../src/slack/handler.js";
 import { createJiraIssue } from "../../src/jira/create-issue.js";
 import { getSlackClient } from "../../src/slack/client.js";
+import { dispatchFixWorkflow } from "../../src/review/fix-workflow.js";
+import { resolveBranchRef } from "../../src/webhook/process.js";
 
 const mockViewsOpen = vi.fn().mockResolvedValue({ ok: true });
 const mockViewsUpdate = vi.fn().mockResolvedValue({ ok: true });
@@ -225,6 +251,61 @@ describe("a11y_retry_fix button → reuses the fix-trigger mechanism", () => {
     const callArg = mockViewsOpen.mock.calls[0][0] as { view: { private_metadata: string } };
     const metadata = JSON.parse(callArg.view.private_metadata);
     expect(metadata.findingIds).toBe("A11Y-001,A11Y-002");
+  });
+});
+
+describe("handleFixSubmit — branch/issue fix (no PR)", () => {
+  it("re-resolves the full SHA when the stored headSha was truncated to 7 chars", async () => {
+    const fullSha = "e125f3d9999999999999999999999999999999";
+    vi.mocked(resolveBranchRef).mockResolvedValue({ ref: "feat/update-components", sha: fullSha });
+
+    const metadata = JSON.stringify({
+      owner: "acme",
+      repo: "site",
+      headSha: "e125f3d",
+      headRef: "feat/update-components",
+      baseRef: "main",
+      pullNumber: 0,
+      installationId: 123,
+    });
+
+    const result = await verifyAndRoute({
+      rawBody: makeViewSubmissionPayload("a11y_fix_modal", {}, metadata),
+      timestamp: "12345",
+      signature: "v0=fake",
+    });
+
+    expect(result.status).toBe(200);
+    expect(resolveBranchRef).toHaveBeenCalledWith(expect.anything(), "acme", "site", "feat/update-components");
+    expect(dispatchFixWorkflow).toHaveBeenCalledOnce();
+    const dispatchArg = vi.mocked(dispatchFixWorkflow).mock.calls[0][0];
+    expect(dispatchArg.headSha).toBe(fullSha);
+  });
+
+  it("does not re-resolve when the stored headSha is already a full 40-char SHA", async () => {
+    const fullSha = "a".repeat(40);
+
+    const metadata = JSON.stringify({
+      owner: "acme",
+      repo: "site",
+      headSha: fullSha,
+      headRef: "feat/update-components",
+      baseRef: "main",
+      pullNumber: 0,
+      installationId: 123,
+    });
+
+    const result = await verifyAndRoute({
+      rawBody: makeViewSubmissionPayload("a11y_fix_modal", {}, metadata),
+      timestamp: "12345",
+      signature: "v0=fake",
+    });
+
+    expect(result.status).toBe(200);
+    expect(resolveBranchRef).not.toHaveBeenCalled();
+    expect(dispatchFixWorkflow).toHaveBeenCalledOnce();
+    const dispatchArg = vi.mocked(dispatchFixWorkflow).mock.calls[0][0];
+    expect(dispatchArg.headSha).toBe(fullSha);
   });
 });
 

@@ -424,6 +424,19 @@ async function handleFixSubmit(interaction: SlackInteractionPayload): Promise<Sl
     }
   }
 
+  // headSha may be truncated to 7 chars (Slack's 150-char value limit) — not a valid checkout ref.
+  if (pullNumber <= 0 && headSha && headSha.length !== 40) {
+    try {
+      const octokit = getInstallationOctokit(installationId);
+      const resolved = await resolveBranchRef(octokit, owner, repo, headRef || undefined);
+      headSha = resolved.sha;
+      headRef = resolved.ref;
+    } catch (err) {
+      console.warn("[slack] handleFixSubmit resolveBranchRef failed:", err);
+      return { status: 200, body: { response_action: "errors", errors: { ai_model_block: "Could not resolve branch — re-run the audit." } } };
+    }
+  }
+
   if (!headSha) {
     return { status: 200, body: { response_action: "errors", errors: { ai_model_block: "Session data lost. Please re-run the audit." } } };
   }
