@@ -197,4 +197,26 @@ describe("formatFixResultBlocks", () => {
     const content = JSON.stringify(blocks);
     expect(content).toContain("No findings could be automatically fixed");
   });
+
+  it("splits a long results list across multiple section blocks instead of exceeding Slack's 3000-char limit", () => {
+    const results = Array.from({ length: 80 }, (_, i) => ({
+      id: `A11Y-${String(i).padStart(3, "0")}`,
+      status: "patched",
+      verified: true,
+      title: "Missing alt text on decorative image inside the hero carousel",
+    }));
+    const blocks = formatFixResultBlocks(
+      { prUrl: "https://github.com/acme/site/pull/42", results },
+      { owner: "acme", repo: "site" },
+    );
+    const sectionTexts = (blocks as Array<{ type: string; text?: { text: string } }>)
+      .filter((b) => b.type === "section")
+      .map((b) => b.text!.text);
+    expect(sectionTexts.length).toBeGreaterThan(1);
+    for (const text of sectionTexts) {
+      expect(text.length).toBeLessThanOrEqual(3000);
+    }
+    const rowCount = sectionTexts.join("\n").split("\n").filter((l) => l.startsWith(":")).length;
+    expect(rowCount).toBe(results.length);
+  });
 });

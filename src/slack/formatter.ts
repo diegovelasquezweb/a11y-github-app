@@ -589,6 +589,25 @@ export interface FixResultSummary {
 	results?: FixResultRow[];
 }
 
+const SLACK_SECTION_TEXT_LIMIT = 3000;
+
+function buildRowsSectionBlocks(rows: string): Record<string, unknown>[] {
+	if (!rows) return [];
+	const chunks: string[] = [];
+	let current = "";
+	for (const line of rows.split("\n")) {
+		const candidate = current ? `${current}\n${line}` : line;
+		if (candidate.length > SLACK_SECTION_TEXT_LIMIT && current) {
+			chunks.push(current);
+			current = line;
+		} else {
+			current = candidate;
+		}
+	}
+	if (current) chunks.push(current);
+	return chunks.map((text) => ({ type: "section", text: { type: "mrkdwn", text } }));
+}
+
 function buildFixResultRows(results: FixResultRow[]): string {
 	return results
 		.map((r) => {
@@ -626,10 +645,9 @@ export function formatFixResultBlocks(
 				type: "header",
 				text: { type: "plain_text", text: `✅ Fix Complete — ${label}` },
 			},
-			{
-				type: "section",
-				text: { type: "mrkdwn", text: rows || "No results" },
-			},
+			...(rows
+				? buildRowsSectionBlocks(rows)
+				: [{ type: "section", text: { type: "mrkdwn", text: "No results" } }]),
 			{
 				type: "actions",
 				elements: [
@@ -661,9 +679,7 @@ export function formatFixResultBlocks(
 		},
 	];
 
-	if (rows) {
-		blocks.push({ type: "section", text: { type: "mrkdwn", text: rows } });
-	}
+	blocks.push(...buildRowsSectionBlocks(rows));
 
 	blocks.push({
 		type: "actions",
