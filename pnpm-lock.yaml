@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@diegovelasquezweb/a11y-engine':
-        specifier: ^1.2.4
-        version: 1.2.4(playwright-core@1.59.1)(typescript@5.9.3)
+        specifier: ^1.2.5
+        version: 1.2.5(playwright-core@1.59.1)(typescript@5.9.3)
       '@octokit/auth-app':
         specifier: ^8.1.0
         version: 8.2.0
@@ -64,8 +64,8 @@ packages:
     resolution: {integrity: sha512-qehxGkRj55h/ff8EMaJ+cYhyaKlHIxqYDn682wQD7RNp9UujOQsHog2uS0r2vzr4pW+sXf90NeeayjcNaX3fFg==}
     engines: {node: '>=6.9.0'}
 
-  '@diegovelasquezweb/a11y-engine@1.2.4':
-    resolution: {integrity: sha512-dQlvnk5xFUnh+/7Vqe6r++jEuAsaEyvvfo9Vl3GlYKbcoQJTuYATl5hWxpDIXBxv/+u+wM3ytQeykdLuQrIJRg==}
+  '@diegovelasquezweb/a11y-engine@1.2.5':
+    resolution: {integrity: sha512-KaXi/F8QF+d9jjpYQd4ZNAEXuMrMc2UeVHbY7DrzKPbSMiBN8dh5fqquYQXXCyRB6JmamXX68CyU/eZwBotxNA==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -1146,8 +1146,8 @@ packages:
     resolution: {integrity: sha512-71ippSywq5Yb7/tVYyGbkBggbU8H3u5Rz56fH60jGFgr8uHwxs+aSKeqmluIVzM0m0kB7xQjKS6qPfd0b2ZoqQ==}
     hasBin: true
 
-  nanoid@3.3.16:
-    resolution: {integrity: sha512-bzlKTyNJ7+LdGIIwy8ijFpIqEQIvafahV7eYykJ8Cvh42EdJeODoJ6gUJXpQJvej1BddH8OqTXZNE/KfbWAu8Q==}
+  nanoid@3.3.18:
+    resolution: {integrity: sha512-DTg4MJbGMWkfi6VZFdNt2/caMbQy4Ou+Op/hJQvGEWcnVfoA1QA+xzRKAzw9jD6+GVOOeYr/mIcuDSdug6F6+w==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
 
@@ -1248,8 +1248,8 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
-  postcss@8.5.25:
-    resolution: {integrity: sha512-DTPx3RWSSnWyzLxQnlH0rJP+EW5ekl16ZU4/psbIhA0e53kJfdgaN5vKM+xP7yJtXVu+nfdVFmlgFDEKAe4Pyw==}
+  postcss@8.5.26:
+    resolution: {integrity: sha512-u82N74LFzG8ca+dD8puPnplTXoGH4fTPpVGuIbt36G3qvNlkvfD0lEAZSxaly3KX8TS/L1A1gsCEmvKmBcVbkQ==}
     engines: {node: ^10 || ^12 || >=14}
 
   progress@2.0.3:
@@ -1626,7 +1626,7 @@ snapshots:
 
   '@babel/helper-validator-identifier@7.29.7': {}
 
-  '@diegovelasquezweb/a11y-engine@1.2.4(playwright-core@1.59.1)(typescript@5.9.3)':
+  '@diegovelasquezweb/a11y-engine@1.2.5(playwright-core@1.59.1)(typescript@5.9.3)':
     dependencies:
       '@axe-core/playwright': 4.11.1(playwright-core@1.59.1)
       axe-core: 4.11.2
@@ -2621,7 +2621,7 @@ snapshots:
 
   mustache@4.2.0: {}
 
-  nanoid@3.3.16: {}
+  nanoid@3.3.18: {}
 
   negotiator@1.0.0: {}
 
@@ -2732,9 +2732,9 @@ snapshots:
     optionalDependencies:
       fsevents: 2.3.2
 
-  postcss@8.5.25:
+  postcss@8.5.26:
     dependencies:
-      nanoid: 3.3.16
+      nanoid: 3.3.18
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
@@ -3052,7 +3052,7 @@ snapshots:
     dependencies:
       lightningcss: 1.33.0
       picomatch: 4.0.5
-      postcss: 8.5.25
+      postcss: 8.5.26
       rolldown: 1.0.0-rc.15
       tinyglobby: 0.2.17
     optionalDependencies:
