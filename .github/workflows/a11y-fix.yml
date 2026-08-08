@@ -410,7 +410,10 @@ jobs:
                 process.stdout.write('echo [' + r.id + '] status=' + status + '\n');
                 fs.appendFileSync(process.env.D, '[' + r.id + '] ' + status + ' | ' + (r.message||'').replace(/[\r\n]+/g,' ').slice(0,150) + '\n');
                 entries.push({ id: r.id, status, patched_file: r.patchedFile||'', title: r.findingTitle||'', message: r.message||'' });
-                if (r.status === 'patched') {
+                // Re-verify 'skipped' findings too — the file may have changed anyway from a
+                // sibling finding's fix in the same batch, so the underlying issue can already
+                // be resolved even though this specific finding never got its own tagged change.
+                if (r.status === 'patched' || status === 'skipped') {
                   patchedIds.push(r.id);
                   if (r.verifyRoute) verifyRoutes.push(r.verifyRoute);
                   if (r.verifyRule) verifyRules.push(r.verifyRule);
@@ -727,7 +730,10 @@ jobs:
             const entry = results.find(r => r.id === id)
             if (entry) {
               entry.verified = verified
-              if (!verified) entry.status = 'unverified'
+              // Only relabel to 'unverified' if the engine actually applied a change for this
+              // finding — a genuinely skipped finding that still fails re-verification should
+              // stay 'skipped', not read as "we patched it but couldn't confirm it worked".
+              if (!verified && entry.status !== 'skipped') entry.status = 'unverified'
             }
             if (verified) {
               verifiedCount++
