@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@diegovelasquezweb/a11y-engine':
-        specifier: ^1.2.10
-        version: 1.2.10(playwright-core@1.59.1)(typescript@5.9.3)
+        specifier: ^1.2.11
+        version: 1.2.11(playwright-core@1.59.1)
       '@octokit/auth-app':
         specifier: ^8.1.0
         version: 8.2.0
@@ -64,8 +64,8 @@ packages:
     resolution: {integrity: sha512-qehxGkRj55h/ff8EMaJ+cYhyaKlHIxqYDn682wQD7RNp9UujOQsHog2uS0r2vzr4pW+sXf90NeeayjcNaX3fFg==}
     engines: {node: '>=6.9.0'}
 
-  '@diegovelasquezweb/a11y-engine@1.2.10':
-    resolution: {integrity: sha512-3m9PHgt3gJZq8d7dbWRa4XLo0JHdgIliBDDU8f7lp3WkBpsBYgANLl2sWY6nE9q/fkqFORwjXXGSvWt61Pn8tA==}
+  '@diegovelasquezweb/a11y-engine@1.2.11':
+    resolution: {integrity: sha512-EHZJqc6CLhm6Kh4OEVxodQgq82Zy7oH1PRFds2+2A4sHp4W3Vp0OSIA/VTWAifaFByIwzRIZVWvNQJWDzOFrTQ==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -1626,13 +1626,14 @@ snapshots:
 
   '@babel/helper-validator-identifier@7.29.7': {}
 
-  '@diegovelasquezweb/a11y-engine@1.2.10(playwright-core@1.59.1)(typescript@5.9.3)':
+  '@diegovelasquezweb/a11y-engine@1.2.11(playwright-core@1.59.1)':
     dependencies:
       '@axe-core/playwright': 4.11.1(playwright-core@1.59.1)
       axe-core: 4.11.2
       pa11y: 9.1.1(typescript@5.9.3)
       playwright: 1.59.1
       puppeteer: 24.43.1(typescript@5.9.3)
+      typescript: 5.9.3
     transitivePeerDependencies:
       - bare-abort-controller
       - bare-buffer
@@ -1640,7 +1641,6 @@ snapshots:
       - playwright-core
       - react-native-b4a
       - supports-color
-      - typescript
       - utf-8-validate
 
   '@emnapi/core@1.9.2':
